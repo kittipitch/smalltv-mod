@@ -120,15 +120,16 @@ static void drawClockOverlay(DisplayMode* m) {
   // since this whole function only runs once per CLOCK_OVERLAY_REDRAW_MS
   // or on a mode switch, not every loop tick (that's what caused the
   // earlier flashing).
-  // x is shifted left of a naive right-edge position to clear
-  // UsageMode's warn/status dot (fillCircle(228,18,r5) -> spans x223-233,
-  // y13-23) -- that dot redraws on every usage data tick, far more often
-  // than this overlay's 5s gate, so any overlap caused the last digit to
-  // intermittently look partially erased between our redraws. A one-time,
-  // static ~4px overlap with the tail of the "CLAUDE" title glyph is
-  // accepted instead -- that's drawn once per full redraw, not fought over.
-  const int x = 158, y = 14, w = 60, h = 16;
-  gfx->fillRect(x, y, w, h, C_BLACK);
+  // Right-aligned position, kept as originally approved (a left-shift to
+  // dodge UsageMode's warn dot at (228,18,r5) was tried and reverted --
+  // user wants this exact spot regardless of that dot glitch on the usage
+  // page). Fill rect is padded a few px beyond the nominal glyph box on
+  // every side since the exact fit was leaving a sliver of old ink visible
+  // (e.g. bottom of "8") -- can't verify exact font metrics without seeing
+  // the device, so over-covering is the safe fix instead of chasing an
+  // exact match that keeps missing by a couple of pixels.
+  const int x = TFT_WIDTH - 64, y = 14, w = 64, h = 20;
+  gfx->fillRect(x - 2, y - 2, w, h, C_BLACK);
   gfx->setTextSize(2);
   gfx->setTextColor(C_RED, C_BLACK);
   gfx->setCursor(x, y);
