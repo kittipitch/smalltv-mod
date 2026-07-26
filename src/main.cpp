@@ -95,7 +95,7 @@ static void carouselNext(const Settings& s) {
 // 15s bounds how long a mode's own internal full redraw (settings save,
 // wake, mascot-exit, data refresh) can blank this area before it self-heals,
 // without redrawing so often it risks the same flashing.
-static const uint32_t CLOCK_OVERLAY_REDRAW_MS = 5000;
+static const uint32_t CLOCK_OVERLAY_REDRAW_MS = 1000;
 static uint32_t s_clockNextRedrawMs = 0;
 static DisplayMode* s_clockLastMode = nullptr;
 
