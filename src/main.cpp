@@ -59,7 +59,9 @@ static uint32_t g_carSwitch = 0;
 
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
-    case MODE_STOCKS: return s.carouselTicker;
+    // Skip ticker in the carousel until at least one symbol is configured —
+    // otherwise it just shows an empty "No tickers" page every rotation.
+    case MODE_STOCKS: return s.carouselTicker && s.ticker.symbolCount > 0;
     case MODE_USAGE:  return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
     case MODE_CALENDAR: return s.carouselCalendar;
