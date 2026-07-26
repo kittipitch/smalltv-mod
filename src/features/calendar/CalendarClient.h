@@ -17,5 +17,5 @@ const CalendarEvent& calendarGet();
 const WeatherData&   weatherGet();
 
 // Apply payloads PUSHED to the device.
-bool calendarApply(const String& body);   // {ok,summary,start,allDay}
+bool calendarApply(const String& body);   // {ok,events:[{summary,start,allDay}, ...]}
 bool weatherApply(const String& body);    // {ok,tempC?,precipPct?,weatherCode?,pm25?,aqi?}

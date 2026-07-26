@@ -150,7 +150,11 @@ static void drawUsage(const UsageData& u, bool full) {
   // can flip between identical-looking data updates and isn't covered by
   // the full-screen clear on steady-state redraws.
   bool warn = u.status[0] && strncmp(u.status, "allowed", 7) != 0;
-  gfx->fillCircle(228, 18, 5, warn ? C_ACCENT : C_BLACK);
+  // x=160: clear of the clock overlay's flip-clock cards (right-aligned to
+  // x=232, clear rect starts ~x=173) -- was x=228, which sat under the
+  // clock's last digit card and punched a hole in it on every redraw here
+  // (this dot is ungated/unconditional, the clock only redraws every 30s).
+  gfx->fillCircle(160, 18, 5, warn ? C_ACCENT : C_BLACK);
 
   drawMeter(gfx, 50,  "5h", u.sessionPct, u.sessionResetMin, full);
   drawMeter(gfx, 138, "7d", u.weeklyPct,  u.weeklyResetMin, full);
@@ -205,19 +209,34 @@ void UsageMode::begin(const Settings& s) {
 void UsageMode::drawClockOverlay() {
   struct tm t;
   if (!clockNow(t)) return;   // unsynced -- nothing trustworthy to show yet
-  if ((int32_t)(millis() - clockNextRedrawMs_) < 0) return;
-  clockNextRedrawMs_ = millis() + 2000;
+  int curMinute = t.tm_hour * 60 + t.tm_min;
+  bool minuteChanged = curMinute != clockLastMinute_;
+  if (!minuteChanged && (int32_t)(millis() - clockNextRedrawMs_) < 0) return;
+  clockNextRedrawMs_ = millis() + 30000;   // redraw interval, per explicit request (was 2s)
+  clockLastMinute_ = curMinute;
 
   Arduino_GFX* gfx = gfxDev();
   if (!gfx) return;
   char buf[6];
   snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
-  const int x = TFT_WIDTH - 62, y = 14, w = 62, h = 22;
-  gfx->fillRect(x, y, w, h, C_BLACK);
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_RED, C_BLACK);
-  gfx->setCursor(x, y);
-  gfx->print(buf);
+  const char digits[4] = { buf[0], buf[1], buf[3], buf[4] };
+
+  // Flip-clock look: 4 grey digit cards (no colon), red digits -- per
+  // explicit request, replacing the plain "HH:MM" text.
+  const int cardW = 13, cardH = 22, gapIn = 1, gapPair = 3;
+  const int totalW = cardW * 4 + gapIn * 2 + gapPair;
+  const int cardsRight = 8 + 224;   // matches drawMeter's card right edge (x=8, w=224)
+  const int x0 = cardsRight - totalW, y = 14;
+  gfx->fillRect(x0 - 2, y, totalW + 4, cardH, C_BLACK);   // clear old footprint too
+  int cx = x0;
+  for (int i = 0; i < 4; i++) {
+    gfx->fillRoundRect(cx, y, cardW, cardH, 2, C_PANEL);
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_RED, C_PANEL);
+    gfx->setCursor(cx + 1, y + 3);
+    gfx->print(digits[i]);
+    cx += cardW + (i == 1 ? gapPair : gapIn);
+  }
 }
 
 void UsageMode::invalidate(const Settings& s) {

@@ -2,6 +2,8 @@
 #include <Arduino_GFX_Library.h>
 #include "Gfx.h"
 #include "CalendarClient.h"
+#include "Clock.h"
+#include "WeatherIcons.h"
 
 CalendarAgendaMode  g_calendarAgendaMode;
 CalendarWeatherMode g_calendarWeatherMode;
@@ -13,6 +15,15 @@ CalendarWeatherMode g_calendarWeatherMode;
 #define C_DIM     0xB574   // secondary/placeholder text, warm grey
 #define C_SKY     0x5D9C   // muted blue — cloud/rain icon strokes
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
+
+// Muted 6-band US AQI colors (desaturated to match this palette's dark theme,
+// not the harsh saturated colors AirNow-style widgets use).
+#define C_AQI_GOOD             0x7C6B   // #788c5d sage green    (0-50)
+#define C_AQI_MODERATE         0xBCC9   // #b89b4a muted gold    (51-100)
+#define C_AQI_SENSITIVE        0xC3C8   // #c07840 muted orange  (101-150)
+#define C_AQI_UNHEALTHY        0xB289   // #b5524a muted red     (151-200)
+#define C_AQI_VERY_UNHEALTHY   0x8B53   // #8a6a9c muted purple  (201-300)
+#define C_AQI_HAZARDOUS        0x69C7   // #6b3a3a muted maroon  (301+)
 
 static const char* MONTH3[] = {
   "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
@@ -69,99 +80,114 @@ static WxCat wxCategory(int code, bool has) {
   return WX_UNKNOWN;
 }
 
-// Small vector icon, centered at (cx,cy), radius-scaled by r. Deliberately
-// simple shapes (circle/arcs/lines) — no bitmap assets, no image fetch; see
-// CalendarMode.h's header comment for why.
-static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, int r, WxCat cat) {
+// Real icon art (erikflowers/weather-icons, SIL OFL 1.1) baked into flash as
+// 1-bit PROGMEM masks -- see WeatherIcons.h. Replaced the earlier hand-drawn
+// vector shapes (circle+rays/roundrect+circles) per explicit request for
+// nicer icons; baked-in rather than fetched live, so it doesn't reopen the
+// device-side network/heap complexity that got weather itself moved to the
+// daemon. Drawn via the library's own gfx->drawBitmap(mask,w,h,color) --
+// the PROGMEM-safe 1-bit path (pgm_read_byte), same mechanism this codebase
+// already uses for font glyphs. An earlier RGB565-array version crashed
+// on-device (LoadStoreError reading a uint16_t PROGMEM array via
+// pgm_read_word) -- byte-wide reads don't hit that fault.
+
+// True if this ISO8601 date's Y/M/D matches `now` (device local time).
+static bool isSameLocalDay(const char* iso, const struct tm& now) {
+  if (strlen(iso) < 10) return false;
+  int y  = (iso[0]-'0')*1000 + (iso[1]-'0')*100 + (iso[2]-'0')*10 + (iso[3]-'0');
+  int mo = (iso[5]-'0')*10 + (iso[6]-'0');
+  int d  = (iso[8]-'0')*10 + (iso[9]-'0');
+  return y == now.tm_year + 1900 && mo == now.tm_mon + 1 && d == now.tm_mday;
+}
+
+static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
+  const uint8_t* mask;
+  uint16_t color;
   switch (cat) {
-    case WX_CLEAR:
-      gfx->fillCircle(cx, cy, r * 6 / 10, C_ACCENT);
-      for (int i = 0; i < 8; i++) {
-        float a = i * (2 * PI / 8);
-        int x0 = cx + (int)(cosf(a) * r * 0.75f), y0 = cy + (int)(sinf(a) * r * 0.75f);
-        int x1 = cx + (int)(cosf(a) * r), y1 = cy + (int)(sinf(a) * r);
-        gfx->drawLine(x0, y0, x1, y1, C_ACCENT);
-      }
-      break;
-    case WX_FOG:
-      for (int i = -1; i <= 1; i++)
-        gfx->drawFastHLine(cx - r, cy + i * (r / 2), r * 2, C_DIM);
-      break;
-    case WX_STORM:
-    case WX_RAIN:
-      gfx->fillRoundRect(cx - r, cy - r / 3, r * 2, r, r / 3, C_DIM);
-      gfx->fillCircle(cx - r / 2, cy - r / 3, r / 2, C_DIM);
-      gfx->fillCircle(cx + r / 2, cy - r / 2, r * 6 / 10, C_DIM);
-      for (int i = -1; i <= 1; i++)
-        gfx->drawLine(cx + i * (r / 2), cy + r / 2, cx + i * (r / 2) - 3, cy + r, C_SKY);
-      if (cat == WX_STORM)
-        gfx->drawLine(cx, cy + r / 3, cx + r / 3, cy + r, C_ACCENT);
-      break;
-    case WX_SNOW:
-      gfx->fillRoundRect(cx - r, cy - r / 3, r * 2, r, r / 3, C_DIM);
-      gfx->fillCircle(cx - r / 2, cy - r / 3, r / 2, C_DIM);
-      gfx->fillCircle(cx + r / 2, cy - r / 2, r * 6 / 10, C_DIM);
-      for (int i = -1; i <= 1; i++)
-        gfx->fillCircle(cx + i * (r / 2), cy + r, 2, C_WHITE);
-      break;
-    case WX_CLOUD:
-      gfx->fillRoundRect(cx - r, cy - r / 3, r * 2, r, r / 3, C_SKY);
-      gfx->fillCircle(cx - r / 2, cy - r / 3, r / 2, C_SKY);
-      gfx->fillCircle(cx + r / 2, cy - r / 2, r * 6 / 10, C_SKY);
-      break;
+    case WX_CLEAR: mask = kWxIconClear; color = C_ACCENT; break;
+    case WX_CLOUD: mask = kWxIconCloud; color = C_SKY;    break;
+    case WX_FOG:   mask = kWxIconFog;   color = C_DIM;    break;
+    case WX_RAIN:  mask = kWxIconRain;  color = C_SKY;    break;
+    case WX_SNOW:  mask = kWxIconSnow;  color = C_WHITE;  break;
+    case WX_STORM: mask = kWxIconStorm; color = C_ACCENT; break;
     case WX_UNKNOWN:
     default:
-      gfx->drawCircle(cx, cy, r * 6 / 10, C_DIM);
+      gfx->drawCircle(cx, cy, WX_ICON_SIZE * 3 / 10, C_DIM);
       gfx->setTextSize(3);
       gfx->setTextColor(C_DIM);
       gfx->setCursor(cx - 6, cy - 12);
       gfx->print("?");
-      break;
+      return;
   }
+  gfx->drawBitmap(cx - WX_ICON_SIZE / 2, cy - WX_ICON_SIZE / 2, mask, WX_ICON_SIZE, WX_ICON_SIZE, color);
 }
 
-// ---- render (3 independent modes, each its own carousel entry) -------------
+// ---- render (2 independent modes, each its own carousel entry) -------------
 // Agenda reuses the gray card panel look from UsageMode.cpp's drawMeter()
 // (fillRoundRect at x=8, w=224, radius 8, C_PANEL) per explicit request --
-// "steal that gray frame" -- instead of a plain black background.
+// "steal that gray frame" -- one card per upcoming event (up to CAL_MAX_EVENTS),
+// stacked on one screen exactly like the 5h/7d meter cards, instead of a single
+// oversized hero card or cycling through separate pages (both considered and
+// rejected -- "keep them in their own frame like the claude quota").
 static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
   gfx->fillScreen(C_BLACK);
-  const int x = 8, top = 20, w = 224, h = 200;
-  gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
-
+  const int x = 8, w = 224;
   bool connected = c.valid;
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 12);
-  gfx->print(connected ? "NEXT EVENT" : "CALENDAR");
+  uint8_t n = connected ? c.count : 0;
 
-  char hero[12];
-  uint16_t heroColor = C_ACCENT;
-  if (!connected || !c.hasEvent) {
-    strlcpy(hero, "--:--", sizeof(hero));
-    heroColor = C_DIM;
-  } else if (c.allDay) {
-    extractMonthDay(c.start, hero, sizeof(hero));
-  } else {
-    extractTimeHHMM(c.start, hero, sizeof(hero));
+  if (n == 0) {
+    const int top = 20, h = 200;
+    gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_DIM, C_PANEL);
+    gfx->setCursor(x + 14, top + 12);
+    gfx->print(connected ? "NEXT EVENT" : "CALENDAR");
+    gfx->setTextSize(3);
+    gfx->setTextColor(C_DIM, C_PANEL);
+    gfx->setCursor(x + 14, top + 90);
+    gfx->print(connected ? "No events" : "No data");
+    return;
   }
-  gfx->setTextSize(4);
-  gfx->setTextColor(heroColor, C_PANEL);
-  gfx->setCursor(x + 14, top + 56);
-  gfx->print(hero);
 
-  char titleBuf[16];
-  if (!connected) {
-    strlcpy(titleBuf, "No data", sizeof(titleBuf));
-  } else if (!c.hasEvent) {
-    strlcpy(titleBuf, "No events", sizeof(titleBuf));
-  } else {
-    truncateDots(c.summary, titleBuf, sizeof(titleBuf), 11);
+  struct tm now;
+  bool haveNow = clockNow(now);
+
+  const int top0 = 6, gap = 6, bottom = 234;
+  const int h = (bottom - top0 - gap * (n - 1)) / n;
+  for (uint8_t i = 0; i < n; i++) {
+    int top = top0 + i * (h + gap);
+    gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+
+    const CalendarEventItem& ev = c.items[i];
+
+    // Date, left-aligned: "Today" when it matches the device's local date,
+    // else "Mon DD" -- explicit request, was previously just the bare time.
+    char dateBuf[12];
+    if (haveNow && isSameLocalDay(ev.start, now)) strlcpy(dateBuf, "Today", sizeof(dateBuf));
+    else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_ACCENT, C_PANEL);
+    gfx->setCursor(x + 12, top + 8);
+    gfx->print(dateBuf);
+
+    // Time, right-aligned on the same row. Size-2 glyphs are 12px wide.
+    char timeBuf[8];
+    if (ev.allDay) strlcpy(timeBuf, "All day", sizeof(timeBuf));
+    else extractTimeHHMM(ev.start, timeBuf, sizeof(timeBuf));
+    int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
+    gfx->setCursor(timeX, top + 8);
+    gfx->print(timeBuf);
+
+    // Card usable width is w-24 (12px margin each side) = 200px; size-2 glyphs
+    // are 12px wide, so 16 chars is the hard ceiling before writing past the
+    // card's right edge -- was 20, overflowed the frame border.
+    char titleBuf[24];
+    truncateDots(ev.summary, titleBuf, sizeof(titleBuf), 16);
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_WHITE, C_PANEL);
+    gfx->setCursor(x + 12, top + h - 32);
+    gfx->print(titleBuf);
   }
-  gfx->setTextSize(3);
-  gfx->setTextColor(connected && c.hasEvent ? C_WHITE : C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 120);
-  gfx->print(titleBuf);
 }
 
 // Combined weather + air quality on one screen (was 2 separate sub-pages,
@@ -170,11 +196,25 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
 // AQI + PM2.5.
 static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   gfx->fillScreen(C_BLACK);
-  drawRow(gfx, 10, 2, C_DIM, "WEATHER");
+  // City name doubles as the page header -- the weather/AQI content below
+  // already makes clear what kind of page this is, so a separate "WEATHER"
+  // label is redundant once a city is known. Falls back to "WEATHER" only
+  // when no city has arrived yet (e.g. daemon not yet updated/restarted).
+  // City is reverse-geocoded by the daemon (same free lookup the web UI's
+  // "Use my location" button already does) -- truncated to fit, not sent
+  // through any AI/LLM abbreviation (would add cost/latency for a string
+  // that barely ever changes).
+  if (w.hasCity) {
+    char cityBuf[20];
+    truncateDots(w.city, cityBuf, sizeof(cityBuf), 18);
+    drawRow(gfx, 10, 2, C_DIM, cityBuf);
+  } else {
+    drawRow(gfx, 10, 2, C_DIM, "WEATHER");
+  }
 
   bool wxOk = w.hasTemp || w.hasPrecip;
   WxCat cat = wxCategory(w.weatherCode, w.hasWeatherCode);
-  drawWeatherIcon(gfx, 106, 66, 26, wxOk ? cat : WX_UNKNOWN);
+  drawWeatherIcon(gfx, 106, 66, wxOk ? cat : WX_UNKNOWN);
 
   char t[10] = "--";
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
@@ -187,14 +227,17 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   if (w.hasPrecip) snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
   drawRow(gfx, 142, 3, w.hasPrecip ? C_SKY : C_DIM, p);
 
-  // 3-tier band color (the palette has no distinct yellow/amber, so US AQI's
-  // 4 bands collapse to 3: good / moderate-to-unhealthy-for-sensitive /
-  // unhealthy — a deliberate, documented simplification, not a bug).
+  // Full 6-band US AQI color scale, muted to match this palette's dark theme
+  // (not AirNow's harsh saturated colors) -- see C_AQI_* above.
   char aqiBuf[16];
   uint16_t aqiColor = C_DIM;
   if (w.hasAqi) {
     snprintf(aqiBuf, sizeof(aqiBuf), "AQI %d", w.aqi);
-    aqiColor = (w.aqi <= 50) ? C_UGREEN : (w.aqi <= 150) ? C_ACCENT : C_RED;
+    aqiColor = (w.aqi <= 50)  ? C_AQI_GOOD :
+               (w.aqi <= 100) ? C_AQI_MODERATE :
+               (w.aqi <= 150) ? C_AQI_SENSITIVE :
+               (w.aqi <= 200) ? C_AQI_UNHEALTHY :
+               (w.aqi <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
   } else {
     strlcpy(aqiBuf, "AQI --", sizeof(aqiBuf));
   }

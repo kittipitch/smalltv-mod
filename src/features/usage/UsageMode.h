@@ -28,6 +28,9 @@ class UsageMode : public DisplayMode {
   // doesn't — see drawUsage()'s `full` param and its self-clearing meters.
   bool     needFullRender_ = true;
   uint32_t clockNextRedrawMs_ = 0;   // top-right "HH:MM" overlay, this page only
+  int      clockLastMinute_ = -1;    // forces an immediate redraw on minute change,
+                                      // not just every 30s -- avoids showing a stale
+                                      // digit for up to 30s after the real change
 };
 
 extern UsageMode g_usageMode;

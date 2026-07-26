@@ -63,7 +63,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <button data-t="ticker">Ticker</button>
  <button data-t="usage">Usage</button>
  <button data-t="radar">Radar</button>
- <button data-t="calendar">Calendar</button>
+ <button data-t="calendar">Agenda &amp; weather</button>
  <button data-t="update">Update</button>
 </nav>
 <main>
@@ -98,18 +98,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
  <!-- DISPLAY (shared) -->
  <section id="display" class="tab">
-  <div class="card"><h2>Access</h2>
-   <div id="unlockRow" style="display:none">
-    <label>Unlock this browser <span class="muted">(enter the current key already set on the device)</span></label>
-    <div class="row"><input id="unlockKey" type="text" autocomplete="off" placeholder="current secret key">
-     <button class="btn sec" style="flex:0 0 auto" onclick="unlockBrowser()">Unlock</button></div>
-    <small class="hint">This browser doesn't have the device's current key saved, so writes (Save, reboot, etc.) will fail until you unlock it. Only needed once per browser.</small>
-   </div>
-   <label style="margin-top:12px">Secret key <span class="muted" id="skStatus"></span></label>
-   <input id="secretKey" type="text" autocomplete="off" placeholder="(unchanged)">
-   <div style="margin-top:10px"><button class="btn sec" onclick="clearSecretKey()">Clear (open write access)</button></div>
-   <small class="hint">When set, this key is required to change settings, reboot, factory-reset, or flash the device (read-only pages still work without it). Blank = anyone on the LAN can write, matching this project's original behavior. This device has no encryption, so the key still travels in the clear on your LAN &mdash; it stops accidental/unauthorized writes, not eavesdropping. Type a new value and Save to change it; this browser remembers it afterwards. Losing the key entirely means factory-reset or reflashing, same as losing a WiFi password.</small>
-  </div>
   <div class="card"><h2>Mode</h2>
    <label>What this device shows</label>
    <select id="mode" onchange="modeChanged()">
@@ -128,7 +116,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div class="chk"><input id="carouselAgenda" type="checkbox"><label>Next event</label></div>
     <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather + air quality</label></div>
    </div>
-   <small class="hint">Pick the active feature, then configure it in its own tab. Carousel rotates through the ticked features.</small>
+   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Carousel rotates through the ticked features.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -279,8 +267,11 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   </div>
  </section>
 
- <!-- CALENDAR (feature) -->
+ <!-- CALENDAR (feature: Next event + Weather/AQI, both daemon-pushed) -->
  <section id="calendar" class="tab">
+  <div class="card"><h2>Agenda (Google Calendar)</h2>
+   <p class="muted" style="margin:0">Shows your next few upcoming events. Nothing to configure here &mdash; events are pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar --calendar-id &lt;id&gt;</code>, which handles Google sign-in on your PC/server (run <code>--calendar-auth</code> once there). This device never sees your Google credentials, only the resulting event titles/times. See the daemon's README for setup.</p>
+  </div>
   <div class="card"><h2>Weather location</h2>
    <div class="row">
     <div><label>Latitude</label><input id="calLat" type="number" step="0.0001" placeholder="52.3676"></div>
@@ -288,12 +279,24 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </div>
    <button type="button" onclick="calUseMyLocation()">Use my location</button>
    <div><small id="calLocLabel" class="hint"></small></div>
-   <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of data. Neither weather/AQI nor the calendar event are fetched by this device &mdash; both are pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a> (<code>--weather</code> reads this lat/lon from the device and fetches <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> on its behalf; <code>--calendar</code> handles Google sign-in on your PC/server so this device never sees your Google credentials). See the daemon's README for setup.</small>
+   <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of data. Weather/AQI isn't fetched by this device &mdash; the daemon's <code>--weather</code> reads this lat/lon from the device and fetches <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> on its behalf, then pushes the result here.</small>
   </div>
  </section>
 
  <!-- UPDATE -->
  <section id="update" class="tab">
+  <div class="card"><h2>Access</h2>
+   <div id="unlockRow" style="display:none">
+    <label>Unlock this browser <span class="muted">(enter the current key already set on the device)</span></label>
+    <div class="row"><input id="unlockKey" type="text" autocomplete="off" placeholder="current secret key">
+     <button class="btn sec" style="flex:0 0 auto" onclick="unlockBrowser()">Unlock</button></div>
+    <small class="hint">This browser doesn't have the device's current key saved, so writes (Save, reboot, etc.) will fail until you unlock it. Only needed once per browser.</small>
+   </div>
+   <label style="margin-top:12px">Secret key <span class="muted" id="skStatus"></span></label>
+   <input id="secretKey" type="text" autocomplete="off" placeholder="(unchanged)">
+   <div style="margin-top:10px"><button class="btn sec" onclick="clearSecretKey()">Clear (open write access)</button></div>
+   <small class="hint">When set, this key is required to change settings, reboot, factory-reset, or flash the device (read-only pages still work without it). Blank = anyone on the LAN can write, matching this project's original behavior. This device has no encryption, so the key still travels in the clear on your LAN &mdash; it stops accidental/unauthorized writes, not eavesdropping. Type a new value and Save to change it; this browser remembers it afterwards. Losing the key entirely means factory-reset or reflashing, same as losing a WiFi password.</small>
+  </div>
   <div class="card"><h2>Update from GitHub</h2>
    <div class="muted">Installed: <b id="fwVer">-</b></div>
    <div style="margin-top:10px">
@@ -370,7 +373,7 @@ function calRefreshLocLabel(lat,lon){
 function authKey(){return localStorage.getItem('smalltvKey')||''}
 function setAuthKey(k){if(k)localStorage.setItem('smalltvKey',k);else localStorage.removeItem('smalltvKey')}
 function j(url,opt){opt=opt||{};var k=authKey();if(k){opt.headers=opt.headers||{};opt.headers['X-Secret-Key']=k}
- return fetch(url,opt).then(function(r){if(r.status===401){toast('Wrong or missing secret key — set it in Display tab');throw new Error('unauthorized')}return r.json()})}
+ return fetch(url,opt).then(function(r){if(r.status===401){toast('Wrong or missing secret key — set it in Update tab');throw new Error('unauthorized')}return r.json()})}
 
 // tabs
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){
