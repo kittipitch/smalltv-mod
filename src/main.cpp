@@ -120,16 +120,15 @@ static void drawClockOverlay(DisplayMode* m) {
   // since this whole function only runs once per CLOCK_OVERLAY_REDRAW_MS
   // or on a mode switch, not every loop tick (that's what caused the
   // earlier flashing).
-  // Right-aligned position, kept as originally approved (a left-shift to
-  // dodge UsageMode's warn dot at (228,18,r5) was tried and reverted --
-  // user wants this exact spot regardless of that dot glitch on the usage
-  // page). Fill rect is padded a few px beyond the nominal glyph box on
-  // every side since the exact fit was leaving a sliver of old ink visible
-  // (e.g. bottom of "8") -- can't verify exact font metrics without seeing
-  // the device, so over-covering is the safe fix instead of chasing an
-  // exact match that keeps missing by a couple of pixels.
-  const int x = TFT_WIDTH - 64, y = 14, w = 64, h = 20;
-  gfx->fillRect(x - 2, y - 2, w, h, C_BLACK);
+  // Pinned flush to the right edge (2px margin) -- text width at size 2 is
+  // 5 chars * 12px = 60px. y=14 matches every mode's own header-row label
+  // (e.g. calendar's "WEATHER"). Fill rect starts at the same y as the text
+  // (no upward overshoot) and extends further down than the nominal glyph
+  // height -- an exact-fit box was leaving a sliver of old ink visible
+  // below some digits (e.g. bottom of "8"); can't verify exact font metrics
+  // without seeing the device, so padding only downward (not up) is the fix.
+  const int x = TFT_WIDTH - 62, y = 14, w = 62, h = 22;
+  gfx->fillRect(x, y, w, h, C_BLACK);
   gfx->setTextSize(2);
   gfx->setTextColor(C_RED, C_BLACK);
   gfx->setCursor(x, y);
