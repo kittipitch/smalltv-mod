@@ -113,10 +113,18 @@ static void drawClockOverlay(DisplayMode* m) {
   snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
   // Size 2 (matches the "5h"/"7d" meter labels); y=14 matches every mode's
   // own header-row label (e.g. calendar's "WEATHER") so it holds one fixed
-  // position across pages rather than drifting per-mode.
+  // position across pages rather than drifting per-mode. A full black fill
+  // of the whole region before the text (not just relying on opaque
+  // per-glyph background) makes the whole "HH:MM" redraw as one clean unit
+  // instead of looking like only the changed digit updates -- safe here
+  // since this whole function only runs once per CLOCK_OVERLAY_REDRAW_MS
+  // or on a mode switch, not every loop tick (that's what caused the
+  // earlier flashing).
+  const int x = TFT_WIDTH - 64, y = 14, w = 60, h = 16;
+  gfx->fillRect(x, y, w, h, C_BLACK);
   gfx->setTextSize(2);
-  gfx->setTextColor(C_RED, C_BLACK);   // opaque bg -- clean self-overwrite, fixed-width "HH:MM"
-  gfx->setCursor(TFT_WIDTH - 64, 14);
+  gfx->setTextColor(C_RED, C_BLACK);
+  gfx->setCursor(x, y);
   gfx->print(buf);
 }
 
