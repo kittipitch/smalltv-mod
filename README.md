@@ -4,6 +4,13 @@
 
 <h1 align="center">smalltv-mod</h1>
 
+> **Fork note:** this fork adds a Claude Code usage (5h/7d quota) display
+> mode plus a calendar/weather/AQI mode, pushed from a companion daemon.
+> Start with **[CLAUDE-USAGE-GUIDE.md](CLAUDE-USAGE-GUIDE.md)** for the
+> full setup walkthrough (flashing, WiFi setup, daemon install). The rest
+> of this README is upstream `giovi321/smalltv-mod`'s original firmware
+> documentation.
+
 <p align="center">
   <a href="https://github.com/giovi321/smalltv-mod/actions/workflows/build.yml"><img src="https://github.com/giovi321/smalltv-mod/actions/workflows/build.yml/badge.svg" alt="Build"></a>
   <a href="https://github.com/giovi321/smalltv-mod/actions/workflows/docs.yml"><img src="https://github.com/giovi321/smalltv-mod/actions/workflows/docs.yml/badge.svg" alt="Docs"></a>
