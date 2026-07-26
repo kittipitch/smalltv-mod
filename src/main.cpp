@@ -18,6 +18,7 @@
 #include "OtaUpdate.h"
 #include "Mode.h"
 #include "Clock.h"
+#include <Arduino_GFX_Library.h>   // needed for the top-right clock overlay's direct gfx->print() calls
 
 #if WITH_TICKER
 #include "TickerMode.h"
@@ -80,6 +81,34 @@ static void carouselNext(const Settings& s) {
     }
     return;
   }
+}
+
+// ---- global clock overlay --------------------------------------------------
+// "HH:MM", red, small mono-ish font, top-right corner -- drawn on top of
+// whatever the active mode just rendered, on every mode's screen. Redraws
+// only when the minute changes or the active mode just switched (which
+// implies a fillScreen that would otherwise erase it) -- not every loop
+// tick, to avoid needless SPI writes for unchanged content.
+static int      s_clockLastMinuteOfDay = -1;
+static DisplayMode* s_clockLastMode = nullptr;
+
+static void drawClockOverlay(DisplayMode* m) {
+  struct tm t;
+  if (!clockNow(t)) return;   // unsynced -- nothing trustworthy to show yet
+  int minuteOfDay = t.tm_hour * 60 + t.tm_min;
+  bool modeSwitched = (m != s_clockLastMode);
+  if (minuteOfDay == s_clockLastMinuteOfDay && !modeSwitched) return;
+  s_clockLastMinuteOfDay = minuteOfDay;
+  s_clockLastMode = m;
+
+  Arduino_GFX* gfx = gfxDev();
+  if (!gfx) return;
+  char buf[6];
+  snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
+  gfx->setTextSize(1);
+  gfx->setTextColor(C_RED, C_BLACK);   // opaque bg -- clean self-overwrite, fixed-width "HH:MM"
+  gfx->setCursor(TFT_WIDTH - 34, 2);
+  gfx->print(buf);
 }
 
 static DisplayMode* activeMode(const Settings& s) {
@@ -247,6 +276,7 @@ void loop() {
 
   DisplayMode* m = activeMode(g_settings);
   if (m) m->service(g_settings);
+  drawClockOverlay(m);
 
   delay(5);
 }
