@@ -174,16 +174,12 @@
 
 // ---------------------------------------------------------------------------
 // Calendar + weather (MODE_CALENDAR)
-//   Calendar: pushed to the device by clawdmeter-daemon's --calendar feature
-//   (POST /api/calendar) — the device never talks to Google directly. Weather
-//   + air quality: fetched directly by the device (Open-Meteo, free, no key),
-//   same shape as the ticker's direct fetches. Two independent HTTPS hosts.
+//   Both pushed to the device by clawdmeter-daemon (POST /api/calendar,
+//   POST /api/weather) — the device never talks to Google or Open-Meteo
+//   directly. Weather/AQI used to be a device-direct Open-Meteo fetch, but
+//   that proved hard to debug on the ESP8266 (no serial access in this
+//   project's workflow); moved server-side for real logging.
 // ---------------------------------------------------------------------------
-#define OPEN_METEO_FORECAST_HOST "api.open-meteo.com"
-#define OPEN_METEO_FORECAST_PATH "/v1/forecast"
-#define OPEN_METEO_AQ_HOST       "air-quality-api.open-meteo.com"
-#define OPEN_METEO_AQ_PATH       "/v1/air-quality"
-#define OPEN_METEO_USER_AGENT    "Mozilla/5.0 (SmallTV)"
 
 // Defaults (lat/lon 0,0 is the "not set yet" sentinel, same convention as radar).
 #define DEFAULT_CAL_LAT           0.0f

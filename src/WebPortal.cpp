@@ -284,6 +284,17 @@ static void handleCalendarPush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+static void handleWeatherPush() {
+  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
+#if WITH_CALENDAR
+  bool ok = weatherApply(server.arg("plain"));
+#else
+  bool ok = false;
+#endif
+  server.send(ok ? 200 : 400, "application/json",
+              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
 // ---- OTA ------------------------------------------------------------------
 static bool g_updateAuthorized = false;
 
@@ -357,6 +368,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/selfupdate", HTTP_POST, handleSelfUpdate);
   server.on("/api/usage", HTTP_POST, handleUsagePush);   // daemon pushes usage here
   server.on("/api/calendar", HTTP_POST, handleCalendarPush);   // daemon pushes calendar here
+  server.on("/api/weather", HTTP_POST, handleWeatherPush);      // daemon pushes weather/AQI here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 
   // Common captive-portal probe endpoints

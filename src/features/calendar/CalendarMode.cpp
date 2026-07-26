@@ -207,18 +207,20 @@ void CalendarMode::begin(const Settings& s) {
 }
 
 void CalendarMode::invalidate(const Settings& s) {
+  (void)s;
+  // Just force a redraw -- don't clear cal/weather data here. Both now arrive
+  // purely via daemon push (no device-side re-fetch to trigger), so wiping
+  // them on every settings save would blank the screen until the next push
+  // lands, for no benefit.
   needRender_ = true;
   calRenderedOk_ = 0xFFFFFFFF;
   wxRenderedOk_ = 0xFFFFFFFF;
   page_ = PAGE_AGENDA;
   nextPageMs_ = millis() + PAGE_DWELL_MS;
-  calendarInit(s);
-  calendarForceRefresh();
 }
 
 void CalendarMode::service(const Settings& s) {
-  calendarService(s);   // weather/AQI on its own poll schedule; calendar arrives via push
-
+  (void)s;
   const CalendarEvent& c = calendarGet();
   const WeatherData&   w = weatherGet();
   if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }

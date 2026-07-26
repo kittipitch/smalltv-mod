@@ -285,8 +285,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div><label>Longitude</label><input id="calLon" type="number" step="0.0001" placeholder="4.9041"></div>
    </div>
    <button type="button" onclick="calUseMyLocation()">Use my location</button>
-   <label>Refresh weather (s)</label><input id="calPollSec" type="number" min="60" max="3600">
-   <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of fetching. Weather + air quality are fetched directly by the device from <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> (free, no key). The calendar event itself is <b>not</b> configured here &mdash; it's pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar</code> feature, which handles the Google sign-in on your PC/server so this device never sees your Google credentials. See the daemon's README for one-time setup (<code>--calendar-auth</code>).</small>
+   <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of data. Neither weather/AQI nor the calendar event are fetched by this device &mdash; both are pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a> (<code>--weather</code> reads this lat/lon from the device and fetches <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> on its behalf; <code>--calendar</code> handles Google sign-in on your PC/server so this device never sees your Google credentials). See the daemon's README for setup.</small>
   </div>
  </section>
 
@@ -469,7 +468,6 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // calendar slice
  var cal=c.calendar||{};
  sv('calLat',cal.lat); sv('calLon',cal.lon);
- sv('calPollSec',cal.weatherPollSec||600);
  var ap=$('apPass'); if(ap)ap.placeholder=c.apPassSet?'(unchanged)':'(open)';
 })}
 
@@ -570,8 +568,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0,
-   weatherPollSec:parseInt(gv('calPollSec'))||600};
+  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0};
  }
  return o;
 }
