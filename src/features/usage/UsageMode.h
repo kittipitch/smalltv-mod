@@ -18,6 +18,7 @@ class UsageMode : public DisplayMode {
   void wake(const Settings& s) override { needRender_ = true; needFullRender_ = true; }  // repaint only
 
  private:
+  void drawClockOverlay();   // top-right "HH:MM", this page only (see UsageMode.cpp)
   uint32_t usageSampled_ = 0;              // lastOkMs already fed to the mascot tracker
   uint32_t usageRenderedOk_ = 0xFFFFFFFF;
   bool     showingMascot_ = false;
@@ -26,6 +27,7 @@ class UsageMode : public DisplayMode {
   // need a full screen clear + header/mascot redraw; a plain new data push
   // doesn't — see drawUsage()'s `full` param and its self-clearing meters.
   bool     needFullRender_ = true;
+  uint32_t clockNextRedrawMs_ = 0;   // top-right "HH:MM" overlay, this page only
 };
 
 extern UsageMode g_usageMode;

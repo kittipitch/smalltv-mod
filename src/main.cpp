@@ -18,7 +18,6 @@
 #include "OtaUpdate.h"
 #include "Mode.h"
 #include "Clock.h"
-#include <Arduino_GFX_Library.h>   // needed for the top-right clock overlay's direct gfx->print() calls
 
 #if WITH_TICKER
 #include "TickerMode.h"
@@ -83,63 +82,15 @@ static void carouselNext(const Settings& s) {
   }
 }
 
-// ---- global clock overlay --------------------------------------------------
-// "HH:MM", red, small mono-ish font, top-right corner -- drawn on top of
-// whatever the active mode just rendered, on every mode's screen. Redraws
-// every CLOCK_OVERLAY_REDRAW_MS (1s) or on a mode switch (which implies a
-// fillScreen that would erase it) -- NOT every loop tick. An unconditional-
-// every-tick version was tried and caused visible flashing: it added a
-// black fillRect before the text on every ~5-10ms loop, i.e. a
-// black-then-red strobe at near-continuous frequency. A single opaque
-// setTextColor(fg,bg) print (no separate fillRect) doesn't flash on its own.
-// The interval bounds how long a mode's own internal full redraw (settings
-// save, wake, mascot-exit, data refresh) can blank this area before it
-// self-heals, without redrawing so often it risks the same flashing.
-static const uint32_t CLOCK_OVERLAY_REDRAW_MS = 2000;
-static uint32_t s_clockNextRedrawMs = 0;
-static DisplayMode* s_clockLastMode = nullptr;
-
-static void drawClockOverlay(DisplayMode* m) {
-  struct tm t;
-  if (!clockNow(t)) return;   // unsynced -- nothing trustworthy to show yet
-  bool modeSwitched = (m != s_clockLastMode);
-  if ((int32_t)(millis() - s_clockNextRedrawMs) < 0 && !modeSwitched) return;
-  s_clockNextRedrawMs = millis() + CLOCK_OVERLAY_REDRAW_MS;
-  s_clockLastMode = m;
-
-  Arduino_GFX* gfx = gfxDev();
-  if (!gfx) return;
-  char buf[6];
-  snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
-  // Size 2 (matches the "5h"/"7d" meter labels); y=14 matches every mode's
-  // own header-row label (e.g. calendar's "WEATHER") so it holds one fixed
-  // position across pages rather than drifting per-mode. A full black fill
-  // of the whole region before the text (not just relying on opaque
-  // per-glyph background) makes the whole "HH:MM" redraw as one clean unit
-  // instead of looking like only the changed digit updates -- safe here
-  // since this whole function only runs once per CLOCK_OVERLAY_REDRAW_MS
-  // or on a mode switch, not every loop tick (that's what caused the
-  // earlier flashing).
-  // Pinned flush to the right edge (2px margin) -- text width at size 2 is
-  // 5 chars * 12px = 60px. y=14 matches every mode's own header-row label
-  // (e.g. calendar's "WEATHER"). Fill rect starts at the same y as the text
-  // (no upward overshoot) and extends further down than the nominal glyph
-  // height -- an exact-fit box was leaving a sliver of old ink visible
-  // below some digits (e.g. bottom of "8"); can't verify exact font metrics
-  // without seeing the device, so padding only downward (not up) is the fix.
-  const int x = TFT_WIDTH - 62, y = 14, w = 62, h = 22;
-  gfx->fillRect(x, y, w, h, C_BLACK);
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_RED, C_BLACK);
-  gfx->setCursor(x, y);
-  gfx->print(buf);
-}
-
 static DisplayMode* activeMode(const Settings& s) {
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
     if (!carouselHas(s, kModes[g_carIdx])) carouselNext(s);   // settings changed
-    if (millis() - g_carSwitch >= (uint32_t)s.carouselSec * 1000UL) {
+    // Usage (Claude quota) gets double the dwell of every other mode --
+    // e.g. 2min usage / 1min everything else at the 60s default.
+    uint32_t dwellMs = (uint32_t)s.carouselSec * 1000UL;
+    if (kModes[g_carIdx]->modeConst() == MODE_USAGE) dwellMs *= 2;
+    if (millis() - g_carSwitch >= dwellMs) {
       g_carSwitch = millis();
       carouselNext(s);
     }
@@ -300,7 +251,6 @@ void loop() {
 
   DisplayMode* m = activeMode(g_settings);
   if (m) m->service(g_settings);
-  drawClockOverlay(m);
 
   delay(5);
 }

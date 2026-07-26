@@ -3,6 +3,7 @@
 #include "Gfx.h"
 #include "UsageClient.h"
 #include "Mascot.h"
+#include "Clock.h"
 
 UsageMode g_usageMode;
 
@@ -193,6 +194,32 @@ void UsageMode::begin(const Settings& s) {
   needFullRender_ = true;
 }
 
+// Top-right "HH:MM" clock, this page only (per explicit request -- was a
+// global overlay in main.cpp, moved here). Redraws once every 2s, or
+// immediately on first call after this page hasn't been serviced for at
+// least 2s (i.e. just switched onto this page) -- wraparound-safe pattern
+// matches CalendarMode.cpp's nextPageMs_. A full black fillRect (wider/
+// taller than the nominal glyph box) runs before the text every time this
+// fires, since an exact-fit box left a sliver of old ink visible on some
+// digits (e.g. bottom of "8").
+void UsageMode::drawClockOverlay() {
+  struct tm t;
+  if (!clockNow(t)) return;   // unsynced -- nothing trustworthy to show yet
+  if ((int32_t)(millis() - clockNextRedrawMs_) < 0) return;
+  clockNextRedrawMs_ = millis() + 2000;
+
+  Arduino_GFX* gfx = gfxDev();
+  if (!gfx) return;
+  char buf[6];
+  snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
+  const int x = TFT_WIDTH - 62, y = 14, w = 62, h = 22;
+  gfx->fillRect(x, y, w, h, C_BLACK);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_RED, C_BLACK);
+  gfx->setCursor(x, y);
+  gfx->print(buf);
+}
+
 void UsageMode::invalidate(const Settings& s) {
   needRender_ = true;
   needFullRender_ = true;
@@ -243,4 +270,6 @@ void UsageMode::service(const Settings& s) {
       drawMascot(mascotCells(), mascotPalette(), /*restart=*/false);
     }
   }
+
+  drawClockOverlay();
 }
