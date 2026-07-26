@@ -85,21 +85,16 @@ static void carouselNext(const Settings& s) {
 
 // ---- global clock overlay --------------------------------------------------
 // "HH:MM", red, small mono-ish font, top-right corner -- drawn on top of
-// whatever the active mode just rendered, on every mode's screen. Redraws
-// only when the minute changes or the active mode just switched (which
-// implies a fillScreen that would otherwise erase it) -- not every loop
-// tick, to avoid needless SPI writes for unchanged content.
-static int      s_clockLastMinuteOfDay = -1;
-static DisplayMode* s_clockLastMode = nullptr;
-
-static void drawClockOverlay(DisplayMode* m) {
+// whatever the active mode just rendered, on every mode's screen, every loop
+// tick. Earlier version only redrew on a minute-change or mode switch, but a
+// mode's own INTERNAL full redraw (settings save, wake, mascot-exit, data
+// refresh) repaints this same region while staying on the same mode -- that
+// isn't detectable from here, so the overlay would vanish for up to 59s.
+// Redrawing unconditionally (black fill + opaque text) is the robust fix;
+// the region is tiny so the extra SPI writes are cheap.
+static void drawClockOverlay() {
   struct tm t;
   if (!clockNow(t)) return;   // unsynced -- nothing trustworthy to show yet
-  int minuteOfDay = t.tm_hour * 60 + t.tm_min;
-  bool modeSwitched = (m != s_clockLastMode);
-  if (minuteOfDay == s_clockLastMinuteOfDay && !modeSwitched) return;
-  s_clockLastMinuteOfDay = minuteOfDay;
-  s_clockLastMode = m;
 
   Arduino_GFX* gfx = gfxDev();
   if (!gfx) return;
@@ -108,9 +103,11 @@ static void drawClockOverlay(DisplayMode* m) {
   // Size 2 (matches the "5h"/"7d" meter labels); y=14 matches every mode's
   // own header-row label (e.g. calendar's "WEATHER") so it holds one fixed
   // position across pages rather than drifting per-mode.
+  const int x = TFT_WIDTH - 64, y = 14, w = 64, h = 16;
+  gfx->fillRect(x, y, w, h, C_BLACK);   // defensive clear -- guards against any partial overlap
   gfx->setTextSize(2);
   gfx->setTextColor(C_RED, C_BLACK);   // opaque bg -- clean self-overwrite, fixed-width "HH:MM"
-  gfx->setCursor(TFT_WIDTH - 64, 14);
+  gfx->setCursor(x, y);
   gfx->print(buf);
 }
 
@@ -279,7 +276,7 @@ void loop() {
 
   DisplayMode* m = activeMode(g_settings);
   if (m) m->service(g_settings);
-  drawClockOverlay(m);
+  drawClockOverlay();
 
   delay(5);
 }
