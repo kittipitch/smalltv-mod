@@ -86,16 +86,16 @@ static void carouselNext(const Settings& s) {
 // ---- global clock overlay --------------------------------------------------
 // "HH:MM", red, small mono-ish font, top-right corner -- drawn on top of
 // whatever the active mode just rendered, on every mode's screen. Redraws
-// every CLOCK_OVERLAY_REDRAW_MS (15s) or on a mode switch (which implies a
+// every CLOCK_OVERLAY_REDRAW_MS (1s) or on a mode switch (which implies a
 // fillScreen that would erase it) -- NOT every loop tick. An unconditional-
 // every-tick version was tried and caused visible flashing: it added a
 // black fillRect before the text on every ~5-10ms loop, i.e. a
 // black-then-red strobe at near-continuous frequency. A single opaque
 // setTextColor(fg,bg) print (no separate fillRect) doesn't flash on its own.
-// 15s bounds how long a mode's own internal full redraw (settings save,
-// wake, mascot-exit, data refresh) can blank this area before it self-heals,
-// without redrawing so often it risks the same flashing.
-static const uint32_t CLOCK_OVERLAY_REDRAW_MS = 1000;
+// The interval bounds how long a mode's own internal full redraw (settings
+// save, wake, mascot-exit, data refresh) can blank this area before it
+// self-heals, without redrawing so often it risks the same flashing.
+static const uint32_t CLOCK_OVERLAY_REDRAW_MS = 2000;
 static uint32_t s_clockNextRedrawMs = 0;
 static DisplayMode* s_clockLastMode = nullptr;
 
