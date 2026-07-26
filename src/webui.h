@@ -338,15 +338,18 @@ function gv(id){var e=$(id);return e?e.value:''}
 function gc(id){var e=$(id);return e?e.checked:false}
 function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
 function calUseMyLocation(){
- if(!navigator.geolocation){toast('Browser has no location support');return}
- toast('Requesting location…');
- navigator.geolocation.getCurrentPosition(function(pos){
-  sv('calLat',pos.coords.latitude.toFixed(4));
-  sv('calLon',pos.coords.longitude.toFixed(4));
-  toast('Location set — click Save to apply');
- },function(err){
-  toast('Location denied or unavailable: '+err.message);
- },{timeout:10000});
+ // GPS geolocation (navigator.geolocation) needs a secure origin (HTTPS/
+ // localhost) -- this device serves plain HTTP over LAN, so browsers block
+ // it. IP-based lookup works fine from an HTTP page (browsers only block
+ // HTTPS pages loading HTTP content, not the reverse) -- less precise than
+ // GPS, but good enough for weather.
+ toast('Looking up location from IP…');
+ fetch('https://ipwho.is/').then(function(r){return r.json()}).then(function(d){
+  if(!d.success||typeof d.latitude!=='number'){toast('Location lookup failed');return}
+  sv('calLat',d.latitude.toFixed(4));
+  sv('calLon',d.longitude.toFixed(4));
+  toast('Location set (approx, from IP) — click Save to apply');
+ }).catch(function(){toast('Location lookup failed — check internet connection')});
 }
 // Secret key this browser sends on writes, remembered across reloads. Harmless
 // to attach on every request — the device only checks it on write endpoints,
