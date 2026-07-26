@@ -105,9 +105,12 @@ static void drawClockOverlay(DisplayMode* m) {
   if (!gfx) return;
   char buf[6];
   snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
-  gfx->setTextSize(1);
+  // Size 2 (matches the "5h"/"7d" meter labels); y=14 matches every mode's
+  // own header-row label (e.g. calendar's "WEATHER") so it holds one fixed
+  // position across pages rather than drifting per-mode.
+  gfx->setTextSize(2);
   gfx->setTextColor(C_RED, C_BLACK);   // opaque bg -- clean self-overwrite, fixed-width "HH:MM"
-  gfx->setCursor(TFT_WIDTH - 34, 2);
+  gfx->setCursor(TFT_WIDTH - 64, 14);
   gfx->print(buf);
 }
 
