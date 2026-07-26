@@ -67,7 +67,10 @@
 #define MODE_USAGE     1
 #define MODE_RADAR     2
 #define MODE_CAROUSEL  3
-#define MODE_CALENDAR  4
+#define MODE_CALENDAR  4   // unused/unregistered -- superseded by the 3 modes below
+#define MODE_CAL_AGENDA  5
+#define MODE_CAL_WEATHER 6
+#define MODE_CAL_AQI     7
 #define DEFAULT_MODE MODE_STOCKS
 #define DEFAULT_CAROUSEL_SEC 60      // per-mode dwell in carousel
 

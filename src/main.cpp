@@ -46,7 +46,8 @@ static DisplayMode* kModes[] = {
   &g_radarMode,
 #endif
 #if WITH_CALENDAR
-  &g_calendarMode,
+  &g_calendarAgendaMode,
+  &g_calendarWeatherMode,
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
@@ -64,7 +65,8 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     case MODE_STOCKS: return s.carouselTicker && s.ticker.symbolCount > 0;
     case MODE_USAGE:  return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
-    case MODE_CALENDAR: return s.carouselCalendar;
+    case MODE_CAL_AGENDA:  return s.carouselAgenda;
+    case MODE_CAL_WEATHER: return s.carouselWeather;
     default:          return true;
   }
 }

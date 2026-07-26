@@ -3,7 +3,8 @@
 #include "Gfx.h"
 #include "CalendarClient.h"
 
-CalendarMode g_calendarMode;
+CalendarAgendaMode  g_calendarAgendaMode;
+CalendarWeatherMode g_calendarWeatherMode;
 
 // Local palette subset (same Anthropic-inspired hex values UsageMode.cpp
 // uses — not shared/exported anywhere yet, so each mode defines what it needs).
@@ -11,10 +12,7 @@ CalendarMode g_calendarMode;
 #define C_UGREEN  0x7C6B   // sage green 0x788c5d — AQI good band
 #define C_DIM     0xB574   // secondary/placeholder text, warm grey
 #define C_SKY     0x5D9C   // muted blue — cloud/rain icon strokes
-
-// How long each of the 3 sub-pages (agenda/weather/AQI) stays on screen
-// before auto-rotating to the next, independent of the main mode carousel.
-static const uint32_t PAGE_DWELL_MS = 8000;
+#define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
 
 static const char* MONTH3[] = {
   "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
@@ -122,11 +120,20 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, int r, WxCat cat) 
   }
 }
 
-// ---- render (3 sub-pages, rotated on a timer by CalendarMode::service) ------
+// ---- render (3 independent modes, each its own carousel entry) -------------
+// Agenda reuses the gray card panel look from UsageMode.cpp's drawMeter()
+// (fillRoundRect at x=8, w=224, radius 8, C_PANEL) per explicit request --
+// "steal that gray frame" -- instead of a plain black background.
 static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
   gfx->fillScreen(C_BLACK);
+  const int x = 8, top = 20, w = 224, h = 200;
+  gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+
   bool connected = c.valid;
-  drawRow(gfx, 14, 2, C_DIM, connected ? "NEXT EVENT" : "CALENDAR");
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 12);
+  gfx->print(connected ? "NEXT EVENT" : "CALENDAR");
 
   char hero[12];
   uint16_t heroColor = C_ACCENT;
@@ -138,7 +145,10 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
   } else {
     extractTimeHHMM(c.start, hero, sizeof(hero));
   }
-  drawRow(gfx, 50, 4, heroColor, hero);
+  gfx->setTextSize(4);
+  gfx->setTextColor(heroColor, C_PANEL);
+  gfx->setCursor(x + 14, top + 56);
+  gfx->print(hero);
 
   char titleBuf[16];
   if (!connected) {
@@ -148,34 +158,34 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
   } else {
     truncateDots(c.summary, titleBuf, sizeof(titleBuf), 11);
   }
-  drawRow(gfx, 110, 3, connected && c.hasEvent ? C_WHITE : C_DIM, titleBuf);
+  gfx->setTextSize(3);
+  gfx->setTextColor(connected && c.hasEvent ? C_WHITE : C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 120);
+  gfx->print(titleBuf);
 }
 
+// Combined weather + air quality on one screen (was 2 separate sub-pages,
+// lumped together per explicit request). Compact layout to fit both in the
+// 240px screen height: label, smaller icon, temp+rain on one line, then
+// AQI + PM2.5.
 static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   gfx->fillScreen(C_BLACK);
-  drawRow(gfx, 14, 2, C_DIM, "WEATHER");
+  drawRow(gfx, 10, 2, C_DIM, "WEATHER");
 
   bool wxOk = w.hasTemp || w.hasPrecip;
   WxCat cat = wxCategory(w.weatherCode, w.hasWeatherCode);
-  drawWeatherIcon(gfx, 106, 90, 34, wxOk ? cat : WX_UNKNOWN);
+  drawWeatherIcon(gfx, 106, 66, 26, wxOk ? cat : WX_UNKNOWN);
 
   char t[10] = "--";
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
   // Latin-1/0xB0 -- verified by rendering the actual glyph bitmap before
   // trusting the byte value).
   if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(w.tempC));
-  drawRow(gfx, 150, 4, wxOk ? C_WHITE : C_DIM, t);
+  drawRow(gfx, 104, 4, wxOk ? C_WHITE : C_DIM, t);
 
-  if (w.hasPrecip) {
-    char p[16];
-    snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
-    drawRow(gfx, 196, 3, C_SKY, p);
-  }
-}
-
-static void drawAqiPage(Arduino_GFX* gfx, const WeatherData& w) {
-  gfx->fillScreen(C_BLACK);
-  drawRow(gfx, 14, 2, C_DIM, "AIR QUALITY");
+  char p[16] = "Rain --";
+  if (w.hasPrecip) snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
+  drawRow(gfx, 142, 3, w.hasPrecip ? C_SKY : C_DIM, p);
 
   // 3-tier band color (the palette has no distinct yellow/amber, so US AQI's
   // 4 bands collapse to 3: good / moderate-to-unhealthy-for-sensitive /
@@ -183,68 +193,66 @@ static void drawAqiPage(Arduino_GFX* gfx, const WeatherData& w) {
   char aqiBuf[16];
   uint16_t aqiColor = C_DIM;
   if (w.hasAqi) {
-    snprintf(aqiBuf, sizeof(aqiBuf), "%d", w.aqi);
+    snprintf(aqiBuf, sizeof(aqiBuf), "AQI %d", w.aqi);
     aqiColor = (w.aqi <= 50) ? C_UGREEN : (w.aqi <= 150) ? C_ACCENT : C_RED;
   } else {
-    strlcpy(aqiBuf, "--", sizeof(aqiBuf));
+    strlcpy(aqiBuf, "AQI --", sizeof(aqiBuf));
   }
-  drawRow(gfx, 60, 5, aqiColor, aqiBuf);
+  drawRow(gfx, 180, 3, aqiColor, aqiBuf);
 
-  if (w.hasPm25) {
-    char pm[16];
-    snprintf(pm, sizeof(pm), "PM2.5 %.1f", w.pm25);
-    drawRow(gfx, 150, 3, C_DIM, pm);
-  } else {
-    drawRow(gfx, 150, 3, C_DIM, "PM2.5 --");
-  }
+  char pm[16] = "PM2.5 --";
+  if (w.hasPm25) snprintf(pm, sizeof(pm), "PM2.5 %.1f", w.pm25);
+  drawRow(gfx, 212, 2, C_DIM, pm);
 }
 
-// ---- DisplayMode ------------------------------------------------------------
-void CalendarMode::begin(const Settings& s) {
+// ---- DisplayMode: Agenda -----------------------------------------------
+void CalendarAgendaMode::begin(const Settings& s) {
   calendarInit(s);
   needRender_ = true;
   calRenderedOk_ = 0xFFFFFFFF;
-  wxRenderedOk_ = 0xFFFFFFFF;
-  page_ = PAGE_AGENDA;
-  nextPageMs_ = millis() + PAGE_DWELL_MS;
 }
 
-void CalendarMode::invalidate(const Settings& s) {
+void CalendarAgendaMode::invalidate(const Settings& s) {
   (void)s;
-  // Just force a redraw -- don't clear cal/weather data here. Both now arrive
+  // Just force a redraw -- don't clear cal/weather data here. Both arrive
   // purely via daemon push (no device-side re-fetch to trigger), so wiping
   // them on every settings save would blank the screen until the next push
   // lands, for no benefit.
   needRender_ = true;
   calRenderedOk_ = 0xFFFFFFFF;
-  wxRenderedOk_ = 0xFFFFFFFF;
-  page_ = PAGE_AGENDA;
-  nextPageMs_ = millis() + PAGE_DWELL_MS;
 }
 
-void CalendarMode::service(const Settings& s) {
+void CalendarAgendaMode::service(const Settings& s) {
   (void)s;
   const CalendarEvent& c = calendarGet();
-  const WeatherData&   w = weatherGet();
   if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
-  if (w.lastOkMs != wxRenderedOk_)  { wxRenderedOk_  = w.lastOkMs;  needRender_ = true; }
-
-  if ((int32_t)(millis() - nextPageMs_) >= 0) {
-    page_ = (Page)((page_ + 1) % PAGE_COUNT);
-    nextPageMs_ = millis() + PAGE_DWELL_MS;
-    needRender_ = true;
-  }
-
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) {
-      switch (page_) {
-        case PAGE_AGENDA:  drawAgendaPage(gfx, c); break;
-        case PAGE_WEATHER: drawWeatherPage(gfx, w); break;
-        case PAGE_AQI:     drawAqiPage(gfx, w); break;
-        default: break;
-      }
-    }
+    if (gfx) drawAgendaPage(gfx, c);
+    needRender_ = false;
+  }
+}
+
+// ---- DisplayMode: Weather -----------------------------------------------
+void CalendarWeatherMode::begin(const Settings& s) {
+  calendarInit(s);
+  needRender_ = true;
+  wxRenderedOk_ = 0xFFFFFFFF;
+}
+
+void CalendarWeatherMode::invalidate(const Settings& s) {
+  (void)s;
+  needRender_ = true;
+  wxRenderedOk_ = 0xFFFFFFFF;
+}
+
+void CalendarWeatherMode::service(const Settings& s) {
+  (void)s;
+  const WeatherData& w = weatherGet();
+  if (w.lastOkMs != wxRenderedOk_) { wxRenderedOk_ = w.lastOkMs; needRender_ = true; }
+  if (needRender_) {
+    Arduino_GFX* gfx = gfxDev();
+    if (gfx) drawWeatherPage(gfx, w);
     needRender_ = false;
   }
 }

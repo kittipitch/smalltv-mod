@@ -116,7 +116,8 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="stocks">Stock / crypto ticker</option>
     <option value="usage">Claude usage</option>
     <option value="radar">Plane radar</option>
-    <option value="calendar">Next event + weather</option>
+    <option value="agenda">Next event</option>
+    <option value="weather">Weather + air quality</option>
     <option value="carousel">Carousel (rotate modes)</option>
    </select>
    <div id="carouselRow">
@@ -124,7 +125,8 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div class="chk"><input id="carouselTicker" type="checkbox"><label>Ticker</label></div>
     <div class="chk"><input id="carouselUsage" type="checkbox"><label>Claude usage</label></div>
     <div class="chk"><input id="carouselRadar" type="checkbox"><label>Plane radar</label></div>
-    <div class="chk"><input id="carouselCalendar" type="checkbox"><label>Next event + weather</label></div>
+    <div class="chk"><input id="carouselAgenda" type="checkbox"><label>Next event</label></div>
+    <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather + air quality</label></div>
    </div>
    <small class="hint">Pick the active feature, then configure it in its own tab. Carousel rotates through the ticked features.</small>
   </div>
@@ -413,13 +415,15 @@ var TZMAP={
 function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
  keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
 
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:'calendar'};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:'carouselCalendar'};
+var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','weather']};
+var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselWeather']};
 function hideFeat(name){
  var b=document.querySelector('nav button[data-t="'+name+'"]'); if(b)b.remove();
  var sec=$(name); if(sec)sec.remove();
- var o=document.querySelector('#mode option[value="'+MODEOPT[name]+'"]'); if(o)o.remove();
- var c=$(CAROPT[name]); if(c)c.closest('.chk').remove();
+ var modeVals=[].concat(MODEOPT[name]);
+ modeVals.forEach(function(v){var o=document.querySelector('#mode option[value="'+v+'"]'); if(o)o.remove()});
+ var carIds=[].concat(CAROPT[name]);
+ carIds.forEach(function(id){var c=$(id); if(c)c.closest('.chk').remove()});
 }
 function setTone(r,g,b,sat){sv('toneR',r);$('toneRVal')&&($('toneRVal').textContent=r);
  sv('toneG',g);$('toneGVal')&&($('toneGVal').textContent=g);
@@ -452,9 +456,9 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('nightStart',ck.nightStart||'22:00'); sv('nightEnd',ck.nightEnd||'07:00');
  sv('nightLevel',ck.nightLevel!=null?ck.nightLevel:0); $('nlVal')&&($('nlVal').textContent=(ck.nightLevel!=null?ck.nightLevel:0));
  $('mode').value=c.mode||'stocks'; modeChanged();
- sv('carouselSec',c.carouselSec||30);
+ sv('carouselSec',c.carouselSec||60);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselCalendar',c.carouselCalendar!==false);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselWeather',c.carouselWeather!==false);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -532,9 +536,9 @@ function toneNum(id){var v=parseInt(gv(id));return isNaN(v)?100:v}
 function collect(){
  var o={mode:gv('mode'),
   toneR:toneNum('toneR'), toneG:toneNum('toneG'), toneB:toneNum('toneB'), toneSat:toneNum('toneSat'),
-  carouselSec:parseInt(gv('carouselSec'))||30,
+  carouselSec:parseInt(gv('carouselSec'))||60,
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselCalendar:gc('carouselCalendar'),
+  carouselAgenda:gc('carouselAgenda'), carouselWeather:gc('carouselWeather'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

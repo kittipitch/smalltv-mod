@@ -1,22 +1,25 @@
-// CalendarMode.h — next calendar event + weather/air-quality feature.
+// CalendarMode.h — 2 independent modes: next calendar event (agenda), and
+// combined weather + air quality.
 //
-// Minimalist stacked-line layout per-page (chosen over 3 alternative designs
-// — card-stack, hero-countdown, split-half — for being the simplest to
-// implement correctly on this RAM-tight chip while still meeting the size>=3
-// text floor with no exceptions). Split into 3 timed sub-pages (agenda /
-// weather / air quality) rather than one stacked screen — hierarchy via text
-// size and color, plus a small vector weather icon (no bitmap assets, no
-// image fetch — see CalendarMode.cpp's drawWeatherIcon). See CalendarClient.h
-// for the two independent data paths (calendar pushed by the daemon,
-// weather/AQI fetched directly).
+// Originally one auto-rotating "calendar" mode with 3 internal timed
+// sub-pages (agenda/weather/AQI); split into independent DisplayModes (own
+// carousel checkbox each, own Mode-dropdown entry each) per explicit
+// request — "dont subpage it make each page independent" — then weather
+// and AQI were lumped back into one combined page ("make agenda separate
+// page and lump weather and pm together") since they're closely related
+// and the split left too many thin single-purpose pages. Minimalist
+// stacked-line layout per-page, plus a small vector weather icon (no
+// bitmap assets, no image fetch — see CalendarMode.cpp's drawWeatherIcon).
+// See CalendarClient.h for the two independent data paths (calendar
+// pushed by the daemon, weather/AQI also pushed by the daemon).
 #pragma once
 #include "Mode.h"
 #include "config.h"
 
-class CalendarMode : public DisplayMode {
+class CalendarAgendaMode : public DisplayMode {
  public:
-  const char* id() const override { return "calendar"; }
-  uint8_t     modeConst() const override { return MODE_CALENDAR; }
+  const char* id() const override { return "agenda"; }
+  uint8_t     modeConst() const override { return MODE_CAL_AGENDA; }
 
   void begin(const Settings& s) override;
   void service(const Settings& s) override;
@@ -24,13 +27,24 @@ class CalendarMode : public DisplayMode {
   void wake(const Settings& s) override { needRender_ = true; }   // repaint only
 
  private:
-  enum Page : uint8_t { PAGE_AGENDA = 0, PAGE_WEATHER = 1, PAGE_AQI = 2, PAGE_COUNT = 3 };
-
   bool     needRender_ = true;
   uint32_t calRenderedOk_ = 0xFFFFFFFF;   // last CalendarEvent.lastOkMs drawn
-  uint32_t wxRenderedOk_  = 0xFFFFFFFF;   // last WeatherData.lastOkMs drawn
-  Page     page_ = PAGE_AGENDA;
-  uint32_t nextPageMs_ = 0;
 };
 
-extern CalendarMode g_calendarMode;
+class CalendarWeatherMode : public DisplayMode {
+ public:
+  const char* id() const override { return "weather"; }
+  uint8_t     modeConst() const override { return MODE_CAL_WEATHER; }
+
+  void begin(const Settings& s) override;
+  void service(const Settings& s) override;
+  void invalidate(const Settings& s) override;
+  void wake(const Settings& s) override { needRender_ = true; }
+
+ private:
+  bool     needRender_ = true;
+  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.lastOkMs drawn (covers AQI too)
+};
+
+extern CalendarAgendaMode  g_calendarAgendaMode;
+extern CalendarWeatherMode g_calendarWeatherMode;
