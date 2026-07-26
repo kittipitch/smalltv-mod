@@ -14,7 +14,7 @@ CalendarMode g_calendarMode;
 
 // How long each of the 3 sub-pages (agenda/weather/AQI) stays on screen
 // before auto-rotating to the next, independent of the main mode carousel.
-static const uint32_t PAGE_DWELL_MS = 4000;
+static const uint32_t PAGE_DWELL_MS = 8000;
 
 static const char* MONTH3[] = {
   "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
