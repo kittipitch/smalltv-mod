@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"curl -s -m 5 -X POST http://192.168.0.20/api/config -H \\\"Content-Type: application/json\\\" -d '{\\\"mode\\\":\\\"calendar\\\"}' -w \\\"\\\\nHTTP:%{http_code}\\\\n\\\"\",\"description\":\"Switch device display ...",
+  "error": "Exit code 28\n\nHTTP:000",
+  "timestamp": "2026-07-26T13:43:03.100Z",
+  "retry_count": 1
+}

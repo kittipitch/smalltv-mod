@@ -92,7 +92,7 @@ static String buildForecastUrl(const Settings& s) {
   u += String(s.calendar.lat, 4);
   u += F("&longitude=");
   u += String(s.calendar.lon, 4);
-  u += F("&current=temperature_2m,precipitation_probability");
+  u += F("&current=temperature_2m,precipitation_probability,weather_code");
   return u;
 }
 
@@ -113,6 +113,7 @@ static void fetchForecast(const Settings& s) {
   JsonObject cur = filter["current"].to<JsonObject>();
   cur["temperature_2m"] = true;
   cur["precipitation_probability"] = true;
+  cur["weather_code"] = true;
 
   JsonDocument doc;
   if (!fetchJson(OPEN_METEO_FORECAST_HOST, buildForecastUrl(s), g_tlsRxForecast, doc, filter)) {
@@ -122,10 +123,12 @@ static void fetchForecast(const Settings& s) {
   JsonObjectConst cu = doc["current"].as<JsonObjectConst>();
   bool gotTemp = cu["temperature_2m"].is<float>() || cu["temperature_2m"].is<int>();
   bool gotPrecip = cu["precipitation_probability"].is<int>();
-  if (!gotTemp && !gotPrecip) { g_weather.forecastError = true; return; }
+  bool gotCode = cu["weather_code"].is<int>();
+  if (!gotTemp && !gotPrecip && !gotCode) { g_weather.forecastError = true; return; }
 
   if (gotTemp)   { g_weather.tempC = cu["temperature_2m"].as<float>(); g_weather.hasTemp = true; }
   if (gotPrecip) { g_weather.precipPct = cu["precipitation_probability"].as<int>(); g_weather.hasPrecip = true; }
+  if (gotCode)   { g_weather.weatherCode = cu["weather_code"].as<int>(); g_weather.hasWeatherCode = true; }
   g_weather.forecastError = false;
   g_weather.valid = true;
   g_weather.lastOkMs = millis();
