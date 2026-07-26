@@ -120,7 +120,14 @@ static void drawClockOverlay(DisplayMode* m) {
   // since this whole function only runs once per CLOCK_OVERLAY_REDRAW_MS
   // or on a mode switch, not every loop tick (that's what caused the
   // earlier flashing).
-  const int x = TFT_WIDTH - 64, y = 14, w = 60, h = 16;
+  // x is shifted left of a naive right-edge position to clear
+  // UsageMode's warn/status dot (fillCircle(228,18,r5) -> spans x223-233,
+  // y13-23) -- that dot redraws on every usage data tick, far more often
+  // than this overlay's 5s gate, so any overlap caused the last digit to
+  // intermittently look partially erased between our redraws. A one-time,
+  // static ~4px overlap with the tail of the "CLAUDE" title glyph is
+  // accepted instead -- that's drawn once per full redraw, not fought over.
+  const int x = 158, y = 14, w = 60, h = 16;
   gfx->fillRect(x, y, w, h, C_BLACK);
   gfx->setTextSize(2);
   gfx->setTextColor(C_RED, C_BLACK);
