@@ -285,6 +285,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div><label>Longitude</label><input id="calLon" type="number" step="0.0001" placeholder="4.9041"></div>
    </div>
    <button type="button" onclick="calUseMyLocation()">Use my location</button>
+   <div><small id="calLocLabel" class="hint"></small></div>
    <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of data. Neither weather/AQI nor the calendar event are fetched by this device &mdash; both are pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a> (<code>--weather</code> reads this lat/lon from the device and fetches <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> on its behalf; <code>--calendar</code> handles Google sign-in on your PC/server so this device never sees your Google credentials). See the daemon's README for setup.</small>
   </div>
  </section>
@@ -348,7 +349,18 @@ function calUseMyLocation(){
   sv('calLat',d.latitude.toFixed(4));
   sv('calLon',d.longitude.toFixed(4));
   toast('Location set (approx, from IP) — click Save to apply');
+  var lbl=$('calLocLabel'); if(lbl)lbl.textContent='Currently: '+[d.city,d.country].filter(Boolean).join(', ')+' ('+d.latitude.toFixed(4)+', '+d.longitude.toFixed(4)+')';
  }).catch(function(){toast('Location lookup failed — check internet connection')});
+}
+function calRefreshLocLabel(lat,lon){
+ var lbl=$('calLocLabel'); if(!lbl)return;
+ if(!lat&&!lon){lbl.textContent='';return}
+ lbl.textContent='Currently: '+lat.toFixed(4)+', '+lon.toFixed(4);
+ fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+lat+'&longitude='+lon+'&localityLanguage=en')
+  .then(function(r){return r.json()}).then(function(d){
+   var name=[d.city||d.locality,d.countryName].filter(Boolean).join(', ');
+   if(name)lbl.textContent='Currently: '+name+' ('+lat.toFixed(4)+', '+lon.toFixed(4)+')';
+  }).catch(function(){});   // best-effort only -- lat/lon fallback text already shown
 }
 // Secret key this browser sends on writes, remembered across reloads. Harmless
 // to attach on every request — the device only checks it on write endpoints,
@@ -468,6 +480,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // calendar slice
  var cal=c.calendar||{};
  sv('calLat',cal.lat); sv('calLon',cal.lon);
+ calRefreshLocLabel(cal.lat||0, cal.lon||0);
  var ap=$('apPass'); if(ap)ap.placeholder=c.apPassSet?'(unchanged)':'(open)';
 })}
 
