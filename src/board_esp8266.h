@@ -13,6 +13,11 @@
 #define TFT_BL      5   // D1  (backlight, PWM capable)
 
 // Panel colour order: this unit's ST7789 is wired RGB (0 = leave MADCTL RGB bit).
+// Tested TFT_BGR=1 on this project's clone hardware — made colors worse
+// (orange mascot turned purple), confirming RGB (0) is correct here too. The
+// cool/blue cast on this unit is real but is not a color-order issue — see
+// the tone()/usage.warmth+saturation live slider in
+// features/usage/UsageMode.cpp for the actual fix applied.
 #define TFT_BGR     0
 
 // Backlight is active-low (ESPHome uses `inverted: true`). Runtime-overridable.

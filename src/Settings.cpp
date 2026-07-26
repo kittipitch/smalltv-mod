@@ -127,8 +127,8 @@ void UsageSettings::setDefaults() {
 }
 
 void UsageSettings::toJson(JsonObject o) const {
-  o["usageUrl"] = usageUrl;
-  o["pollSec"]  = pollSec;
+  o["usageUrl"]   = usageUrl;
+  o["pollSec"]    = pollSec;
 }
 
 void UsageSettings::fromJson(JsonObjectConst o) {
@@ -260,6 +260,27 @@ void RadarSettings::fromJson(JsonObjectConst o) {
 }
 
 // ===========================================================================
+// Calendar + weather slice
+// ===========================================================================
+void CalendarSettings::setDefaults() {
+  lat = DEFAULT_CAL_LAT;
+  lon = DEFAULT_CAL_LON;
+  weatherPollSec = DEFAULT_WEATHER_POLL_SEC;
+}
+
+void CalendarSettings::toJson(JsonObject o) const {
+  o["lat"] = lat;
+  o["lon"] = lon;
+  o["weatherPollSec"] = weatherPollSec;
+}
+
+void CalendarSettings::fromJson(JsonObjectConst o) {
+  if (o["lat"].is<float>() || o["lat"].is<int>()) lat = o["lat"].as<float>();
+  if (o["lon"].is<float>() || o["lon"].is<int>()) lon = o["lon"].as<float>();
+  if (o["weatherPollSec"].is<int>()) weatherPollSec = max(60, (int)o["weatherPollSec"]);
+}
+
+// ===========================================================================
 // Top-level settings
 // ===========================================================================
 void Settings::setDefaults() {
@@ -270,13 +291,14 @@ void Settings::setDefaults() {
   }
   apSsid  = DEFAULT_AP_SSID;
   apPass  = DEFAULT_AP_PASS;
+  secretKey = "";
   // Unique per device so several SmallTVs on one network don't collide on
   // mDNS out of the box. A hostname saved in config.json overrides this.
   hostname = String(DEFAULT_HOSTNAME) + "-" + String(platformChipId() & 0xFFFF, HEX);
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselUsage = carouselRadar = true;
+  carouselTicker = carouselUsage = carouselRadar = carouselCalendar = true;
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
   brightness = DEFAULT_BRIGHTNESS;
@@ -284,10 +306,15 @@ void Settings::setDefaults() {
   backlightInverted = TFT_BL_DEFAULT_INVERTED;
   rotation = 0;
 
+  toneR = toneG = 100;
+  toneB = 95;   // slight default blue reduction — user confirmed this cures the panel's blue cast
+  toneSat = 100;
+
   ticker.setDefaults();
   usage.setDefaults();
   radar.setDefaults();
   clock.setDefaults();
+  calendar.setDefaults();
 }
 
 // ---------------------------------------------------------------------------
@@ -347,30 +374,39 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["staPassSet"] = s.wifiCount && s.wifi[0].pass.length() > 0;
   root["apSsid"]     = s.apSsid;
   root["apPassSet"]  = s.apPass.length() > 0;
+  root["secretKeySet"] = s.secretKey.length() > 0;
   if (includeSecrets) {
     root["staPass"]  = s.wifiCount ? s.wifi[0].pass : "";
     root["apPass"]   = s.apPass;
+    root["secretKey"] = s.secretKey;
   }
 
   // Mode + shared HTTP/display
   root["mode"]              = (s.mode == MODE_RADAR)    ? "radar"
                             : (s.mode == MODE_USAGE)    ? "usage"
+                            : (s.mode == MODE_CALENDAR) ? "calendar"
                             : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
   root["carouselSec"]       = s.carouselSec;
   root["carouselTicker"]    = s.carouselTicker;
   root["carouselUsage"]     = s.carouselUsage;
   root["carouselRadar"]     = s.carouselRadar;
+  root["carouselCalendar"]  = s.carouselCalendar;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
   root["autoBrightness"]    = s.autoBrightness;
   root["backlightInverted"] = s.backlightInverted;
   root["rotation"]          = s.rotation;
+  root["toneR"]             = s.toneR;
+  root["toneG"]             = s.toneG;
+  root["toneB"]             = s.toneB;
+  root["toneSat"]           = s.toneSat;
 
   // Feature slices
   s.ticker.toJson(root["ticker"].to<JsonObject>());
   s.usage.toJson(root["usage"].to<JsonObject>());
   s.radar.toJson(root["radar"].to<JsonObject>());
   s.clock.toJson(root["clock"].to<JsonObject>());
+  s.calendar.toJson(root["calendar"].to<JsonObject>());
 }
 
 // Apply only the keys that are present (partial update friendly). Accepts both
@@ -417,22 +453,40 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   // AP password: apply as-is when present (empty allowed => open AP).
   if (root["apPass"].is<const char*>()) s.apPass = root["apPass"].as<String>();
 
+  // Secret key: blank input keeps the stored key (like a WiFi password field,
+  // not like apPass) — GET /api/config never echoes the real value back, so a
+  // save that didn't touch this field must not silently wipe write-auth.
+  // Disabling it entirely is an explicit separate action (clearSecretKey).
+  if (root["secretKey"].is<const char*>()) {
+    String k = root["secretKey"].as<String>();
+    if (k.length() > 0) s.secretKey = k;
+  }
+  if (root["clearSecretKey"].is<bool>() && root["clearSecretKey"].as<bool>()) {
+    s.secretKey = "";
+  }
+
   if (root["mode"].is<const char*>()) {
     String m = root["mode"].as<String>();
     s.mode = m.equalsIgnoreCase("radar")    ? MODE_RADAR
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
+           : m.equalsIgnoreCase("calendar") ? MODE_CALENDAR
            : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL : MODE_STOCKS;
   }
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
   if (root["carouselTicker"].is<bool>())  s.carouselTicker = root["carouselTicker"];
   if (root["carouselUsage"].is<bool>())   s.carouselUsage = root["carouselUsage"];
   if (root["carouselRadar"].is<bool>())   s.carouselRadar = root["carouselRadar"];
+  if (root["carouselCalendar"].is<bool>()) s.carouselCalendar = root["carouselCalendar"];
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);
   if (root["brightness"].is<int>())         s.brightness = constrain((int)root["brightness"], 0, 100);
   if (root["autoBrightness"].is<bool>())    s.autoBrightness = root["autoBrightness"];
   if (root["backlightInverted"].is<bool>()) s.backlightInverted = root["backlightInverted"];
   if (root["rotation"].is<int>())           s.rotation = (uint8_t)(((int)root["rotation"]) & 3);
+  if (root["toneR"].is<int>())   s.toneR   = constrain((int)root["toneR"], 0, 100);
+  if (root["toneG"].is<int>())   s.toneG   = constrain((int)root["toneG"], 0, 100);
+  if (root["toneB"].is<int>())   s.toneB   = constrain((int)root["toneB"], 0, 100);
+  if (root["toneSat"].is<int>()) s.toneSat = constrain((int)root["toneSat"], 0, 200);
 
   // Feature slices: prefer the nested object; fall back to the top level so a
   // legacy flat config.json (or a legacy POST) still applies. The old shared
@@ -444,4 +498,5 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   // Radar has no legacy flat layout; only apply when its nested object is present.
   if (root["radar"].is<JsonObjectConst>()) s.radar.fromJson(root["radar"].as<JsonObjectConst>());
   if (root["clock"].is<JsonObjectConst>()) s.clock.fromJson(root["clock"].as<JsonObjectConst>());
+  if (root["calendar"].is<JsonObjectConst>()) s.calendar.fromJson(root["calendar"].as<JsonObjectConst>());
 }

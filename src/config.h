@@ -61,11 +61,13 @@
 //   1 = Claude usage meter (mascot + 5h/7d usage bars, fed by the daemon/)
 //   2 = plane radar
 //   3 = carousel: rotate through the ticked features on a timer
+//   4 = next calendar event + weather/air quality
 // ---------------------------------------------------------------------------
 #define MODE_STOCKS    0
 #define MODE_USAGE     1
 #define MODE_RADAR     2
 #define MODE_CAROUSEL  3
+#define MODE_CALENDAR  4
 #define DEFAULT_MODE MODE_STOCKS
 #define DEFAULT_CAROUSEL_SEC 30      // per-mode dwell in carousel
 
@@ -83,6 +85,9 @@
 #endif
 #ifndef WITH_RADAR
 #define WITH_RADAR 1
+#endif
+#ifndef WITH_CALENDAR
+#define WITH_CALENDAR 1
 #endif
 
 // Claude usage mode: once data stops arriving for this long (PC asleep, daemon
@@ -166,6 +171,24 @@
 #define DEFAULT_RADAR_LON       0.0f
 #define DEFAULT_RADAR_RANGE_KM  20
 #define DEFAULT_RADAR_POLL_SEC  10     // >=3 keeps us under the 1 req/s limit
+
+// ---------------------------------------------------------------------------
+// Calendar + weather (MODE_CALENDAR)
+//   Calendar: pushed to the device by clawdmeter-daemon's --calendar feature
+//   (POST /api/calendar) — the device never talks to Google directly. Weather
+//   + air quality: fetched directly by the device (Open-Meteo, free, no key),
+//   same shape as the ticker's direct fetches. Two independent HTTPS hosts.
+// ---------------------------------------------------------------------------
+#define OPEN_METEO_FORECAST_HOST "api.open-meteo.com"
+#define OPEN_METEO_FORECAST_PATH "/v1/forecast"
+#define OPEN_METEO_AQ_HOST       "air-quality-api.open-meteo.com"
+#define OPEN_METEO_AQ_PATH       "/v1/air-quality"
+#define OPEN_METEO_USER_AGENT    "Mozilla/5.0 (SmallTV)"
+
+// Defaults (lat/lon 0,0 is the "not set yet" sentinel, same convention as radar).
+#define DEFAULT_CAL_LAT           0.0f
+#define DEFAULT_CAL_LON           0.0f
+#define DEFAULT_WEATHER_POLL_SEC  600     // 10 min; weather doesn't change fast
 
 // ---------------------------------------------------------------------------
 // Defaults (used on first boot / factory reset)

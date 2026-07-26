@@ -86,6 +86,20 @@ struct ClockSettings {
   void fromJson(JsonObjectConst o);
 };
 
+// ---- Calendar + weather feature slice --------------------------------------
+// Calendar event data itself arrives via push (POST /api/calendar from
+// clawdmeter-daemon) — no URL/poll setting needed for it here, same as usage's
+// push path. lat/lon + pollSec are for the device-direct weather+AQI fetch.
+struct CalendarSettings {
+  float    lat;            // weather/AQ location (0,0 = not set yet)
+  float    lon;
+  uint16_t weatherPollSec; // device-direct Open-Meteo refresh period
+
+  void setDefaults();
+  void toJson(JsonObject o) const;
+  void fromJson(JsonObjectConst o);
+};
+
 // ---- Plane radar feature slice --------------------------------------------
 struct RadarSettings {
   float    lat;           // home latitude  (0,0 = not set yet)
@@ -121,12 +135,16 @@ struct Settings {
   String apPass;        // empty => open network
   String hostname;      // mDNS name => http://<hostname>.local
 
+  // --- Write auth: required on state-changing endpoints when non-empty.
+  // Empty (default) = no check, matches pre-existing open behavior.
+  String secretKey;
+
   // --- Active feature ---
   uint8_t mode;         // MODE_STOCKS / MODE_USAGE / MODE_RADAR / MODE_CAROUSEL
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselTicker, carouselUsage, carouselRadar;
+  bool carouselTicker, carouselUsage, carouselRadar, carouselCalendar;
 
   // --- Shared HTTP / display ---
   uint16_t httpTimeout; // ms
@@ -135,11 +153,19 @@ struct Settings {
   bool     backlightInverted; // active-low backlight
   uint8_t  rotation;          // 0..3 screen orientation
 
+  // --- Device-wide color correction (applied at the display driver level,
+  // so it affects every mode — ticker/usage/radar/clock/boot screens alike) ---
+  uint8_t  toneR;    // 0..100 red gain,   100 = normal
+  uint8_t  toneG;    // 0..100 green gain, 100 = normal
+  uint8_t  toneB;    // 0..100 blue gain,  100 = normal (lower = warmer)
+  uint8_t  toneSat;  // 0..200 saturation, 100 = normal, >100 = boosted
+
   // --- Feature slices ---
-  TickerSettings ticker;
-  UsageSettings  usage;
-  RadarSettings  radar;
-  ClockSettings  clock;
+  TickerSettings   ticker;
+  UsageSettings    usage;
+  RadarSettings    radar;
+  ClockSettings    clock;
+  CalendarSettings calendar;
 
   void setDefaults();
 };

@@ -15,13 +15,17 @@ class UsageMode : public DisplayMode {
   void begin(const Settings& s) override;
   void service(const Settings& s) override;
   void invalidate(const Settings& s) override;
-  void wake(const Settings& s) override { needRender_ = true; }  // repaint only
+  void wake(const Settings& s) override { needRender_ = true; needFullRender_ = true; }  // repaint only
 
  private:
   uint32_t usageSampled_ = 0;              // lastOkMs already fed to the mascot tracker
   uint32_t usageRenderedOk_ = 0xFFFFFFFF;
   bool     showingMascot_ = false;
   bool     needRender_ = true;
+  // Structural changes (wake/invalidate/mascot-exit/warmth-saturation change)
+  // need a full screen clear + header/mascot redraw; a plain new data push
+  // doesn't — see drawUsage()'s `full` param and its self-clearing meters.
+  bool     needFullRender_ = true;
 };
 
 extern UsageMode g_usageMode;

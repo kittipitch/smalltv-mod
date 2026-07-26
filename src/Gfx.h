@@ -25,6 +25,12 @@ void         gfxSetBrightness(uint8_t pct, bool inverted);
 void         gfxSetRotation(uint8_t r);
 Arduino_GFX* gfxDev();                 // shared draw target for feature renderers
 
+// Device-wide color correction, applied at the display driver level (every
+// draw call, every mode, boot/status screens included) — see Gfx.cpp for the
+// 4 driver methods this hooks. rGain/gGain/bGain: 0..100, 100 = normal (lower
+// = reduce that channel). sat: 0..200, 100 = normal, >100 = boosted.
+void gfxSetTone(uint8_t rGain, uint8_t gGain, uint8_t bGain, uint8_t sat);
+
 // ---- Text helpers (built-in 6x8 font, integer scaled) ---------------------
 int     gfxTextW(const char* s, uint8_t size);
 void    gfxDrawCentered(const char* s, int y, uint8_t size, uint16_t color);

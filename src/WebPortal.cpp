@@ -9,6 +9,9 @@
 #include "StockClient.h"
 #include "UsageClient.h"
 #include "Clock.h"
+#if WITH_CALENDAR
+#include "CalendarClient.h"
+#endif
 
 // Defined in main.cpp — re-init every mode + force a repaint after a config change.
 extern void appInvalidate();
@@ -25,6 +28,21 @@ static String           g_updateMsg;            // last self-update status/error
 static void scheduleReboot(uint32_t inMs) {
   g_reboot = true;
   g_rebootAt = millis() + inMs;
+}
+
+// Write-auth gate for state-changing endpoints. Empty stored key (the
+// default) means no check at all — must stay that way so nobody gets locked
+// out by upgrading. Accepts either an X-Secret-Key header or a ?key= query
+// param (the latter so /update's plain-form upload path can supply it too).
+static bool checkAuth() {
+  if (S->secretKey.length() == 0) return true;
+  String got = server.hasHeader("X-Secret-Key") ? server.header("X-Secret-Key")
+             : server.arg("key");
+  return got.length() > 0 && got == S->secretKey;
+}
+
+static void sendUnauthorized() {
+  server.send(401, "application/json", "{\"ok\":false,\"error\":\"unauthorized\"}");
 }
 
 // ---------------------------------------------------------------------------
@@ -48,6 +66,7 @@ static void handleGetConfig() {
   feat["ticker"] = (bool)WITH_TICKER;
   feat["usage"]  = (bool)WITH_USAGE;
   feat["radar"]  = (bool)WITH_RADAR;
+  feat["calendar"] = (bool)WITH_CALENDAR;
   // Which chip this build runs on (the UI warns about per-chip limitations).
 #if defined(SMALLTV_ESP32C2)
   root["chip"] = "esp32c2";
@@ -122,6 +141,7 @@ static String netFingerprint(const Settings& s) {
 }
 
 static void handlePostConfig() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
 
   JsonDocument doc;
@@ -140,6 +160,7 @@ static void handlePostConfig() {
   clockReapply(*S);         // re-arm SNTP iff the timezone changed
   appApplyBrightness();     // apply effective brightness (respects night/auto/manual)
   if (S->rotation != oldRot) gfxSetRotation(S->rotation);
+  gfxSetTone(S->toneR, S->toneG, S->toneB, S->toneSat);
   appInvalidate();          // re-init every mode + repaint (covers mode/URL/symbol changes)
 
   bool wifiChanged = netFingerprint(*S) != oldNet;
@@ -167,11 +188,13 @@ static void handleScan() {
 }
 
 static void handleReboot() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   server.send(200, "application/json", "{\"ok\":true}");
   scheduleReboot(400);
 }
 
 static void handleFactory() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   factoryReset(*S);
   saveSettings(*S);
   server.send(200, "application/json", "{\"ok\":true}");
@@ -181,6 +204,7 @@ static void handleFactory() {
 // Full settings backup: stream the persisted config.json verbatim. It includes
 // the WiFi passwords — same trust domain as typing them into this page.
 static void handleExport() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   File f = LittleFS.open("/config.json", "r");
   if (!f) { server.send(404, "text/plain", "no config saved yet"); return; }
   server.sendHeader("Content-Disposition", "attachment; filename=smalltv-config.json");
@@ -190,6 +214,7 @@ static void handleExport() {
 
 // Restore a backup: apply everything, persist, reboot (WiFi/hostname may change).
 static void handleImport() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
   JsonDocument doc;
   if (deserializeJson(doc, server.arg("plain"))) {
@@ -225,6 +250,7 @@ static void handleCheckUpdate() {
 // Trigger the self-update. The actual (blocking) download runs from the loop so
 // this response returns first; on success the device reboots into the new image.
 static void handleSelfUpdate() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   g_selfUpdate = true;
   g_updateMsg = "starting...";
   server.send(200, "application/json", "{\"ok\":true}");
@@ -243,8 +269,28 @@ static void handleUsagePush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+// Push endpoint: clawdmeter-daemon's --calendar feature POSTs the next-event
+// payload here. Deliberately ungated by the secret key (same as /api/usage
+// above) — the daemon push is already the trusted/expected write path; the
+// key exists to stop LAN randos, not the daemon this device is paired with.
+static void handleCalendarPush() {
+  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
+#if WITH_CALENDAR
+  bool ok = calendarApply(server.arg("plain"));
+#else
+  bool ok = false;
+#endif
+  server.send(ok ? 200 : 400, "application/json",
+              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
 // ---- OTA ------------------------------------------------------------------
+static bool g_updateAuthorized = false;
+
 static void handleUpdateDone() {
+  bool authorized = g_updateAuthorized;
+  g_updateAuthorized = false;   // one-shot: never let a stale true answer a later bare POST
+  if (!authorized) { sendUnauthorized(); return; }
   bool ok = !Update.hasError();
   server.sendHeader("Connection", "close");
   server.send(ok ? 200 : 500, "text/plain", ok ? "OK" : platformUpdateError().c_str());
@@ -254,11 +300,15 @@ static void handleUpdateDone() {
 static void handleUpdateUpload() {
   HTTPUpload& up = server.upload();
   if (up.status == UPLOAD_FILE_START) {
+    g_updateAuthorized = checkAuth();
+    if (!g_updateAuthorized) return;   // reject in handleUpdateDone once the body's drained
 #if defined(SMALLTV_ESP8266)
     WiFiUDP::stopAll();   // free UDP sockets so the OTA has max contiguous flash/heap
 #endif
     uint32_t maxSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     if (!Update.begin(maxSpace)) Update.printError(Serial);
+  } else if (!g_updateAuthorized) {
+    // Swallow the rest of an unauthorized upload without touching Update.
   } else if (up.status == UPLOAD_FILE_WRITE) {
     if (Update.write(up.buf, up.currentSize) != up.currentSize) Update.printError(Serial);
   } else if (up.status == UPLOAD_FILE_END) {
@@ -284,6 +334,11 @@ static void handleNotFound() {
 void webPortalBegin(Settings& settings) {
   S = &settings;
 
+  // ESP8266WebServer/WebServer both discard every header during parsing
+  // unless told to keep it — hasHeader()/header() are no-ops without this.
+  static const char* kCollectHeaders[] = { "X-Secret-Key" };
+  server.collectHeaders(kCollectHeaders, (size_t)1);
+
   // If the last boot ran a queued GitHub update and failed, surface why
   // (success reboots into the new image before we ever get here).
   g_updateMsg = otaTakeBootResult();
@@ -301,6 +356,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/checkupdate", HTTP_GET, handleCheckUpdate);
   server.on("/api/selfupdate", HTTP_POST, handleSelfUpdate);
   server.on("/api/usage", HTTP_POST, handleUsagePush);   // daemon pushes usage here
+  server.on("/api/calendar", HTTP_POST, handleCalendarPush);   // daemon pushes calendar here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 
   // Common captive-portal probe endpoints

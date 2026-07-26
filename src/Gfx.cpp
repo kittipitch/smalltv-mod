@@ -3,6 +3,39 @@
 #include <Arduino_GFX_Library.h>
 #include <SPI.h>
 
+// ---- Device-wide color correction -----------------------------------------
+// Applied once here at the driver level instead of threading a tone() helper
+// through every mode's draw call — see the 4 method overrides on the
+// Arduino_ST7789_SmallTV subclass below. gains 0..100 (100=normal, lower=
+// reduce that channel); sat 0..200 (100=normal, >100=boosted).
+static uint8_t s_toneR = 100, s_toneG = 100, s_toneB = 100, s_toneSat = 100;
+
+static inline bool toneIsNoop() {
+  return s_toneR == 100 && s_toneG == 100 && s_toneB == 100 && s_toneSat == 100;
+}
+
+// RGB565 -> per-channel 8-bit, luma-weighted saturation blend (can go below 0
+// before clamping, hence int32_t), per-channel multiplicative gain, clamp,
+// quantize back to 565 once at the end.
+static inline uint16_t applyTone(uint16_t c565) {
+  if (toneIsNoop()) return c565;   // fast path, no-op — the common case
+  uint8_t r5 = (c565 >> 11) & 0x1F, g6 = (c565 >> 5) & 0x3F, b5 = c565 & 0x1F;
+  int32_t r8 = (r5 * 255) / 31, g8 = (g6 * 255) / 63, b8 = (b5 * 255) / 31;
+
+  if (s_toneSat != 100) {
+    int32_t lum = (r8 * 77 + g8 * 151 + b8 * 28) >> 8;
+    r8 = lum + ((r8 - lum) * (int32_t)s_toneSat) / 100;
+    g8 = lum + ((g8 - lum) * (int32_t)s_toneSat) / 100;
+    b8 = lum + ((b8 - lum) * (int32_t)s_toneSat) / 100;
+    r8 = constrain(r8, 0, 255); g8 = constrain(g8, 0, 255); b8 = constrain(b8, 0, 255);
+  }
+  r8 = (r8 * s_toneR) / 100; g8 = (g8 * s_toneG) / 100; b8 = (b8 * s_toneB) / 100;
+  r8 = constrain(r8, 0, 255); g8 = constrain(g8, 0, 255); b8 = constrain(b8, 0, 255);
+
+  uint8_t r5o = (uint8_t)((r8 * 31) / 255), g6o = (uint8_t)((g8 * 63) / 255), b5o = (uint8_t)((b8 * 31) / 255);
+  return (uint16_t)((r5o << 11) | (g6o << 5) | b5o);
+}
+
 // The SmallTV's ST7789 has its CS line tied to GND and only latches SPI in
 // **mode 3**. Arduino_GFX's stock Arduino_ST7789 forces SPI_MODE2 on the ESP8266
 // (wrong clock edge for this panel), so the controller never initializes and the
@@ -15,6 +48,39 @@ class Arduino_ST7789_SmallTV : public Arduino_ST7789 {
   bool begin(int32_t speed = GFX_NOT_DEFINED) override {
     _override_datamode = SPI_MODE3;
     return Arduino_TFT::begin(speed);
+  }
+
+  // Device-wide color correction hooks. These 4 methods are where every draw
+  // primitive in this codebase (fillScreen/fillRect/fillRoundRect/fillCircle/
+  // drawLine/text/...) ultimately bottoms out in Arduino_TFT.cpp — verified
+  // against the vendored source, not assumed. Deliberately NOT overriding
+  // writeFillRectPreclipped/writeFastVLine/writeFastHLine/writeSlashLine:
+  // they all terminate in writeRepeat(), so overriding those too would
+  // double-apply the transform.
+  void writeColor(uint16_t color) override {
+    Arduino_TFT::writeColor(applyTone(color));
+  }
+  void writeRepeat(uint16_t color, uint32_t len) override {
+    Arduino_TFT::writeRepeat(applyTone(color), len);
+  }
+  void writePixelPreclipped(int16_t x, int16_t y, uint16_t color) override {
+    Arduino_TFT::writePixelPreclipped(x, y, applyTone(color));
+  }
+  // Buffer form: must transform into a scratch buffer, never the caller's
+  // buffer in place. drawChar's opaque-glyph path reuses the same line_buf
+  // across multiple writePixels() calls within one glyph (textsize_y>1) —
+  // transforming in place would re-transform already-transformed output on
+  // the 2nd+ call. Chunked so the scratch buffer stays small and fixed-size.
+  void writePixels(uint16_t* data, uint32_t len) override {
+    if (toneIsNoop()) { Arduino_TFT::writePixels(data, len); return; }
+    static uint16_t scratch[64];
+    while (len) {
+      uint32_t chunk = len < 64 ? len : 64;
+      for (uint32_t i = 0; i < chunk; i++) scratch[i] = applyTone(data[i]);
+      Arduino_TFT::writePixels(scratch, chunk);
+      data += chunk;
+      len -= chunk;
+    }
   }
 
 #if TFT_BGR
@@ -57,6 +123,7 @@ void gfxBegin(const Settings& s) {
   pinMode(TFT_BL, OUTPUT);
   platformAnalogWriteInit(TFT_BL);
   gfxSetBrightness(s.brightness, s.backlightInverted);
+  gfxSetTone(s.toneR, s.toneG, s.toneB, s.toneSat);
 
 #if defined(SMALLTV_ESP32C2) || defined(SMALLTV_ESP32)
   // Hardware SPI via the Arduino SPI library (IDF spi_master driver) on explicit
@@ -79,6 +146,10 @@ void gfxBegin(const Settings& s) {
   // wrap around to x=0 on the next line (stray characters at the left edge).
   gfx->setTextWrap(false);
   gfx->fillScreen(C_BLACK);
+}
+
+void gfxSetTone(uint8_t rGain, uint8_t gGain, uint8_t bGain, uint8_t sat) {
+  s_toneR = rGain; s_toneG = gGain; s_toneB = bGain; s_toneSat = sat;
 }
 
 void gfxSetBrightness(uint8_t pct, bool inverted) {

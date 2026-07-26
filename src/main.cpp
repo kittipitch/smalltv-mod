@@ -28,6 +28,9 @@
 #if WITH_RADAR
 #include "RadarMode.h"
 #endif
+#if WITH_CALENDAR
+#include "CalendarMode.h"
+#endif
 
 // ---- mode registry --------------------------------------------------------
 // The compiled-in features, in display order. main.cpp holds no per-feature
@@ -41,6 +44,9 @@ static DisplayMode* kModes[] = {
 #endif
 #if WITH_RADAR
   &g_radarMode,
+#endif
+#if WITH_CALENDAR
+  &g_calendarMode,
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
@@ -56,6 +62,7 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     case MODE_STOCKS: return s.carouselTicker;
     case MODE_USAGE:  return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
+    case MODE_CALENDAR: return s.carouselCalendar;
     default:          return true;
   }
 }

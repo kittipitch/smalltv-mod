@@ -63,6 +63,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <button data-t="ticker">Ticker</button>
  <button data-t="usage">Usage</button>
  <button data-t="radar">Radar</button>
+ <button data-t="calendar">Calendar</button>
  <button data-t="update">Update</button>
 </nav>
 <main>
@@ -97,12 +98,25 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
  <!-- DISPLAY (shared) -->
  <section id="display" class="tab">
+  <div class="card"><h2>Access</h2>
+   <div id="unlockRow" style="display:none">
+    <label>Unlock this browser <span class="muted">(enter the current key already set on the device)</span></label>
+    <div class="row"><input id="unlockKey" type="text" autocomplete="off" placeholder="current secret key">
+     <button class="btn sec" style="flex:0 0 auto" onclick="unlockBrowser()">Unlock</button></div>
+    <small class="hint">This browser doesn't have the device's current key saved, so writes (Save, reboot, etc.) will fail until you unlock it. Only needed once per browser.</small>
+   </div>
+   <label style="margin-top:12px">Secret key <span class="muted" id="skStatus"></span></label>
+   <input id="secretKey" type="text" autocomplete="off" placeholder="(unchanged)">
+   <div style="margin-top:10px"><button class="btn sec" onclick="clearSecretKey()">Clear (open write access)</button></div>
+   <small class="hint">When set, this key is required to change settings, reboot, factory-reset, or flash the device (read-only pages still work without it). Blank = anyone on the LAN can write, matching this project's original behavior. This device has no encryption, so the key still travels in the clear on your LAN &mdash; it stops accidental/unauthorized writes, not eavesdropping. Type a new value and Save to change it; this browser remembers it afterwards. Losing the key entirely means factory-reset or reflashing, same as losing a WiFi password.</small>
+  </div>
   <div class="card"><h2>Mode</h2>
    <label>What this device shows</label>
    <select id="mode" onchange="modeChanged()">
     <option value="stocks">Stock / crypto ticker</option>
     <option value="usage">Claude usage</option>
     <option value="radar">Plane radar</option>
+    <option value="calendar">Next event + weather</option>
     <option value="carousel">Carousel (rotate modes)</option>
    </select>
    <div id="carouselRow">
@@ -110,6 +124,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div class="chk"><input id="carouselTicker" type="checkbox"><label>Ticker</label></div>
     <div class="chk"><input id="carouselUsage" type="checkbox"><label>Claude usage</label></div>
     <div class="chk"><input id="carouselRadar" type="checkbox"><label>Plane radar</label></div>
+    <div class="chk"><input id="carouselCalendar" type="checkbox"><label>Next event + weather</label></div>
    </div>
    <small class="hint">Pick the active feature, then configure it in its own tab. Carousel rotates through the ticked features.</small>
   </div>
@@ -121,6 +136,18 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <select id="rotation"><option value="0">0&deg;</option><option value="1">90&deg;</option>
     <option value="2">180&deg;</option><option value="3">270&deg;</option></select>
    <div class="chk"><input id="backlightInverted" type="checkbox"><label>Backlight is active-low (try if screen stays dark)</label></div>
+  </div>
+  <div class="card"><h2>Color</h2>
+   <label>Red: <span id="toneRVal"></span>%</label>
+   <input id="toneR" type="range" min="0" max="100" oninput="toneRVal.textContent=this.value">
+   <label>Green: <span id="toneGVal"></span>%</label>
+   <input id="toneG" type="range" min="0" max="100" oninput="toneGVal.textContent=this.value">
+   <label>Blue: <span id="toneBVal"></span>% <span class="muted">(lower = warmer)</span></label>
+   <input id="toneB" type="range" min="0" max="100" oninput="toneBVal.textContent=this.value">
+   <label>Saturation: <span id="toneSatVal"></span>% <span class="muted">(100 = normal, can boost past it — this palette is intentionally muted, so higher saturation may barely move near-neutral greys and only visibly affects accent colors)</span></label>
+   <input id="toneSat" type="range" min="0" max="200" oninput="toneSatVal.textContent=this.value">
+   <div style="margin-top:10px"><button class="btn sec" onclick="resetTone()">Reset to defaults</button></div>
+   <small class="hint">Applies device-wide (every screen: ticker, usage, radar, clock, boot/status screens) — not per-feature. Takes effect on Save, no reboot needed.</small>
   </div>
   <div class="card"><h2>Clock &amp; night mode</h2>
    <label>Timezone</label>
@@ -250,6 +277,18 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   </div>
  </section>
 
+ <!-- CALENDAR (feature) -->
+ <section id="calendar" class="tab">
+  <div class="card"><h2>Weather location</h2>
+   <div class="row">
+    <div><label>Latitude</label><input id="calLat" type="number" step="0.0001" placeholder="52.3676"></div>
+    <div><label>Longitude</label><input id="calLon" type="number" step="0.0001" placeholder="4.9041"></div>
+   </div>
+   <label>Refresh weather (s)</label><input id="calPollSec" type="number" min="60" max="3600">
+   <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of fetching. Weather + air quality are fetched directly by the device from <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> (free, no key). The calendar event itself is <b>not</b> configured here &mdash; it's pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar</code> feature, which handles the Google sign-in on your PC/server so this device never sees your Google credentials. See the daemon's README for one-time setup (<code>--calendar-auth</code>).</small>
+  </div>
+ </section>
+
  <!-- UPDATE -->
  <section id="update" class="tab">
   <div class="card"><h2>Update from GitHub</h2>
@@ -297,7 +336,13 @@ function sc(id,v){var e=$(id);if(e)e.checked=!!v}
 function gv(id){var e=$(id);return e?e.value:''}
 function gc(id){var e=$(id);return e?e.checked:false}
 function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
-function j(url,opt){return fetch(url,opt).then(function(r){return r.json()})}
+// Secret key this browser sends on writes, remembered across reloads. Harmless
+// to attach on every request — the device only checks it on write endpoints,
+// and ignores it entirely while no key is configured (default/open).
+function authKey(){return localStorage.getItem('smalltvKey')||''}
+function setAuthKey(k){if(k)localStorage.setItem('smalltvKey',k);else localStorage.removeItem('smalltvKey')}
+function j(url,opt){opt=opt||{};var k=authKey();if(k){opt.headers=opt.headers||{};opt.headers['X-Secret-Key']=k}
+ return fetch(url,opt).then(function(r){if(r.status===401){toast('Wrong or missing secret key — set it in Display tab');throw new Error('unauthorized')}return r.json()})}
 
 // tabs
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){
@@ -342,18 +387,23 @@ var TZMAP={
 function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
  keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
 
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar'};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar'};
+var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:'calendar'};
+var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:'carouselCalendar'};
 function hideFeat(name){
  var b=document.querySelector('nav button[data-t="'+name+'"]'); if(b)b.remove();
  var sec=$(name); if(sec)sec.remove();
  var o=document.querySelector('#mode option[value="'+MODEOPT[name]+'"]'); if(o)o.remove();
  var c=$(CAROPT[name]); if(c)c.closest('.chk').remove();
 }
+function setTone(r,g,b,sat){sv('toneR',r);$('toneRVal')&&($('toneRVal').textContent=r);
+ sv('toneG',g);$('toneGVal')&&($('toneGVal').textContent=g);
+ sv('toneB',b);$('toneBVal')&&($('toneBVal').textContent=b);
+ sv('toneSat',sat);$('toneSatVal')&&($('toneSatVal').textContent=sat);}
+function resetTone(){setTone(100,100,100,100)}
 function modeChanged(){if(!$('mode'))return;
  $('carouselRow').style.display=$('mode').value==='carousel'?'block':'none';}
 function loadConfig(){return j('/api/config').then(function(c){C=c;
- var f=c.features||{}; ['ticker','usage','radar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
+ var f=c.features||{}; ['ticker','usage','radar','calendar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
  var t=c.ticker||{}, u=c.usage||{};
  // shared
  ['apSsid','apPass','hostname'].forEach(function(k){$(k).value=c[k]!=null?c[k]:''});
@@ -362,6 +412,10 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  $('rotation').value=c.rotation;
  $('autoBrightness').checked=!!c.autoBrightness;
  $('backlightInverted').checked=!!c.backlightInverted;
+ setTone(c.toneR!=null?c.toneR:100, c.toneG!=null?c.toneG:100, c.toneB!=null?c.toneB:100, c.toneSat!=null?c.toneSat:100);
+ var skE=$('skStatus'); if(skE)skE.textContent=c.secretKeySet?'(set — writes require it)':'(not set — open write access)';
+ var unlockNeeded=!!c.secretKeySet&&!authKey();
+ var ur=$('unlockRow'); if(ur)ur.style.display=unlockNeeded?'block':'none';
  // header chip = which chip this firmware was built for
  var chipName={esp8266:'ESP8266',esp32c2:'ESP32-C2',esp32:'ESP32'}[c.chip]||'';
  var chE=$('chip'); if(chE&&chipName){chE.textContent=chipName;chE.style.display='inline-block';}
@@ -374,6 +428,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  $('mode').value=c.mode||'stocks'; modeChanged();
  sv('carouselSec',c.carouselSec||30);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
+ sc('carouselCalendar',c.carouselCalendar!==false);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -396,6 +451,10 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('radarUiScale',r.uiScale!=null?r.uiScale:1);
  sv('radarMinAlt',r.minAltFt!=null?r.minAltFt:0);
  renderAps(r.airports||[]);
+ // calendar slice
+ var cal=c.calendar||{};
+ sv('calLat',cal.lat); sv('calLon',cal.lon);
+ sv('calPollSec',cal.weatherPollSec||600);
  var ap=$('apPass'); if(ap)ap.placeholder=c.apPassSet?'(unchanged)':'(open)';
 })}
 
@@ -443,15 +502,19 @@ function radarSrcChanged(){if(!$('radarSource'))return;var d=$('radarSource').va
   ?'The device fetches <b>adsb.fi</b> directly over HTTPS (no key, ~1 req/s). Tight on RAM in busy airspace — use the webhook if it drops.'
   :'The device requests <code>?lat=..&amp;lon=..&amp;dist=..</code> from your LAN proxy, which pre-filters adsb.fi to a small JSON. Most reliable on the ESP8266.';}
 
+function toneNum(id){var v=parseInt(gv(id));return isNaN(v)?100:v}
 function collect(){
  var o={mode:gv('mode'),
+  toneR:toneNum('toneR'), toneG:toneNum('toneG'), toneB:toneNum('toneB'), toneSat:toneNum('toneSat'),
   carouselSec:parseInt(gv('carouselSec'))||30,
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
+  carouselCalendar:gc('carouselCalendar'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),
   backlightInverted:gc('backlightInverted'),
   hostname:gv('hostname'), apSsid:gv('apSsid'), apPass:gv('apPass'),
+  secretKey:gv('secretKey'),
   wifi:collectWifi()};
  // ticker slice (only if compiled in)
  if($('ticker')){
@@ -468,7 +531,8 @@ function collect(){
   o.ticker=t;
  }
  // usage slice
- if($('usage')) o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0};
+ if($('usage')){
+  o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0};}
  // clock slice
  if($('tz')){var _tzn=gv('tz'); var _tzp=(_tzn in TZMAP)?TZMAP[_tzn]:((C.clock&&C.clock.tz===_tzn&&C.clock.tzPosix)?C.clock.tzPosix:'UTC0');
   o.clock={tz:_tzn,tzPosix:_tzp,
@@ -489,10 +553,29 @@ function collect(){
   });
   o.radar=r;
  }
+ // calendar slice
+ if($('calendar')){
+  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0,
+   weatherPollSec:parseInt(gv('calPollSec'))||600};
+ }
  return o;
 }
-function saveAll(){j('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())})
- .then(function(r){toast(r.reboot?'Saved — rebooting...':'Saved');if(r.reboot)setTimeout(function(){location.reload()},6000);loadStatus()})}
+function saveAll(){var newKey=gv('secretKey');
+ j('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())})
+ .then(function(r){if(newKey)setAuthKey(newKey);$('secretKey').value='';
+  toast(r.reboot?'Saved — rebooting...':'Saved');if(r.reboot)setTimeout(function(){location.reload()},6000);loadStatus();loadConfig()})
+ .catch(function(){});}
+
+function unlockBrowser(){var k=gv('unlockKey').trim();if(!k){toast('Enter the current key first');return}
+ setAuthKey(k);   // probe with it; j() reads authKey() fresh each call
+ j('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+ .then(function(){toast('Unlocked');$('unlockKey').value='';loadConfig()})
+ .catch(function(){setAuthKey('');toast('Wrong key')});}
+
+function clearSecretKey(){if(!confirm('Remove the secret key? Anyone on the LAN will be able to change settings.'))return;
+ j('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clearSecretKey:true})})
+ .then(function(){setAuthKey('');toast('Secret key cleared');loadConfig()})
+ .catch(function(){});}
 
 function saveWifi(){
  var o={wifi:collectWifi()};
@@ -621,9 +704,10 @@ function factory(){if(confirm('Erase ALL settings and reboot?'))j('/api/factory'
 function upload(){var f=$('fw').files[0];if(!f){toast('Pick a .bin first');return}
  var fd=new FormData();fd.append('firmware',f,f.name);
  var x=new XMLHttpRequest();x.open('POST','/update');
+ var k=authKey();if(k)x.setRequestHeader('X-Secret-Key',k);
  $('upBtn').disabled=true;
  x.upload.onprogress=function(e){if(e.lengthComputable){var p=Math.round(e.loaded/e.total*100);$('upBar').style.width=p+'%';$('upMsg').textContent='Uploading '+p+'%'}};
- x.onload=function(){$('upBtn').disabled=false;if(x.status==200){$('upMsg').textContent='Done. Rebooting...';$('upBar').style.width='100%';setTimeout(function(){location.reload()},9000)}else{$('upMsg').textContent='Failed: '+x.responseText}};
+ x.onload=function(){$('upBtn').disabled=false;if(x.status==200){$('upMsg').textContent='Done. Rebooting...';$('upBar').style.width='100%';setTimeout(function(){location.reload()},9000)}else if(x.status==401){$('upMsg').textContent='Wrong or missing secret key'}else{$('upMsg').textContent='Failed: '+x.responseText}};
  x.onerror=function(){$('upBtn').disabled=false;$('upMsg').textContent='Upload error'};
  x.send(fd);
 }
