@@ -284,6 +284,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div><label>Latitude</label><input id="calLat" type="number" step="0.0001" placeholder="52.3676"></div>
     <div><label>Longitude</label><input id="calLon" type="number" step="0.0001" placeholder="4.9041"></div>
    </div>
+   <button type="button" onclick="calUseMyLocation()">Use my location</button>
    <label>Refresh weather (s)</label><input id="calPollSec" type="number" min="60" max="3600">
    <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows a prompt instead of fetching. Weather + air quality are fetched directly by the device from <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> (free, no key). The calendar event itself is <b>not</b> configured here &mdash; it's pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar</code> feature, which handles the Google sign-in on your PC/server so this device never sees your Google credentials. See the daemon's README for one-time setup (<code>--calendar-auth</code>).</small>
   </div>
@@ -336,6 +337,17 @@ function sc(id,v){var e=$(id);if(e)e.checked=!!v}
 function gv(id){var e=$(id);return e?e.value:''}
 function gc(id){var e=$(id);return e?e.checked:false}
 function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2200)}
+function calUseMyLocation(){
+ if(!navigator.geolocation){toast('Browser has no location support');return}
+ toast('Requesting location…');
+ navigator.geolocation.getCurrentPosition(function(pos){
+  sv('calLat',pos.coords.latitude.toFixed(4));
+  sv('calLon',pos.coords.longitude.toFixed(4));
+  toast('Location set — click Save to apply');
+ },function(err){
+  toast('Location denied or unavailable: '+err.message);
+ },{timeout:10000});
+}
 // Secret key this browser sends on writes, remembered across reloads. Harmless
 // to attach on every request — the device only checks it on write endpoints,
 // and ignores it entirely while no key is configured (default/open).
