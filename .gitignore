@@ -40,3 +40,4 @@ dependencies.lock
 
 # manual quotes-branch staging dir (see .github/workflows/quotes.yml)
 /out/
+.omc/
