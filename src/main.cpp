@@ -86,25 +86,25 @@ static void carouselNext(const Settings& s) {
 // ---- global clock overlay --------------------------------------------------
 // "HH:MM", red, small mono-ish font, top-right corner -- drawn on top of
 // whatever the active mode just rendered, on every mode's screen. Redraws
-// only on a minute-change or a mode switch (which implies a fillScreen that
-// would erase it) -- NOT every loop tick. An unconditional-every-tick
-// version was tried and caused visible flashing: it added a black fillRect
-// before the text on every ~5-10ms loop, i.e. a black-then-red strobe at
-// near-continuous frequency. A single opaque setTextColor(fg,bg) print (no
-// separate fillRect) doesn't flash on its own -- confirmed by this gated
-// version's earlier (pre-flash) behavior. Tradeoff accepted: a mode's own
-// internal full redraw between minute ticks can still blank this area for
-// up to 59s; less bad than constant flashing.
-static int      s_clockLastMinuteOfDay = -1;
+// every CLOCK_OVERLAY_REDRAW_MS (15s) or on a mode switch (which implies a
+// fillScreen that would erase it) -- NOT every loop tick. An unconditional-
+// every-tick version was tried and caused visible flashing: it added a
+// black fillRect before the text on every ~5-10ms loop, i.e. a
+// black-then-red strobe at near-continuous frequency. A single opaque
+// setTextColor(fg,bg) print (no separate fillRect) doesn't flash on its own.
+// 15s bounds how long a mode's own internal full redraw (settings save,
+// wake, mascot-exit, data refresh) can blank this area before it self-heals,
+// without redrawing so often it risks the same flashing.
+static const uint32_t CLOCK_OVERLAY_REDRAW_MS = 15000;
+static uint32_t s_clockNextRedrawMs = 0;
 static DisplayMode* s_clockLastMode = nullptr;
 
 static void drawClockOverlay(DisplayMode* m) {
   struct tm t;
   if (!clockNow(t)) return;   // unsynced -- nothing trustworthy to show yet
-  int minuteOfDay = t.tm_hour * 60 + t.tm_min;
   bool modeSwitched = (m != s_clockLastMode);
-  if (minuteOfDay == s_clockLastMinuteOfDay && !modeSwitched) return;
-  s_clockLastMinuteOfDay = minuteOfDay;
+  if ((int32_t)(millis() - s_clockNextRedrawMs) < 0 && !modeSwitched) return;
+  s_clockNextRedrawMs = millis() + CLOCK_OVERLAY_REDRAW_MS;
   s_clockLastMode = m;
 
   Arduino_GFX* gfx = gfxDev();
