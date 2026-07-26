@@ -160,7 +160,10 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   drawWeatherIcon(gfx, 106, 90, 34, wxOk ? cat : WX_UNKNOWN);
 
   char t[10] = "--";
-  if (w.hasTemp) snprintf(t, sizeof(t), "%dC", (int)lroundf(w.tempC));
+  // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
+  // Latin-1/0xB0 -- verified by rendering the actual glyph bitmap before
+  // trusting the byte value).
+  if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(w.tempC));
   drawRow(gfx, 150, 4, wxOk ? C_WHITE : C_DIM, t);
 
   if (w.hasPrecip) {
