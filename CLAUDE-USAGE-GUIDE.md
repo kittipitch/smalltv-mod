@@ -92,6 +92,39 @@ flashing it replaces the device's original modes (clock/weather/photo album)
 entirely — confirm with whoever owns the device first, since it's an
 all-or-nothing swap.
 
+### 2.5 Make the device's IP address permanent (optional, recommended)
+
+By default your router hands the device a new IP address occasionally (after
+a reboot, or just from normal DHCP lease renewal), which can break your
+daemon's connection to it if you've told the daemon a specific IP instead of
+the device's hostname. Fix this once, permanently, at the router:
+
+1. Find your device's MAC address: in the device's own web UI go to
+   `http://<device-ip>/api/status` and look for a field like `"mac"`, or
+   check the sticker/label on the device if there is one.
+2. Log into your home router's admin page (commonly `http://192.168.0.1` or
+   `http://192.168.1.1` — check the label on the router itself if unsure).
+3. Find the **DHCP settings** section — often called "DHCP Reservation",
+   "Address Reservation", "Static DHCP", or "IP-MAC Binding" depending on
+   your router brand.
+4. Add a reservation: paste in the device's MAC address, and either type in
+   the IP it currently has or let the router keep its current one. Save.
+5. Reboot the device once so it re-requests an address and gets the
+   reserved one for good.
+
+An alternative, **confirmed reliable on Linux only**: use the device's
+**hostname** instead of its IP wherever you configure the daemon
+(`--push-to smalltv-f661.local`, or whatever hostname your device shows in
+its own web UI) — hostname resolution survives an IP change on its own, no
+router step needed. This is what this project's own Linux reference
+deployment actually uses. On **macOS**, this is unverified — Bonjour is
+built in, but not every resolver path on every Mac reliably reaches it. On
+**Windows**, `.local` names typically don't resolve at all unless Apple's
+Bonjour service (ships with iTunes, or standalone "Bonjour Print Services")
+is installed separately — the OS has no mDNS resolver by default. If the
+hostname doesn't work for you, the DHCP reservation above is the fix that
+works everywhere regardless of platform.
+
 ### 3. Set the device's modes
 
 In the web UI: pick which modes to include in the carousel (Usage, Agenda &
