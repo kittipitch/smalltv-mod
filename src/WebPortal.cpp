@@ -30,10 +30,13 @@ static void scheduleReboot(uint32_t inMs) {
   g_rebootAt = millis() + inMs;
 }
 
-// Write-auth gate for state-changing endpoints. Empty stored key (the
-// default) means no check at all — must stay that way so nobody gets locked
-// out by upgrading. Accepts either an X-Secret-Key header or a ?key= query
-// param (the latter so /update's plain-form upload path can supply it too).
+// Write-auth gate for state-changing endpoints — both the browser-facing
+// config writes AND the daemon's data-push endpoints (/api/usage,
+// /api/calendar, /api/weather). Empty stored key (the default) means no
+// check at all — must stay that way so nobody gets locked out by upgrading.
+// Accepts either an X-Secret-Key header or a ?key= query param (the latter
+// so /update's plain-form upload path, and any client that can't set custom
+// headers, can still supply it).
 static bool checkAuth() {
   if (S->secretKey.length() == 0) return true;
   String got = server.hasHeader("X-Secret-Key") ? server.header("X-Secret-Key")
@@ -258,7 +261,12 @@ static void handleSelfUpdate() {
 
 // Push endpoint: the daemon POSTs the usage payload here when the device can't
 // reach it (Wi-Fi client isolation). Body is the {s,sr,w,wr,st,ok} contract.
+// Gated by the same secret key as the browser-facing writes (empty key = no
+// check, same as everywhere else) — a daemon pointed at the wrong device, or
+// any other host on the LAN, should not be able to overwrite what's on
+// screen for free just because this is "the trusted push path".
 static void handleUsagePush() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
 #if WITH_USAGE
   bool ok = usageApply(server.arg("plain"));
@@ -270,10 +278,9 @@ static void handleUsagePush() {
 }
 
 // Push endpoint: clawdmeter-daemon's --calendar feature POSTs the next-event
-// payload here. Deliberately ungated by the secret key (same as /api/usage
-// above) — the daemon push is already the trusted/expected write path; the
-// key exists to stop LAN randos, not the daemon this device is paired with.
+// payload here. Same auth gate as handleUsagePush above.
 static void handleCalendarPush() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
 #if WITH_CALENDAR
   bool ok = calendarApply(server.arg("plain"));
@@ -285,6 +292,7 @@ static void handleCalendarPush() {
 }
 
 static void handleWeatherPush() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
   if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
 #if WITH_CALENDAR
   bool ok = weatherApply(server.arg("plain"));
