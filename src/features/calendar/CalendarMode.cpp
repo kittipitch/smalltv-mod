@@ -71,6 +71,17 @@ static void drawRow(Arduino_GFX* gfx, int y, uint8_t size, uint16_t color, const
   gfx->print(text);
 }
 
+// Same as drawRow but horizontally centered on cx -- this font is a fixed
+// 6px-per-char advance at setTextSize(1), so width = strlen(text)*6*size
+// with no need for gfx->getTextBounds().
+static void drawRowCentered(Arduino_GFX* gfx, int cx, int y, uint8_t size, uint16_t color, const char* text) {
+  int w = (int)strlen(text) * 6 * size;
+  gfx->setTextSize(size);
+  gfx->setTextColor(color);
+  gfx->setCursor(cx - w / 2, y);
+  gfx->print(text);
+}
+
 // Weather-code category, per Open-Meteo's WMO table (current.weather_code):
 // https://open-meteo.com/en/docs — codes 0..99, grouped for icon purposes.
 enum WxCat { WX_CLEAR, WX_CLOUD, WX_FOG, WX_RAIN, WX_SNOW, WX_STORM, WX_UNKNOWN };
@@ -235,17 +246,19 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   WxCat cat = wxCategory(w.weatherCode, w.hasWeatherCode);
   drawWeatherIcon(gfx, 106, 66, wxOk ? cat : WX_UNKNOWN);
 
+  // Current-condition word, centered directly under the icon (icon bottom
+  // is cy=66 + WX_ICON_SIZE/2=20 = 86). Independent of rain probability
+  // below -- e.g. "Clear" above "Rain 60%" is a real, expected combination
+  // from Open-Meteo's separate weather_code/precipitation_probability
+  // fields, not a bug.
+  drawRowCentered(gfx, 106, 90, 1, C_DIM, wxOk ? wxLabel(cat) : "--");
+
   char t[10] = "--";
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
   // Latin-1/0xB0 -- verified by rendering the actual glyph bitmap before
   // trusting the byte value).
   if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(w.tempC));
   drawRow(gfx, 104, 3, wxOk ? C_WHITE : C_DIM, t);
-
-  // Current-condition word (from weather_code) and rain probability
-  // (precipitation_probability) are independent Open-Meteo fields -- e.g.
-  // "Clear" above "Rain 60%" is a real, expected combination, not a bug.
-  drawRow(gfx, 134, 1, C_DIM, wxOk ? wxLabel(cat) : "--");
 
   char p[16] = "Rain --";
   if (w.hasPrecip) snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
