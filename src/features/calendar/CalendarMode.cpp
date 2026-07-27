@@ -243,8 +243,8 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   }
   drawRow(gfx, 180, 3, aqiColor, aqiBuf);
 
-  char pm[16] = "PM2.5 --";
-  if (w.hasPm25) snprintf(pm, sizeof(pm), "PM2.5 %.1f", w.pm25);
+  char pm[16] = "PM 2.5 --";
+  if (w.hasPm25) snprintf(pm, sizeof(pm), "PM 2.5 %.1f", w.pm25);
   drawRow(gfx, 212, 2, C_DIM, pm);
 }
 
