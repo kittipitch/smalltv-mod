@@ -14,9 +14,12 @@ CalendarWeatherMode g_calendarWeatherMode;
 #define C_UGREEN  0x7C6B   // sage green 0x788c5d — AQI good band
 #define C_DIM     0xB574   // secondary/placeholder text, warm grey
 #define C_SKY     0x5D9C   // muted blue — cloud/rain icon strokes
-#define C_STORM   0xD508   // muted amber/gold — thunderstorm icon (WMO codes >=95 are all
-                            // thunderstorm variants, no separate "plain storm" category exists;
-                            // rain (51-82) already stays C_SKY/blue, unchanged)
+#define C_STORM   0xFE01   // bright caution-sign yellow (~#FFC107) — thunderstorm icon. WMO
+                            // codes >=95 are all thunderstorm variants, no separate "plain
+                            // storm" category exists; rain (51-82) already stays C_SKY/blue,
+                            // unchanged. Deliberately more saturated than this palette's usual
+                            // muted tones (see C_DIM/C_SKY/C_ACCENT) -- explicit request to read
+                            // as a caution/warning color, not the dark theme's normal restraint.
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
 
 // Muted 6-band US AQI colors (desaturated to match this palette's dark theme,
