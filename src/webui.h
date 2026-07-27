@@ -220,7 +220,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <input id="usageUrl" type="url" placeholder="http://192.168.1.10:8787/">
    <label>Refresh data (s)</label><input id="usagePollSec" type="number" min="10" max="3600">
    <div class="chk"><input id="barGrowRight" type="checkbox"><label>Grow bars from the right (default: left)</label></div>
-   <small class="hint">Runs on the PC-side <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>, which reads your Claude usage and sends it here. <b>Pull:</b> set the Usage URL to the daemon. <b>Push:</b> leave it blank and run the daemon with <code>--push-to &lt;hostname&gt;.local</code> (for networks where the device cannot reach the PC). Running several SmallTVs? Give each a unique hostname in the WiFi tab so every PC pushes to its own device. Idle animation plays until data arrives.</small>
+   <small class="hint">Runs on the PC-side <a href="https://github.com/kittipitch/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>, which reads your Claude usage and sends it here. <b>Pull:</b> set the Usage URL to the daemon. <b>Push:</b> leave it blank and run the daemon with <code>--push-to &lt;hostname&gt;.local</code> (for networks where the device cannot reach the PC). Running several SmallTVs? Give each a unique hostname in the WiFi tab so every PC pushes to its own device. Idle animation plays until data arrives. If you've set a secret key (Update tab &rarr; Access), the daemon needs its matching <code>--device-secret-key</code>/<code>CLAWDMETER_SECRET_KEY</code> too, or pushes here will fail.</small>
   </div>
  </section>
 
@@ -271,7 +271,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <!-- CALENDAR (feature: Next event + Weather/AQI, both daemon-pushed) -->
  <section id="calendar" class="tab">
   <div class="card"><h2>Agenda (Google Calendar)</h2>
-   <p class="muted" style="margin:0">Shows your next few upcoming events. Nothing to configure here &mdash; events are pushed by <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar --calendar-id &lt;id&gt;</code>, which handles Google sign-in on your PC/server (run <code>--calendar-auth</code> once there). This device never sees your Google credentials, only the resulting event titles/times. See the daemon's README for setup.</p>
+   <p class="muted" style="margin:0">Shows your next few upcoming events. Nothing to configure here &mdash; events are pushed by <a href="https://github.com/kittipitch/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar --calendar-id &lt;id&gt;</code>, which handles Google sign-in on your PC/server (run <code>--calendar-auth</code> once there). This device never sees your Google credentials, only the resulting event titles/times. If you've set a secret key (Update tab &rarr; Access), the daemon needs its matching <code>--device-secret-key</code> too, or these pushes will fail. See the daemon's README for setup.</p>
   </div>
   <div class="card"><h2>Weather location</h2>
    <div class="row">
@@ -296,7 +296,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <label style="margin-top:12px">Secret key <span class="muted" id="skStatus"></span></label>
    <input id="secretKey" type="text" autocomplete="off" placeholder="(unchanged)">
    <div style="margin-top:10px"><button class="btn sec" onclick="clearSecretKey()">Clear (open write access)</button></div>
-   <small class="hint">When set, this key is required to change settings, reboot, factory-reset, or flash the device (read-only pages still work without it). Blank = anyone on the LAN can write, matching this project's original behavior. This device has no encryption, so the key still travels in the clear on your LAN &mdash; it stops accidental/unauthorized writes, not eavesdropping. Type a new value and Save to change it; this browser remembers it afterwards. Losing the key entirely means factory-reset or reflashing, same as losing a WiFi password.</small>
+   <small class="hint">When set, this key is required to change settings, reboot, factory-reset, flash the device, <b>and for clawdmeter-daemon to push usage/agenda/weather data here</b> (<code>GET /api/config</code> and status pages still work without it &mdash; <code>GET /api/export</code> requires it too, since it contains this key). Blank = anyone on the LAN can write, matching this project's original behavior. This device has no encryption, so the key still travels in the clear on your LAN &mdash; it stops accidental/unauthorized writes, not eavesdropping. Type a new value and Save to change it; this browser remembers it afterwards. <b>Setting a key here breaks the daemon's pushes until you also set the matching <code>--device-secret-key</code> / <code>CLAWDMETER_SECRET_KEY</code> on it</b> &mdash; update the daemon first, then set the key here, to avoid the screen going stale in between. Losing the key entirely means factory-reset or reflashing, same as losing a WiFi password.</small>
   </div>
   <div class="card"><h2>Update from GitHub</h2>
    <div class="muted">Installed: <b id="fwVer">-</b></div>
