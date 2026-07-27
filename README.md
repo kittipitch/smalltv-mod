@@ -4,12 +4,27 @@
 
 <h1 align="center">smalltv-mod</h1>
 
-> **Fork note:** this fork adds a Claude Code usage (5h/7d quota) display
-> mode plus a calendar/weather/AQI mode, pushed from a companion daemon.
-> Start with **[CLAUDE-USAGE-GUIDE.md](CLAUDE-USAGE-GUIDE.md)** for the
-> full setup walkthrough (flashing, WiFi setup, daemon install). The rest
-> of this README is upstream `giovi321/smalltv-mod`'s original firmware
-> documentation.
+> **Fork note:** this fork ([`kittipitch/smalltv-mod`](https://github.com/kittipitch/smalltv-mod))
+> adds, on top of upstream `giovi321/smalltv-mod`:
+> - A **Claude Code usage** mode (5h/7d quota, animated mascot, configurable
+>   bar-fill direction)
+> - An **Agenda + Weather/AQI** mode (Google Calendar events, current
+>   weather/rain%/condition, 6-band AQI + PM2.5, city name)
+> - **Device write-auth** — an optional secret key gating config/firmware/data
+>   writes, so other devices on your LAN can't overwrite the screen
+> - **Display color correction** — per-channel R/G/B gain + saturation sliders
+> - All fed by a companion daemon ([`clawdmeter-daemon`](https://github.com/kittipitch/clawdmeter-daemon))
+>   that pushes usage/calendar/weather data over WiFi — the device itself
+>   never calls Claude, Google, or a weather API directly.
+>
+> **Radar is disabled in this fork's default build** (`-D WITH_RADAR=0` in
+> `platformio.ini`'s `smalltv` env, flip it back to re-enable) — the rest of
+> upstream `giovi321/smalltv-mod`'s documentation below (ticker, build/flash
+> matrix by board) still applies as-is.
+>
+> Start with **[CLAUDE-USAGE-GUIDE.md](CLAUDE-USAGE-GUIDE.md)** for the full
+> setup walkthrough (flashing, WiFi setup, daemon install, optional
+> calendar/weather/secret-key setup).
 
 <p align="center">
   <a href="https://github.com/giovi321/smalltv-mod/actions/workflows/build.yml"><img src="https://github.com/giovi321/smalltv-mod/actions/workflows/build.yml/badge.svg" alt="Build"></a>
