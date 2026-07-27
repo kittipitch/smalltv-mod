@@ -72,6 +72,19 @@ static void drawRow(Arduino_GFX* gfx, int y, uint8_t size, uint16_t color, const
 // https://open-meteo.com/en/docs — codes 0..99, grouped for icon purposes.
 enum WxCat { WX_CLEAR, WX_CLOUD, WX_FOG, WX_RAIN, WX_SNOW, WX_STORM, WX_UNKNOWN };
 
+static const char* wxLabel(WxCat cat) {
+  switch (cat) {
+    case WX_CLEAR: return "Clear";
+    case WX_CLOUD: return "Cloudy";
+    case WX_FOG:   return "Fog";
+    case WX_RAIN:  return "Rain";
+    case WX_SNOW:  return "Snow";
+    case WX_STORM: return "Storm";
+    case WX_UNKNOWN:
+    default:       return "--";
+  }
+}
+
 static WxCat wxCategory(int code, bool has) {
   if (!has) return WX_UNKNOWN;
   if (code == 0 || code == 1) return WX_CLEAR;
@@ -226,9 +239,14 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(w.tempC));
   drawRow(gfx, 104, 4, wxOk ? C_WHITE : C_DIM, t);
 
+  // Current-condition word (from weather_code) and rain probability
+  // (precipitation_probability) are independent Open-Meteo fields -- e.g.
+  // "Clear" above "Rain 60%" is a real, expected combination, not a bug.
+  drawRow(gfx, 142, 1, C_DIM, wxOk ? wxLabel(cat) : "--");
+
   char p[16] = "Rain --";
   if (w.hasPrecip) snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
-  drawRow(gfx, 142, 3, w.hasPrecip ? C_SKY : C_DIM, p);
+  drawRow(gfx, 154, 2, w.hasPrecip ? C_SKY : C_DIM, p);
 
   // Full 6-band US AQI color scale, muted to match this palette's dark theme
   // (not AirNow's harsh saturated colors) -- see C_AQI_* above.
