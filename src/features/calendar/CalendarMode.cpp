@@ -14,6 +14,9 @@ CalendarWeatherMode g_calendarWeatherMode;
 #define C_UGREEN  0x7C6B   // sage green 0x788c5d — AQI good band
 #define C_DIM     0xB574   // secondary/placeholder text, warm grey
 #define C_SKY     0x5D9C   // muted blue — cloud/rain icon strokes
+#define C_STORM   0xD508   // muted amber/gold — thunderstorm icon (WMO codes >=95 are all
+                            // thunderstorm variants, no separate "plain storm" category exists;
+                            // rain (51-82) already stays C_SKY/blue, unchanged)
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
 
 // Muted 6-band US AQI colors (desaturated to match this palette's dark theme,
@@ -109,7 +112,7 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
     case WX_FOG:   mask = kWxIconFog;   color = C_DIM;    break;
     case WX_RAIN:  mask = kWxIconRain;  color = C_SKY;    break;
     case WX_SNOW:  mask = kWxIconSnow;  color = C_WHITE;  break;
-    case WX_STORM: mask = kWxIconStorm; color = C_ACCENT; break;
+    case WX_STORM: mask = kWxIconStorm; color = C_STORM;  break;
     case WX_UNKNOWN:
     default:
       gfx->drawCircle(cx, cy, WX_ICON_SIZE * 3 / 10, C_DIM);
