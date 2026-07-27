@@ -66,6 +66,7 @@ struct TickerSettings {
 struct UsageSettings {
   String   usageUrl;      // daemon HTTP endpoint, e.g. http://192.168.1.10:8787/
   uint16_t pollSec;       // refresh period
+  bool     barGrowRight;  // false (default): bar fills left->right; true: right->left
 
   void setDefaults();
   void toJson(JsonObject o) const;

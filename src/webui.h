@@ -219,6 +219,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <label>Usage daemon URL</label>
    <input id="usageUrl" type="url" placeholder="http://192.168.1.10:8787/">
    <label>Refresh data (s)</label><input id="usagePollSec" type="number" min="10" max="3600">
+   <div class="chk"><input id="barGrowRight" type="checkbox"><label>Grow bars from the right (default: left)</label></div>
    <small class="hint">Runs on the PC-side <a href="https://github.com/giovi321/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>, which reads your Claude usage and sends it here. <b>Pull:</b> set the Usage URL to the daemon. <b>Push:</b> leave it blank and run the daemon with <code>--push-to &lt;hostname&gt;.local</code> (for networks where the device cannot reach the PC). Running several SmallTVs? Give each a unique hostname in the WiFi tab so every PC pushes to its own device. Idle animation plays until data arrives.</small>
   </div>
  </section>
@@ -472,6 +473,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
+ sc('barGrowRight',u.barGrowRight);
  // radar slice
  var r=c.radar||{};
  sv('radarLat',r.lat); sv('radarLon',r.lon);
@@ -565,7 +567,7 @@ function collect(){
  }
  // usage slice
  if($('usage')){
-  o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0};}
+  o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0, barGrowRight:gc('barGrowRight')};}
  // clock slice
  if($('tz')){var _tzn=gv('tz'); var _tzp=(_tzn in TZMAP)?TZMAP[_tzn]:((C.clock&&C.clock.tz===_tzn&&C.clock.tzPosix)?C.clock.tzPosix:'UTC0');
   o.clock={tz:_tzn,tzPosix:_tzp,

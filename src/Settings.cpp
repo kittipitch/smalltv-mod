@@ -124,16 +124,19 @@ void TickerSettings::fromJson(JsonObjectConst o) {
 void UsageSettings::setDefaults() {
   usageUrl = "";
   pollSec = DEFAULT_POLL_SEC;
+  barGrowRight = false;
 }
 
 void UsageSettings::toJson(JsonObject o) const {
-  o["usageUrl"]   = usageUrl;
-  o["pollSec"]    = pollSec;
+  o["usageUrl"]     = usageUrl;
+  o["pollSec"]      = pollSec;
+  o["barGrowRight"] = barGrowRight;
 }
 
 void UsageSettings::fromJson(JsonObjectConst o) {
   if (o["usageUrl"].is<const char*>()) usageUrl = o["usageUrl"].as<String>();
   if (o["pollSec"].is<int>())          pollSec = max(10, (int)o["pollSec"]);
+  if (o["barGrowRight"].is<bool>())    barGrowRight = o["barGrowRight"].as<bool>();
 }
 
 // ===========================================================================

@@ -65,7 +65,7 @@ static uint16_t barColor(float pct) {
 // card panel and bar always redraw their own full background already, so
 // they're naturally self-clearing without any extra work.
 static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
-                      float pct, int resetMins, bool full) {
+                      float pct, int resetMins, bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
   // Only clear+redraw the card background on structural changes. On a plain
   // data update, everything below is self-overwriting (opaque text, self-
@@ -99,10 +99,12 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
   // never leaves square corners poking past the track's rounded ends once
   // the card background stops being redrawn every frame to hide them. Uses
   // the real fw (not widened) — only the corner style changes here, not the
-  // percentage the width represents. Anchored to the track's right edge
-  // (bx+bw-fw) so the fill grows leftward from the right, not rightward
-  // from the left.
-  if (fw > 0) gfx->fillRoundRect(bx + bw - fw, by, fw, bh, bh / 2, barColor(pct));
+  // percentage it represents. growRight anchors the fill to the track's
+  // right edge (bx+bw-fw), growing leftward as pct increases; the default
+  // (growRight=false) anchors to the left edge (bx), growing rightward —
+  // the more familiar "loading bar" direction.
+  int fx = growRight ? (bx + bw - fw) : bx;
+  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, barColor(pct));
 
   char rs[16], line[10 + sizeof(rs) + 1];
   fmtReset(resetMins, rs, sizeof(rs));
@@ -125,7 +127,7 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
 // meter cards handle their own clean overwrite (see drawMeter), and the
 // status dot is small enough to just always redraw (accent or blanked back
 // to the background) rather than gate it behind `full` too.
-static void drawUsage(const UsageData& u, bool full) {
+static void drawUsage(const UsageData& u, bool full, bool growRight) {
   Arduino_GFX* gfx = gfxDev();
   if (!gfx) return;
   s_mascotPrimed = false;   // force a full redraw next time the idle animation shows
@@ -156,8 +158,8 @@ static void drawUsage(const UsageData& u, bool full) {
   // (this dot is ungated/unconditional, the clock only redraws every 30s).
   gfx->fillCircle(160, 18, 5, warn ? C_ACCENT : C_BLACK);
 
-  drawMeter(gfx, 50,  "5h", u.sessionPct, u.sessionResetMin, full);
-  drawMeter(gfx, 138, "7d", u.weeklyPct,  u.weeklyResetMin, full);
+  drawMeter(gfx, 50,  "5h", u.sessionPct, u.sessionResetMin, full, growRight);
+  drawMeter(gfx, 138, "7d", u.weeklyPct,  u.weeklyResetMin, full, growRight);
 }
 
 // Idle animation: full-screen mascot, diffed cell-by-cell for a flicker-free draw.
@@ -269,7 +271,7 @@ void UsageMode::service(const Settings& s) {
     if (showingMascot_) { showingMascot_ = false; needRender_ = true; needFullRender_ = true; }
     if (u.lastOkMs != usageRenderedOk_) { usageRenderedOk_ = u.lastOkMs; needRender_ = true; }
     if (needRender_) {
-      drawUsage(u, needFullRender_);
+      drawUsage(u, needFullRender_, s.usage.barGrowRight);
       needRender_ = false;
       // Only consume the full-redraw flag once data was actually valid —
       // usageFresh() already implies u.valid so drawUsage's early-return
