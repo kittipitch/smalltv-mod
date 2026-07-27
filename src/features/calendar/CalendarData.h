@@ -69,3 +69,24 @@ struct WeatherData {
     lastOkMs = 0;
   }
 };
+
+// Pushed by clawdmeter-daemon's --zai feature (POST /api/zai). z.ai's own
+// quota endpoint (api.z.ai/api/monitor/usage/quota/limit) is undocumented
+// and could change shape without notice -- kept to the two percentages
+// this device actually needs, everything else parsed defensively.
+struct ZaiData {
+  int  pct5h;
+  bool hasPct5h;
+  int  pctTokens;
+  bool hasPctTokens;
+
+  bool     valid;      // populated at least once by a successful push
+  uint32_t lastOkMs;
+
+  void clear() {
+    pct5h = 0; hasPct5h = false;
+    pctTokens = 0; hasPctTokens = false;
+    valid = false;
+    lastOkMs = 0;
+  }
+};

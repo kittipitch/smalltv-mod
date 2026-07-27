@@ -106,6 +106,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
     <option value="weather">Weather + air quality</option>
+    <option value="zai">Z.AI quota</option>
     <option value="carousel">Carousel (rotate modes)</option>
    </select>
    <div id="carouselRow">
@@ -115,8 +116,9 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div class="chk"><input id="carouselRadar" type="checkbox"><label>Plane radar</label></div>
     <div class="chk"><input id="carouselAgenda" type="checkbox"><label>Next event</label></div>
     <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather + air quality</label></div>
+    <div class="chk"><input id="carouselZai" type="checkbox"><label>Z.AI quota</label></div>
    </div>
-   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Carousel rotates through the ticked features.</small>
+   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured and stays out of the carousel rotation until it's actually pushed data. Carousel rotates through the ticked features.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -419,8 +421,8 @@ var TZMAP={
 function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
  keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
 
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','weather']};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselWeather']};
+var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','weather','zai']};
+var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselWeather','carouselZai']};
 function hideFeat(name){
  var b=document.querySelector('nav button[data-t="'+name+'"]'); if(b)b.remove();
  var sec=$(name); if(sec)sec.remove();
@@ -462,7 +464,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  $('mode').value=c.mode||'stocks'; modeChanged();
  sv('carouselSec',c.carouselSec||60);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselWeather',c.carouselWeather!==false);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselZai',c.carouselZai!==false);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -543,7 +545,7 @@ function collect(){
   toneR:toneNum('toneR'), toneG:toneNum('toneG'), toneB:toneNum('toneB'), toneSat:toneNum('toneSat'),
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselWeather:gc('carouselWeather'),
+  carouselAgenda:gc('carouselAgenda'), carouselWeather:gc('carouselWeather'), carouselZai:gc('carouselZai'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

@@ -30,6 +30,8 @@
 #endif
 #if WITH_CALENDAR
 #include "CalendarMode.h"
+#include "ZaiMode.h"
+#include "CalendarClient.h"   // zaiGet() for carouselHas()'s data-presence gate
 #endif
 
 // ---- mode registry --------------------------------------------------------
@@ -48,6 +50,7 @@ static DisplayMode* kModes[] = {
 #if WITH_CALENDAR
   &g_calendarAgendaMode,
   &g_calendarWeatherMode,
+  &g_zaiMode,
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
@@ -67,6 +70,12 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     case MODE_RADAR:  return s.carouselRadar;
     case MODE_CAL_AGENDA:  return s.carouselAgenda;
     case MODE_CAL_WEATHER: return s.carouselWeather;
+#if WITH_CALENDAR
+    // Same "skip until there's real content" pattern as ticker above --
+    // stays out of the carousel until the daemon has a working z.ai key
+    // configured and has actually pushed data at least once.
+    case MODE_ZAI:    return s.carouselZai && zaiGet().valid;
+#endif
     default:          return true;
   }
 }

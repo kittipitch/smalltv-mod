@@ -4,17 +4,20 @@
 
 static CalendarEvent g_cal;
 static WeatherData   g_weather;
+static ZaiData        g_zai;
 static bool          g_inited = false;
 
 void calendarInit(const Settings& s) {
   (void)s;
   g_cal.clear();
   g_weather.clear();
+  g_zai.clear();
   g_inited = true;
 }
 
 const CalendarEvent& calendarGet() { return g_cal; }
 const WeatherData&   weatherGet()  { return g_weather; }
+const ZaiData&        zaiGet()      { return g_zai; }
 
 // Drop non-ASCII bytes (emoji, accented chars) -- this font (CP437 glyph
 // table) renders each UTF-8 continuation byte as its own garbage glyph, so an
@@ -103,5 +106,30 @@ bool weatherApply(const String& body) {
   g_weather.aqError = !(gotPm || gotAqi);
   g_weather.valid = true;
   g_weather.lastOkMs = millis();
+  return true;
+}
+
+// ---- z.ai quota: pushed payload --------------------------------------------
+// { "ok":true, "pct5h":12, "pctTokens":3 }
+// Mirrors weatherApply()'s shape -- each field independently optional so a
+// partial/changed upstream response doesn't drop the whole push.
+static void zaiFilter(JsonDocument& f) {
+  f["ok"] = true; f["pct5h"] = true; f["pctTokens"] = true;
+}
+
+bool zaiApply(const String& body) {
+  JsonDocument filter; zaiFilter(filter);
+  JsonDocument doc;
+  if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
+  if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
+
+  bool got5h = doc["pct5h"].is<int>();
+  bool gotTokens = doc["pctTokens"].is<int>();
+  if (!got5h && !gotTokens) return false;
+
+  if (got5h)     { g_zai.pct5h = doc["pct5h"].as<int>(); g_zai.hasPct5h = true; }
+  if (gotTokens) { g_zai.pctTokens = doc["pctTokens"].as<int>(); g_zai.hasPctTokens = true; }
+  g_zai.valid = true;
+  g_zai.lastOkMs = millis();
   return true;
 }

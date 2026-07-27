@@ -301,7 +301,7 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselWeather = true;
+  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselWeather = carouselZai = true;
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
   brightness = DEFAULT_BRIGHTNESS;
@@ -389,6 +389,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_USAGE)    ? "usage"
                             : (s.mode == MODE_CAL_AGENDA)  ? "agenda"
                             : (s.mode == MODE_CAL_WEATHER) ? "weather"
+                            : (s.mode == MODE_ZAI)      ? "zai"
                             : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
   root["carouselSec"]       = s.carouselSec;
   root["carouselTicker"]    = s.carouselTicker;
@@ -396,6 +397,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselRadar"]     = s.carouselRadar;
   root["carouselAgenda"]    = s.carouselAgenda;
   root["carouselWeather"]   = s.carouselWeather;
+  root["carouselZai"]       = s.carouselZai;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
   root["autoBrightness"]    = s.autoBrightness;
@@ -476,6 +478,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
            : m.equalsIgnoreCase("agenda")   ? MODE_CAL_AGENDA
            : m.equalsIgnoreCase("weather")  ? MODE_CAL_WEATHER
+           : m.equalsIgnoreCase("zai")      ? MODE_ZAI
            : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL : MODE_STOCKS;
   }
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
@@ -484,6 +487,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselRadar"].is<bool>())   s.carouselRadar = root["carouselRadar"];
   if (root["carouselAgenda"].is<bool>())  s.carouselAgenda = root["carouselAgenda"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
+  if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);
   if (root["brightness"].is<int>())         s.brightness = constrain((int)root["brightness"], 0, 100);
