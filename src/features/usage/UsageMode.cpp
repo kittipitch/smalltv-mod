@@ -169,8 +169,16 @@ static void drawMascot(const uint8_t* cells, const uint16_t* palette, bool resta
   uint16_t pal[MASCOT_PALETTE_SIZE];
   loadPalette(palette, pal);
   const int CP = TFT_WIDTH / MASCOT_GRID;                 // 240 / 20 = 12
-  const int x0 = (TFT_WIDTH  - MASCOT_GRID * CP) / 2;
-  const int y0 = (TFT_HEIGHT - MASCOT_GRID * CP) / 2;
+  // Grid exactly fills the screen (20*12 = 240) -- no framing slack, so any
+  // off-centering is the sprite's own pixel content. Most animation sets
+  // (idle breathe/blink, dance sway/bounce) are hand-drawn symmetric about
+  // grid column/row 10, but a 20-cell grid has no true-center cell at 9.5 --
+  // so they visibly sit half a cell right+low. Nudging the draw origin back
+  // half a cell recenters those (explicit tradeoff, chosen deliberately):
+  // it puts the one already-centered set (work_coding) 6px off the other
+  // way, worse proportionally since that pose nearly fills the grid.
+  const int x0 = (TFT_WIDTH  - MASCOT_GRID * CP) / 2 - CP / 2;
+  const int y0 = (TFT_HEIGHT - MASCOT_GRID * CP) / 2 - CP / 2;
 
   // Full redraw on (re)entry or whenever the palette changes (animation switch);
   // otherwise only repaint the cells that changed since the last frame.

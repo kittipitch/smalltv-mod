@@ -244,7 +244,7 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
 
   bool wxOk = w.hasTemp || w.hasPrecip;
   WxCat cat = wxCategory(w.weatherCode, w.hasWeatherCode);
-  drawWeatherIcon(gfx, 106, 54, wxOk ? cat : WX_UNKNOWN);
+  drawWeatherIcon(gfx, 120, 54, wxOk ? cat : WX_UNKNOWN);
 
   // Current-condition word + raw WMO code, centered directly under the icon
   // (icon bottom is cy=54 + WX_ICON_SIZE/2=20 = 74). Independent of rain
@@ -254,7 +254,7 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   char cond[20] = "--";
   if (wxOk && w.hasWeatherCode) snprintf(cond, sizeof(cond), "%s (%d)", wxLabel(cat), w.weatherCode);
   else if (wxOk) strlcpy(cond, wxLabel(cat), sizeof(cond));
-  drawRowCentered(gfx, 106, 80, 2, C_DIM, cond);
+  drawRowCentered(gfx, 120, 80, 2, C_DIM, cond);
 
   char t[10] = "--";
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
@@ -284,7 +284,14 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   drawRow(gfx, 180, 3, aqiColor, aqiBuf);
 
   char pm[16] = "PM 2.5 --";
-  if (w.hasPm25) snprintf(pm, sizeof(pm), "PM 2.5 %.1f", w.pm25);
+  if (w.hasPm25) {
+    // Drop the ".0" when the source value is a whole number (Open-Meteo
+    // often reports e.g. 12.0) -- keep one decimal otherwise.
+    if (fabsf(w.pm25 - roundf(w.pm25)) < 0.05f)
+      snprintf(pm, sizeof(pm), "PM 2.5 %d", (int)lroundf(w.pm25));
+    else
+      snprintf(pm, sizeof(pm), "PM 2.5 %.1f", w.pm25);
+  }
   drawRow(gfx, 212, 2, C_DIM, pm);
 }
 
