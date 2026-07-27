@@ -244,25 +244,28 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
 
   bool wxOk = w.hasTemp || w.hasPrecip;
   WxCat cat = wxCategory(w.weatherCode, w.hasWeatherCode);
-  drawWeatherIcon(gfx, 106, 66, wxOk ? cat : WX_UNKNOWN);
+  drawWeatherIcon(gfx, 106, 54, wxOk ? cat : WX_UNKNOWN);
 
-  // Current-condition word, centered directly under the icon (icon bottom
-  // is cy=66 + WX_ICON_SIZE/2=20 = 86). Independent of rain probability
-  // below -- e.g. "Clear" above "Rain 60%" is a real, expected combination
-  // from Open-Meteo's separate weather_code/precipitation_probability
-  // fields, not a bug.
-  drawRowCentered(gfx, 106, 90, 1, C_DIM, wxOk ? wxLabel(cat) : "--");
+  // Current-condition word + raw WMO code, centered directly under the icon
+  // (icon bottom is cy=54 + WX_ICON_SIZE/2=20 = 74). Independent of rain
+  // probability below -- e.g. "Clear" above "Rain 60%" is a real, expected
+  // combination from Open-Meteo's separate weather_code/
+  // precipitation_probability fields, not a bug.
+  char cond[20] = "--";
+  if (wxOk && w.hasWeatherCode) snprintf(cond, sizeof(cond), "%s (%d)", wxLabel(cat), w.weatherCode);
+  else if (wxOk) strlcpy(cond, wxLabel(cat), sizeof(cond));
+  drawRowCentered(gfx, 106, 80, 2, C_DIM, cond);
 
   char t[10] = "--";
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
   // Latin-1/0xB0 -- verified by rendering the actual glyph bitmap before
   // trusting the byte value).
   if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(w.tempC));
-  drawRow(gfx, 104, 3, wxOk ? C_WHITE : C_DIM, t);
+  drawRow(gfx, 116, 3, wxOk ? C_WHITE : C_DIM, t);
 
   char p[16] = "Rain --";
   if (w.hasPrecip) snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
-  drawRow(gfx, 146, 3, w.hasPrecip ? C_SKY : C_DIM, p);
+  drawRow(gfx, 148, 3, w.hasPrecip ? C_SKY : C_DIM, p);
 
   // Full 6-band US AQI color scale, muted to match this palette's dark theme
   // (not AirNow's harsh saturated colors) -- see C_AQI_* above.

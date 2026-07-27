@@ -292,5 +292,8 @@ void UsageMode::service(const Settings& s) {
     }
   }
 
-  drawClockOverlay();
+  // Only on the real usage-bars page -- the mascot's full-screen fillScreen
+  // on entry already clears any clock footprint, so skipping this while
+  // showingMascot_ leaves no stale digits behind.
+  if (!showingMascot_) drawClockOverlay();
 }
