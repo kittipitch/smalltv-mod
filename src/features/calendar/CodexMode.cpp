@@ -1,10 +1,10 @@
-#include "OpenAiMode.h"
+#include "CodexMode.h"
 #include <Arduino_GFX_Library.h>
 #include "Gfx.h"
 #include "CalendarClient.h"
 #include "Clock.h"
 
-OpenAiMode g_openaiMode;
+CodexMode g_codexMode;
 
 // Same palette subset ZaiMode.cpp uses -- not shared/exported anywhere yet,
 // each mode defines what it needs.
@@ -26,7 +26,7 @@ static uint16_t pctColor(int pct) {
 
 // Identical to UsageMode.cpp's/ZaiMode.cpp's fmtReset() -- kept as a
 // near-copy rather than a shared helper, same reasoning as
-// drawOpenAiClockOverlay below.
+// drawCodexClockOverlay below.
 static void fmtReset(int mins, char* out, size_t n) {
   if (mins <= 0) { strlcpy(out, "now", n); return; }
   int d = mins / 1440, h = (mins % 1440) / 60, m = mins % 60;
@@ -40,7 +40,7 @@ static void fmtReset(int mins, char* out, size_t n) {
 // the label + panel background exactly like those (an Opus review caught an
 // unconditional-fill bug in the original UsageMode version; same reasoning
 // applies here).
-static void drawOpenAiMeter(Arduino_GFX* gfx, int top, const char* label,
+static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
                              bool has, int pct, bool hasReset, int resetMins,
                              bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
@@ -78,8 +78,9 @@ static void drawOpenAiMeter(Arduino_GFX* gfx, int top, const char* label,
   if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pct));
 
   // Row is always drawn, same as UsageMode.cpp's/ZaiMode.cpp's meter --
-  // when hasReset is false (daemon on an old version, or OpenAI omitting a
-  // reset header), it prints "--" rather than a fake "now", but still
+  // when hasReset is false (a window that isn't populated on this
+  // account/plan tier, e.g. secondary was null on the account this was
+  // tested against), it prints "--" rather than a fake "now", but still
   // occupies the row so nothing else needs to clear it.
   char rs[16], line[10 + sizeof(rs) + 1];
   if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
@@ -91,7 +92,7 @@ static void drawOpenAiMeter(Arduino_GFX* gfx, int top, const char* label,
   gfx->print(line);
 }
 
-static void drawOpenAiPage(Arduino_GFX* gfx, const OpenAiData& o, bool full, bool growRight) {
+static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
     // Header: plain text title, no logo bitmap (no icon-rasterization
@@ -100,18 +101,25 @@ static void drawOpenAiPage(Arduino_GFX* gfx, const OpenAiData& o, bool full, boo
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(8, 12);
-    gfx->print("OpenAI");
+    gfx->print("Codex");
   }
 
-  drawOpenAiMeter(gfx, 50,  "Req", o.hasPctReq, o.pctReq, o.hasRReq, o.rReq, full, growRight);
-  drawOpenAiMeter(gfx, 138, "Tok", o.hasPctTok, o.pctTok, o.hasRTok, o.rTok, full, growRight);
+  // Only draw a card when that window has actually been populated at least
+  // once -- confirmed live that some accounts/plan tiers never report a
+  // short ("5h") window at all (secondary stayed null every poll on the
+  // account this was tested against), so a fixed "always draw both" layout
+  // would show a permanent "--" row rather than real absence. Fixed y
+  // positions are kept either way (not dynamically stacked) so a full vs.
+  // partial redraw never disagrees on where a card belongs.
+  if (c.hasPct5h)   drawCodexMeter(gfx, 50,  "5h",   true, c.pct5h,   c.hasR5h,   c.r5h,   full, growRight);
+  if (c.hasPctWeek) drawCodexMeter(gfx, 138, "Week", true, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/ZaiMode.cpp -- per the same
 // "any quota-style page gets the clock" reasoning. Kept as a near-identical
 // copy rather than a shared helper: each mode owns its own render/dirty
 // state per Mode.h's design.
-static void drawOpenAiClockOverlay(uint32_t& nextRedrawMs, int& lastMinute) {
+static void drawCodexClockOverlay(uint32_t& nextRedrawMs, int& lastMinute) {
   struct tm t;
   if (!clockNow(t)) return;
   int curMinute = t.tm_hour * 60 + t.tm_min;
@@ -142,15 +150,15 @@ static void drawOpenAiClockOverlay(uint32_t& nextRedrawMs, int& lastMinute) {
   }
 }
 
-void OpenAiMode::begin(const Settings& s) {
+void CodexMode::begin(const Settings& s) {
   // calendarInit(s) is deliberately NOT called here -- same reasoning as
   // ZaiMode::begin(): it would re-clear g_cal/g_weather too (shared across
   // all CalendarClient consumers), and another mode's begin() already calls
-  // it once. g_openai is a file-scope static, zero-initialized at boot.
+  // it once. g_codex is a file-scope static, zero-initialized at boot.
   (void)s;
   needRender_ = true;
   needFullRender_ = true;
-  openaiRenderedOk_ = 0xFFFFFFFF;
+  codexRenderedOk_ = 0xFFFFFFFF;
   // Force the clock to repaint on the very next service() tick -- otherwise
   // a structural redraw (fillScreen) wipes it and it stays blank for up to
   // 30s, since its own timer/lastMinute state doesn't know a wipe happened.
@@ -158,16 +166,16 @@ void OpenAiMode::begin(const Settings& s) {
   clockLastMinute_ = -1;
 }
 
-void OpenAiMode::invalidate(const Settings& s) {
+void CodexMode::invalidate(const Settings& s) {
   (void)s;
   needRender_ = true;
   needFullRender_ = true;
-  openaiRenderedOk_ = 0xFFFFFFFF;
+  codexRenderedOk_ = 0xFFFFFFFF;
   clockNextRedrawMs_ = 0;
   clockLastMinute_ = -1;
 }
 
-void OpenAiMode::wake(const Settings& s) {
+void CodexMode::wake(const Settings& s) {
   (void)s;
   needRender_ = true;
   needFullRender_ = true;
@@ -175,14 +183,14 @@ void OpenAiMode::wake(const Settings& s) {
   clockLastMinute_ = -1;
 }
 
-void OpenAiMode::service(const Settings& s) {
-  const OpenAiData& o = openaiGet();
-  if (o.lastOkMs != openaiRenderedOk_) { openaiRenderedOk_ = o.lastOkMs; needRender_ = true; }
+void CodexMode::service(const Settings& s) {
+  const CodexData& c = codexGet();
+  if (c.lastOkMs != codexRenderedOk_) { codexRenderedOk_ = c.lastOkMs; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawOpenAiPage(gfx, o, needFullRender_, s.usage.barGrowRight);
+    if (gfx) drawCodexPage(gfx, c, needFullRender_, s.usage.barGrowRight);
     needRender_ = false;
     needFullRender_ = false;
   }
-  drawOpenAiClockOverlay(clockNextRedrawMs_, clockLastMinute_);
+  drawCodexClockOverlay(clockNextRedrawMs_, clockLastMinute_);
 }

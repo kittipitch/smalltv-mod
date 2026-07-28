@@ -16,10 +16,10 @@ void calendarInit(const Settings& s);
 const CalendarEvent& calendarGet();
 const WeatherData&   weatherGet();
 const ZaiData&        zaiGet();
-const OpenAiData&     openaiGet();
+const CodexData&      codexGet();
 
 // Apply payloads PUSHED to the device.
 bool calendarApply(const String& body);   // {ok,events:[{summary,start,allDay}, ...]}
 bool weatherApply(const String& body);    // {ok,tempC?,precipPct?,weatherCode?,pm25?,aqi?}
 bool zaiApply(const String& body);        // {ok,pct5h?,pctTokens?}
-bool openaiApply(const String& body);     // {ok,pctReq?,rReq?,pctTok?,rTok?}
+bool codexApply(const String& body);      // {ok,pct5h?,r5h?,pctWeek?,rWeek?}

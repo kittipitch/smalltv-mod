@@ -5,7 +5,7 @@
 static CalendarEvent g_cal;
 static WeatherData   g_weather;
 static ZaiData        g_zai;
-static OpenAiData     g_openai;
+static CodexData      g_codex;
 static bool          g_inited = false;
 
 void calendarInit(const Settings& s) {
@@ -13,14 +13,14 @@ void calendarInit(const Settings& s) {
   g_cal.clear();
   g_weather.clear();
   g_zai.clear();
-  g_openai.clear();
+  g_codex.clear();
   g_inited = true;
 }
 
 const CalendarEvent& calendarGet() { return g_cal; }
 const WeatherData&   weatherGet()  { return g_weather; }
 const ZaiData&        zaiGet()      { return g_zai; }
-const OpenAiData&     openaiGet()   { return g_openai; }
+const CodexData&      codexGet()    { return g_codex; }
 
 // Drop non-ASCII bytes (emoji, accented chars) -- this font (CP437 glyph
 // table) renders each UTF-8 continuation byte as its own garbage glyph, so an
@@ -160,30 +160,32 @@ bool zaiApply(const String& body) {
   return true;
 }
 
-// ---- OpenAI quota: pushed payload ------------------------------------------
-// { "ok":true, "pctReq":12, "rReq":3, "pctTok":5, "rTok":1 }
-// Cheap-ping rate-limit headers from OpenAI's paid API, NOT a ChatGPT Plus
-// subscription check. Same optional-field shape as zaiApply().
-static void openaiFilter(JsonDocument& f) {
-  f["ok"] = true; f["pctReq"] = true; f["rReq"] = true;
-  f["pctTok"] = true; f["rTok"] = true;
+// ---- Codex quota: pushed payload -------------------------------------------
+// { "ok":true, "pct5h":12, "r5h":3, "pctWeek":5, "rWeek":10075 }
+// Codex CLI's real ChatGPT-plan rate limit, read from its own session log
+// after a real (free, plan-included) ping -- NOT an OpenAI API billing key.
+// Same optional-field shape as zaiApply() (a window not populated on this
+// account/plan tier is simply absent, not a fake 0).
+static void codexFilter(JsonDocument& f) {
+  f["ok"] = true; f["pct5h"] = true; f["r5h"] = true;
+  f["pctWeek"] = true; f["rWeek"] = true;
 }
 
-bool openaiApply(const String& body) {
-  JsonDocument filter; openaiFilter(filter);
+bool codexApply(const String& body) {
+  JsonDocument filter; codexFilter(filter);
   JsonDocument doc;
   if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
   if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
 
-  bool gotReq = doc["pctReq"].is<int>();
-  bool gotTok = doc["pctTok"].is<int>();
-  if (!gotReq && !gotTok) return false;
+  bool got5h = doc["pct5h"].is<int>();
+  bool gotWeek = doc["pctWeek"].is<int>();
+  if (!got5h && !gotWeek) return false;
 
-  if (gotReq) { g_openai.pctReq = doc["pctReq"].as<int>(); g_openai.hasPctReq = true; }
-  if (gotTok) { g_openai.pctTok = doc["pctTok"].as<int>(); g_openai.hasPctTok = true; }
-  if (doc["rReq"].is<int>()) { g_openai.rReq = doc["rReq"].as<int>(); g_openai.hasRReq = true; }
-  if (doc["rTok"].is<int>()) { g_openai.rTok = doc["rTok"].as<int>(); g_openai.hasRTok = true; }
-  g_openai.valid = true;
-  g_openai.lastOkMs = millis();
+  if (got5h)   { g_codex.pct5h = doc["pct5h"].as<int>(); g_codex.hasPct5h = true; }
+  if (gotWeek) { g_codex.pctWeek = doc["pctWeek"].as<int>(); g_codex.hasPctWeek = true; }
+  if (doc["r5h"].is<int>())   { g_codex.r5h = doc["r5h"].as<int>(); g_codex.hasR5h = true; }
+  if (doc["rWeek"].is<int>()) { g_codex.rWeek = doc["rWeek"].as<int>(); g_codex.hasRWeek = true; }
+  g_codex.valid = true;
+  g_codex.lastOkMs = millis();
   return true;
 }

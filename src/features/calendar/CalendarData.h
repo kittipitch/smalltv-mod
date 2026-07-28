@@ -111,29 +111,33 @@ struct ZaiData {
   }
 };
 
-// Pushed by clawdmeter-daemon's --openai feature (POST /api/openai). This is
-// a cheap ping against OpenAI's *paid API* (x-ratelimit-* response headers),
-// NOT a ChatGPT Plus subscription check -- no public API exists for that
-// (see CLAUDE.md's research notes). pctReq/rReq track the request-rate
-// limit, pctTok/rTok the token-rate limit, both from the same ping.
-struct OpenAiData {
-  int  pctReq;
-  bool hasPctReq;
-  int  rReq;           // minutes until the request-rate limit resets
-  bool hasRReq;
-  int  pctTok;
-  bool hasPctTok;
-  int  rTok;           // minutes until the token-rate limit resets
-  bool hasRTok;
+// Pushed by clawdmeter-daemon's --codex feature (POST /api/codex). This is
+// Codex CLI's real ChatGPT-plan rate-limit quota, read from its own session
+// log after a real (free, plan-included) `codex exec` ping -- NOT an OpenAI
+// API billing key (an earlier design that used x-ratelimit-* response
+// headers was scrapped before ever flashing -- see CLAUDE.md for why: those
+// headers reflect per-minute rate-limit headroom, not real usage/spend).
+// pct5h/r5h track the shorter window (labeled "5h", when present -- was
+// null on the account this was tested against), pctWeek/rWeek the longer
+// weekly window (confirmed live: window_minutes=10080).
+struct CodexData {
+  int  pct5h;
+  bool hasPct5h;
+  int  r5h;             // minutes until the shorter window resets
+  bool hasR5h;
+  int  pctWeek;
+  bool hasPctWeek;
+  int  rWeek;           // minutes until the weekly window resets
+  bool hasRWeek;
 
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
 
   void clear() {
-    pctReq = 0; hasPctReq = false;
-    rReq = 0; hasRReq = false;
-    pctTok = 0; hasPctTok = false;
-    rTok = 0; hasRTok = false;
+    pct5h = 0; hasPct5h = false;
+    r5h = 0; hasR5h = false;
+    pctWeek = 0; hasPctWeek = false;
+    rWeek = 0; hasRWeek = false;
     valid = false;
     lastOkMs = 0;
   }
