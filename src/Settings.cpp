@@ -302,6 +302,7 @@ void Settings::setDefaults() {
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
   carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselWeather = carouselZai = true;
+  carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
   brightness = DEFAULT_BRIGHTNESS;
@@ -398,6 +399,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselAgenda"]    = s.carouselAgenda;
   root["carouselWeather"]   = s.carouselWeather;
   root["carouselZai"]       = s.carouselZai;
+  root["carouselOrder"]     = s.carouselOrder;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
   root["autoBrightness"]    = s.autoBrightness;
@@ -488,6 +490,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselAgenda"].is<bool>())  s.carouselAgenda = root["carouselAgenda"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
+  if (root["carouselOrder"].is<const char*>()) s.carouselOrder = root["carouselOrder"].as<String>();
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);
   if (root["brightness"].is<int>())         s.brightness = constrain((int)root["brightness"], 0, 100);

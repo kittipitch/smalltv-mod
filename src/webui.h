@@ -111,14 +111,9 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </select>
    <div id="carouselRow">
     <label>Switch mode every (s)</label><input id="carouselSec" type="number" min="5" max="3600">
-    <div class="chk"><input id="carouselTicker" type="checkbox"><label>Ticker</label></div>
-    <div class="chk"><input id="carouselUsage" type="checkbox"><label>Claude usage</label></div>
-    <div class="chk"><input id="carouselRadar" type="checkbox"><label>Plane radar</label></div>
-    <div class="chk"><input id="carouselAgenda" type="checkbox"><label>Next event</label></div>
-    <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather + air quality</label></div>
-    <div class="chk"><input id="carouselZai" type="checkbox"><label>Z.AI quota</label></div>
+    <div id="carouselList"></div>
    </div>
-   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured and stays out of the carousel rotation until it's actually pushed data. Carousel rotates through the ticked features.</small>
+   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured and stays out of the carousel rotation until it's actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -423,6 +418,46 @@ function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(
 
 var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','weather','zai']};
 var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselWeather','carouselZai']};
+
+// Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
+// strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
+// /api/config as a comma-separated carouselOrder string, joined on Save.
+var CAR_MODES=[
+ {id:'stocks',chk:'carouselTicker',label:'Ticker'},
+ {id:'usage',chk:'carouselUsage',label:'Claude usage'},
+ {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
+ {id:'radar',chk:'carouselRadar',label:'Plane radar'},
+ {id:'agenda',chk:'carouselAgenda',label:'Next event'},
+ {id:'weather',chk:'carouselWeather',label:'Weather + air quality'}
+];
+var carOrder=CAR_MODES.map(function(m){return m.id});
+
+function parseCarOrder(csv){
+ var known=CAR_MODES.map(function(m){return m.id});
+ var ids=(csv||'').split(',').map(function(s){return s.trim()}).filter(function(id){return known.indexOf(id)>=0});
+ known.forEach(function(id){if(ids.indexOf(id)<0)ids.push(id)});
+ return ids;
+}
+
+function renderCarouselList(cfg){
+ var el=$('carouselList'); if(!el)return;
+ el.innerHTML=carOrder.map(function(id,i){
+  var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
+  var cur=$(m.chk);
+  var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
+  return '<div class="chk" style="display:flex;align-items:center;gap:8px">'+
+   '<input id="'+m.chk+'" type="checkbox"'+(checked?' checked':'')+'>'+
+   '<label style="flex:1">'+m.label+'</label>'+
+   '<button type="button" class="btn sec" style="padding:4px 10px" onclick="carMove('+i+',-1)"'+(i===0?' disabled':'')+'>&#9650;</button>'+
+   '<button type="button" class="btn sec" style="padding:4px 10px" onclick="carMove('+i+',1)"'+(i===carOrder.length-1?' disabled':'')+'>&#9660;</button>'+
+  '</div>';
+ }).join('');
+}
+function carMove(i,dir){
+ var j=i+dir; if(j<0||j>=carOrder.length)return;
+ var t=carOrder[i]; carOrder[i]=carOrder[j]; carOrder[j]=t;
+ renderCarouselList();
+}
 function hideFeat(name){
  var b=document.querySelector('nav button[data-t="'+name+'"]'); if(b)b.remove();
  var sec=$(name); if(sec)sec.remove();
@@ -463,6 +498,8 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('nightLevel',ck.nightLevel!=null?ck.nightLevel:0); $('nlVal')&&($('nlVal').textContent=(ck.nightLevel!=null?ck.nightLevel:0));
  $('mode').value=c.mode||'stocks'; modeChanged();
  sv('carouselSec',c.carouselSec||60);
+ carOrder=parseCarOrder(c.carouselOrder);
+ renderCarouselList(c);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselZai',c.carouselZai!==false);
  // ticker slice
@@ -544,6 +581,7 @@ function collect(){
  var o={mode:gv('mode'),
   toneR:toneNum('toneR'), toneG:toneNum('toneG'), toneB:toneNum('toneB'), toneSat:toneNum('toneSat'),
   carouselSec:parseInt(gv('carouselSec'))||60,
+  carouselOrder:carOrder.join(','),
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
   carouselAgenda:gc('carouselAgenda'), carouselWeather:gc('carouselWeather'), carouselZai:gc('carouselZai'),
   brightness:parseInt(gv('brightness'))||0,

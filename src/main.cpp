@@ -63,6 +63,45 @@ static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
 static size_t   g_carIdx = 0;
 static uint32_t g_carSwitch = 0;
 
+// g_carOrder is a permutation of kModes[] indices -- g_carIdx indexes INTO
+// this, not into kModes[] directly, so carouselNext()/activeMode() walk the
+// user's chosen order (web UI up/down arrows -> Settings.carouselOrder)
+// instead of always the compiled-in registration order.
+static size_t g_carOrder[kModeCount];
+
+// Rebuild g_carOrder from s.carouselOrder (comma-separated mode id()s).
+// Unlisted or no-longer-compiled ids are simply absent from the CSV and
+// skipped; any kModes[] entry not mentioned is appended at the end in its
+// original compiled order, so a firmware update that adds/removes a mode
+// (or a device that's never saved a custom order -- carouselOrder=="")
+// never loses a mode from rotation. Call after loadSettings() and again
+// whenever settings are saved (appInvalidate()), since the order string
+// itself can change on save.
+static void rebuildCarouselOrder(const Settings& s) {
+  bool used[kModeCount] = {false};
+  size_t n = 0;
+  const String& ord = s.carouselOrder;
+  int start = 0;
+  while (n < kModeCount && start <= (int)ord.length()) {
+    int comma = ord.indexOf(',', start);
+    String tok = (comma == -1) ? ord.substring(start) : ord.substring(start, comma);
+    tok.trim();
+    if (tok.length()) {
+      for (size_t i = 0; i < kModeCount; i++) {
+        if (!used[i] && tok.equals(kModes[i]->id())) {
+          g_carOrder[n++] = i;
+          used[i] = true;
+          break;
+        }
+      }
+    }
+    if (comma == -1) break;
+    start = comma + 1;
+  }
+  for (size_t i = 0; i < kModeCount; i++)
+    if (!used[i]) g_carOrder[n++] = i;
+}
+
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
     // Skip ticker in the carousel until at least one symbol is configured —
@@ -83,13 +122,16 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
 }
 
 // Advance g_carIdx to the next ticked mode (stays put if none other is ticked).
+// g_carIdx indexes g_carOrder, not kModes[] directly -- see g_carOrder's
+// comment above.
 static void carouselNext(const Settings& s) {
   for (size_t hop = 1; hop <= kModeCount; hop++) {
     size_t cand = (g_carIdx + hop) % kModeCount;
-    if (!carouselHas(s, kModes[cand])) continue;
+    size_t real = g_carOrder[cand];
+    if (!carouselHas(s, kModes[real])) continue;
     if (cand != g_carIdx) {
       g_carIdx = cand;
-      kModes[cand]->wake(s);
+      kModes[real]->wake(s);
     }
     return;
   }
@@ -98,16 +140,16 @@ static void carouselNext(const Settings& s) {
 static DisplayMode* activeMode(const Settings& s) {
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
-    if (!carouselHas(s, kModes[g_carIdx])) carouselNext(s);   // settings changed
+    if (!carouselHas(s, kModes[g_carOrder[g_carIdx]])) carouselNext(s);   // settings changed
     // Usage (Claude quota) gets double the dwell of every other mode --
     // e.g. 2min usage / 1min everything else at the 60s default.
     uint32_t dwellMs = (uint32_t)s.carouselSec * 1000UL;
-    if (kModes[g_carIdx]->modeConst() == MODE_USAGE) dwellMs *= 2;
+    if (kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_USAGE) dwellMs *= 2;
     if (millis() - g_carSwitch >= dwellMs) {
       g_carSwitch = millis();
       carouselNext(s);
     }
-    return kModes[g_carIdx];
+    return kModes[g_carOrder[g_carIdx]];
   }
   for (size_t i = 0; i < kModeCount; i++)
     if (kModes[i]->modeConst() == s.mode) return kModes[i];
@@ -156,6 +198,17 @@ const char* appResetReason() { return g_resetReason.c_str(); }
 // Called by the web portal after settings are applied: re-init every mode and
 // force a fresh repaint so a mode/URL/symbol change takes effect immediately.
 void appInvalidate() {
+  // carouselOrder itself may have just changed -- rebuilding g_carOrder can
+  // fully repermute it, which would leave g_carIdx pointing at a different
+  // mode than the one actually on screen (activeMode() would then return
+  // the wrong DisplayMode with no wake() ever called on it). Re-anchor
+  // g_carIdx to whichever slot now holds the mode that was actually active
+  // before the rebuild.
+  DisplayMode* cur = kModeCount ? kModes[g_carOrder[g_carIdx]] : nullptr;
+  rebuildCarouselOrder(g_settings);
+  for (size_t i = 0; i < kModeCount; i++) {
+    if (kModes[g_carOrder[i]] == cur) { g_carIdx = i; break; }
+  }
   for (size_t i = 0; i < kModeCount; i++) kModes[i]->invalidate(g_settings);
 }
 
@@ -191,6 +244,7 @@ void setup() {
   Serial.println("[boot] settings");
   settingsBegin();
   loadSettings(g_settings);
+  rebuildCarouselOrder(g_settings);
 
   Serial.println("[boot] display");
   gfxBegin(g_settings);
