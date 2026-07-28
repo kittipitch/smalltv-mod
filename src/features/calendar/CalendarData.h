@@ -110,3 +110,31 @@ struct ZaiData {
     lastOkMs = 0;
   }
 };
+
+// Pushed by clawdmeter-daemon's --openai feature (POST /api/openai). This is
+// a cheap ping against OpenAI's *paid API* (x-ratelimit-* response headers),
+// NOT a ChatGPT Plus subscription check -- no public API exists for that
+// (see CLAUDE.md's research notes). pctReq/rReq track the request-rate
+// limit, pctTok/rTok the token-rate limit, both from the same ping.
+struct OpenAiData {
+  int  pctReq;
+  bool hasPctReq;
+  int  rReq;           // minutes until the request-rate limit resets
+  bool hasRReq;
+  int  pctTok;
+  bool hasPctTok;
+  int  rTok;           // minutes until the token-rate limit resets
+  bool hasRTok;
+
+  bool     valid;      // populated at least once by a successful push
+  uint32_t lastOkMs;
+
+  void clear() {
+    pctReq = 0; hasPctReq = false;
+    rReq = 0; hasRReq = false;
+    pctTok = 0; hasPctTok = false;
+    rTok = 0; hasRTok = false;
+    valid = false;
+    lastOkMs = 0;
+  }
+};

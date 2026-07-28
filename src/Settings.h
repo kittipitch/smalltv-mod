@@ -145,7 +145,7 @@ struct Settings {
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselTicker, carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselZai;
+  bool carouselTicker, carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselZai, carouselOpenAi;
   // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather,ticker"),
   // user-defined rotation order via the web UI's up/down arrows. Empty =
   // use the compiled-in kModes[] order (default, backward compatible).

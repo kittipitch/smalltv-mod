@@ -5,6 +5,7 @@
 static CalendarEvent g_cal;
 static WeatherData   g_weather;
 static ZaiData        g_zai;
+static OpenAiData     g_openai;
 static bool          g_inited = false;
 
 void calendarInit(const Settings& s) {
@@ -12,12 +13,14 @@ void calendarInit(const Settings& s) {
   g_cal.clear();
   g_weather.clear();
   g_zai.clear();
+  g_openai.clear();
   g_inited = true;
 }
 
 const CalendarEvent& calendarGet() { return g_cal; }
 const WeatherData&   weatherGet()  { return g_weather; }
 const ZaiData&        zaiGet()      { return g_zai; }
+const OpenAiData&     openaiGet()   { return g_openai; }
 
 // Drop non-ASCII bytes (emoji, accented chars) -- this font (CP437 glyph
 // table) renders each UTF-8 continuation byte as its own garbage glyph, so an
@@ -154,5 +157,33 @@ bool zaiApply(const String& body) {
   if (doc["rMcp"].is<int>()) { g_zai.rMcp = doc["rMcp"].as<int>(); g_zai.hasRMcp = true; }
   g_zai.valid = true;
   g_zai.lastOkMs = millis();
+  return true;
+}
+
+// ---- OpenAI quota: pushed payload ------------------------------------------
+// { "ok":true, "pctReq":12, "rReq":3, "pctTok":5, "rTok":1 }
+// Cheap-ping rate-limit headers from OpenAI's paid API, NOT a ChatGPT Plus
+// subscription check. Same optional-field shape as zaiApply().
+static void openaiFilter(JsonDocument& f) {
+  f["ok"] = true; f["pctReq"] = true; f["rReq"] = true;
+  f["pctTok"] = true; f["rTok"] = true;
+}
+
+bool openaiApply(const String& body) {
+  JsonDocument filter; openaiFilter(filter);
+  JsonDocument doc;
+  if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
+  if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
+
+  bool gotReq = doc["pctReq"].is<int>();
+  bool gotTok = doc["pctTok"].is<int>();
+  if (!gotReq && !gotTok) return false;
+
+  if (gotReq) { g_openai.pctReq = doc["pctReq"].as<int>(); g_openai.hasPctReq = true; }
+  if (gotTok) { g_openai.pctTok = doc["pctTok"].as<int>(); g_openai.hasPctTok = true; }
+  if (doc["rReq"].is<int>()) { g_openai.rReq = doc["rReq"].as<int>(); g_openai.hasRReq = true; }
+  if (doc["rTok"].is<int>()) { g_openai.rTok = doc["rTok"].as<int>(); g_openai.hasRTok = true; }
+  g_openai.valid = true;
+  g_openai.lastOkMs = millis();
   return true;
 }
