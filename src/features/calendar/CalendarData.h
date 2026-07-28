@@ -4,7 +4,7 @@
 
 #define CAL_TITLE_LEN 48   // truncated for display well before this; room for the raw push
 #define CAL_START_LEN 24   // ISO8601 datetime ("2026-07-27T10:00:00+01:00") or date-only
-#define CAL_MAX_EVENTS 3   // agenda page shows one frame per event, cycling through these
+#define CAL_MAX_EVENTS 6   // agenda page shows 3 at a time, cycling through 2 pages when >3
 
 struct CalendarEventItem {
   char summary[CAL_TITLE_LEN];

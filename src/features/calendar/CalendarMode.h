@@ -24,11 +24,18 @@ class CalendarAgendaMode : public DisplayMode {
   void begin(const Settings& s) override;
   void service(const Settings& s) override;
   void invalidate(const Settings& s) override;
-  void wake(const Settings& s) override { needRender_ = true; }   // repaint only
+  // Re-entering the carousel always shows page 1 first, with a fresh
+  // PAGE_DWELL_MS before it flips -- without resetting pageSwitchMs_ here,
+  // it'd still hold a timestamp from whenever this mode was last active,
+  // so a carousel re-entry after >=PAGE_DWELL_MS away would flip pages on
+  // the very first tick (stale page flashes, then an instant flip).
+  void wake(const Settings& s) override { needRender_ = true; page_ = 0; pageSwitchMs_ = millis(); }
 
  private:
   bool     needRender_ = true;
   uint32_t calRenderedOk_ = 0xFFFFFFFF;   // last CalendarEvent.lastOkMs drawn
+  uint8_t  page_ = 0;          // which 3-event page is showing (0 or 1)
+  uint32_t pageSwitchMs_ = 0;  // millis() of the last page flip
 };
 
 class CalendarWeatherMode : public DisplayMode {

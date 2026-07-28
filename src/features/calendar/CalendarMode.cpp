@@ -155,17 +155,23 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
 // ---- render (2 independent modes, each its own carousel entry) -------------
 // Agenda reuses the gray card panel look from UsageMode.cpp's drawMeter()
 // (fillRoundRect at x=8, w=224, radius 8, C_PANEL) per explicit request --
-// "steal that gray frame" -- one card per upcoming event (up to CAL_MAX_EVENTS),
-// stacked on one screen exactly like the 5h/7d meter cards, instead of a single
-// oversized hero card or cycling through separate pages (both considered and
-// rejected -- "keep them in their own frame like the claude quota").
-static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
+// "steal that gray frame" -- one card per upcoming event, up to
+// EVENTS_PER_PAGE stacked on one screen exactly like the 5h/7d meter cards.
+// With CAL_MAX_EVENTS raised to 6, a 4th-6th event doesn't cram onto one
+// screen (cards would get too short to read) -- instead the page auto-flips
+// between events 1-3 and 4-6 every PAGE_DWELL_MS (see service() below),
+// "one after another" per explicit request. Single page, no flip timer, when
+// there are 3 or fewer events -- avoids a pointless still-empty second page.
+#define EVENTS_PER_PAGE 3
+#define PAGE_DWELL_MS   8000
+
+static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c, uint8_t page) {
   gfx->fillScreen(C_BLACK);
   const int x = 8, w = 224;
   bool connected = c.valid;
-  uint8_t n = connected ? c.count : 0;
+  uint8_t total = connected ? c.count : 0;
 
-  if (n == 0) {
+  if (total == 0) {
     const int top = 20, h = 200;
     gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
     gfx->setTextSize(2);
@@ -179,6 +185,11 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
     return;
   }
 
+  uint8_t startIdx = page * EVENTS_PER_PAGE;
+  if (startIdx >= total) startIdx = 0;   // stale page index after a shrinking push
+  uint8_t n = total - startIdx;
+  if (n > EVENTS_PER_PAGE) n = EVENTS_PER_PAGE;
+
   struct tm now;
   bool haveNow = clockNow(now);
 
@@ -188,7 +199,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
     int top = top0 + i * (h + gap);
     gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
-    const CalendarEventItem& ev = c.items[i];
+    const CalendarEventItem& ev = c.items[startIdx + i];
     // Date/time text tints to the source Google Calendar's own color when
     // the daemon sent one (multiple calendars merged into one agenda --
     // this is how you tell which calendar an event came from at a
@@ -321,10 +332,23 @@ void CalendarAgendaMode::invalidate(const Settings& s) {
 void CalendarAgendaMode::service(const Settings& s) {
   (void)s;
   const CalendarEvent& c = calendarGet();
-  if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
+  if (c.lastOkMs != calRenderedOk_) {
+    calRenderedOk_ = c.lastOkMs;
+    needRender_ = true;
+    page_ = 0;                    // fresh data -- always start back on page 1
+    pageSwitchMs_ = millis();
+  }
+
+  uint8_t numPages = (c.valid && c.count > EVENTS_PER_PAGE) ? 2 : 1;
+  if (numPages > 1 && (uint32_t)(millis() - pageSwitchMs_) >= PAGE_DWELL_MS) {
+    page_ = (page_ + 1) % numPages;
+    pageSwitchMs_ = millis();
+    needRender_ = true;
+  }
+
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawAgendaPage(gfx, c);
+    if (gfx) drawAgendaPage(gfx, c, page_);
     needRender_ = false;
   }
 }
