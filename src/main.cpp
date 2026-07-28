@@ -44,13 +44,15 @@ static DisplayMode* kModes[] = {
 #if WITH_USAGE
   &g_usageMode,
 #endif
+#if WITH_CALENDAR
+  &g_zaiMode,
+#endif
 #if WITH_RADAR
   &g_radarMode,
 #endif
 #if WITH_CALENDAR
   &g_calendarAgendaMode,
   &g_calendarWeatherMode,
-  &g_zaiMode,
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);

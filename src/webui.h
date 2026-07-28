@@ -681,7 +681,8 @@ function loadStatus(){j('/api/status').then(function(s){
  if(s.repo){var rl=$('repoLink'); if(rl)rl.href=s.repo+'/releases'; var fr=$('footRepo'); if(fr)fr.href=s.repo;}
  $('statusBox').innerHTML=
   kv('Firmware',s.fw+' '+s.version)+kv('Mode',s.mode.toUpperCase())+
-  kv('Network',s.ssid||'-')+kv('IP',s.ip||'-')+kv('mDNS','http://'+(C.hostname||'smalltv')+'.local')+
+  kv('Name',C.hostname||'smalltv')+
+  kv('Network',s.ssid||'-')+kv('IP',s.ip||'-')+kv('mDNS','<a href="http://'+(C.hostname||'smalltv')+'.local" target="_blank">http://'+(C.hostname||'smalltv')+'.local</a>')+
   kv('Signal',s.rssi?s.rssi+' dBm':'-')+
   kv('Free heap',s.heap+' B')+kv('Uptime',fmtUp(s.uptime))+kv('Last reset',s.reset||'-');
  var h='';(s.tickers||[]).forEach(function(t){

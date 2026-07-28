@@ -26,10 +26,12 @@ static uint16_t pctColor(int pct) {
 
 // Same card shape as UsageMode.cpp's drawMeter() -- big %, label, fill bar --
 // so this page reads as a sibling of the Claude usage page, not a different
-// visual language. No reset countdown: z.ai's TOKENS_LIMIT entry doesn't
-// carry a reset time the way TIME_LIMIT does (see the daemon-side research
-// in CLAUDE.md's z.ai section), so this card only has the two rows that are
-// always available. `full` gates the label + panel background exactly like
+// visual language. No reset countdown yet: both TIME_LIMIT and TOKENS_LIMIT
+// do carry a nextResetTime (confirmed live against the real endpoint -- an
+// earlier session's partial capture wrongly assumed TOKENS_LIMIT had none,
+// see CLAUDE.md's z.ai section for the correction), the daemon just doesn't
+// parse/push it yet -- a real feature to build later, not a hard limitation.
+// `full` gates the label + panel background exactly like
 // drawMeter() -- see that function's comment for why (an Opus review caught
 // an unconditional-fill bug there; same reasoning applies here).
 static void drawZaiMeter(Arduino_GFX* gfx, int top, const char* label,
