@@ -89,6 +89,14 @@ static void rebuildCarouselOrder(const Settings& s) {
     tok.trim();
     if (tok.length()) {
       for (size_t i = 0; i < kModeCount; i++) {
+        // MODE_CAL_AGENDA2 is deliberately never placed from the saved CSV --
+        // it's forced to sit immediately after MODE_CAL_AGENDA below,
+        // unconditionally, regardless of what any saved/hand-crafted
+        // carouselOrder string says. There's no web UI affordance to move
+        // it independently either -- "we shudnt have ppl able to order
+        // them apart" (the two agenda pages are one logical unit split
+        // only because a single screen can't show 6 cards at once).
+        if (kModes[i]->modeConst() == MODE_CAL_AGENDA2) continue;
         if (!used[i] && tok.equals(kModes[i]->id())) {
           g_carOrder[n++] = i;
           used[i] = true;
@@ -100,7 +108,22 @@ static void rebuildCarouselOrder(const Settings& s) {
     start = comma + 1;
   }
   for (size_t i = 0; i < kModeCount; i++)
-    if (!used[i]) g_carOrder[n++] = i;
+    if (!used[i] && kModes[i]->modeConst() != MODE_CAL_AGENDA2) g_carOrder[n++] = i;
+
+  // Force MODE_CAL_AGENDA2 to sit right after MODE_CAL_AGENDA's slot (or at
+  // the end if agenda somehow isn't compiled in/present -- shouldn't happen,
+  // both are gated on WITH_CALENDAR together).
+  for (size_t i = 0; i < kModeCount; i++) {
+    if (kModes[i]->modeConst() != MODE_CAL_AGENDA2) continue;
+    size_t insertAt = n;
+    for (size_t j = 0; j < n; j++) {
+      if (kModes[g_carOrder[j]]->modeConst() == MODE_CAL_AGENDA) { insertAt = j + 1; break; }
+    }
+    for (size_t j = n; j > insertAt; j--) g_carOrder[j] = g_carOrder[j - 1];
+    g_carOrder[insertAt] = i;
+    n++;
+    break;
+  }
 }
 
 static bool carouselHas(const Settings& s, const DisplayMode* m) {

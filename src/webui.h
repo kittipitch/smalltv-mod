@@ -423,13 +423,20 @@ var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
 // /api/config as a comma-separated carouselOrder string, joined on Save.
+//
+// "agenda2" (events 4-6) is deliberately NOT a row here -- the device
+// always forces it immediately after "agenda" regardless of what
+// carouselOrder says (main.cpp's rebuildCarouselOrder()), so a draggable
+// row for it would just be a UI lie: dragging it anywhere would silently
+// snap back on the next save. "we shudnt have ppl able to order them
+// apart" -- its checkbox is rendered nested under the "Next event" row
+// instead (see renderCarouselList's agenda2Toggle below).
 var CAR_MODES=[
  {id:'stocks',chk:'carouselTicker',label:'Ticker'},
  {id:'usage',chk:'carouselUsage',label:'Claude usage'},
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
- {id:'agenda2',chk:'carouselAgenda2',label:'Next event (page 2)'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'}
 ];
 var carOrder=CAR_MODES.map(function(m){return m.id});
@@ -441,15 +448,26 @@ function parseCarOrder(csv){
  return ids;
 }
 
+// Nested "+ page 2" toggle rendered inside the "Next event" row. Own
+// class="chk" wrapper so hideFeat('calendar')'s $(id).closest('.chk')
+// removes just this toggle, not the whole agenda row.
+function renderAgenda2Toggle(cfg){
+ var cur=$('carouselAgenda2');
+ var checked=cur?cur.checked:(cfg?cfg.carouselAgenda2!==false:true);
+ return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin-top:4px;font-weight:normal">'+
+  '<input id="carouselAgenda2" type="checkbox"'+(checked?' checked':'')+'> Also show events 4-6 (page 2, right after this one)</label>';
+}
+
 function renderCarouselList(cfg){
  var el=$('carouselList'); if(!el)return;
  el.innerHTML=carOrder.map(function(id,i){
   var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
+  var extra=id==='agenda'?renderAgenda2Toggle(cfg):'';
   return '<div class="chk" style="display:flex;align-items:center;gap:8px">'+
    '<input id="'+m.chk+'" type="checkbox"'+(checked?' checked':'')+'>'+
-   '<label style="flex:1">'+m.label+'</label>'+
+   '<div style="flex:1"><label>'+m.label+'</label>'+extra+'</div>'+
    '<button type="button" class="btn sec" style="padding:4px 10px" onclick="carMove('+i+',-1)"'+(i===0?' disabled':'')+'>&#9650;</button>'+
    '<button type="button" class="btn sec" style="padding:4px 10px" onclick="carMove('+i+',1)"'+(i===carOrder.length-1?' disabled':'')+'>&#9660;</button>'+
   '</div>';
