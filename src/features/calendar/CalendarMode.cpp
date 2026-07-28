@@ -189,6 +189,11 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
     gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
     const CalendarEventItem& ev = c.items[i];
+    // Date/time text tints to the source Google Calendar's own color when
+    // the daemon sent one (multiple calendars merged into one agenda --
+    // this is how you tell which calendar an event came from at a
+    // glance), falling back to the existing fixed accent otherwise.
+    uint16_t eventColor = ev.hasColor ? ev.color : C_ACCENT;
 
     // Date, left-aligned: "Today" when it matches the device's local date,
     // else "Mon DD" -- explicit request, was previously just the bare time.
@@ -196,7 +201,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
     if (haveNow && isSameLocalDay(ev.start, now)) strlcpy(dateBuf, "Today", sizeof(dateBuf));
     else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
     gfx->setTextSize(2);
-    gfx->setTextColor(C_ACCENT, C_PANEL);
+    gfx->setTextColor(eventColor, C_PANEL);
     gfx->setCursor(x + 12, top + 8);
     gfx->print(dateBuf);
 
@@ -205,6 +210,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c) {
     if (ev.allDay) strlcpy(timeBuf, "All day", sizeof(timeBuf));
     else extractTimeHHMM(ev.start, timeBuf, sizeof(timeBuf));
     int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
+    gfx->setTextColor(eventColor, C_PANEL);
     gfx->setCursor(timeX, top + 8);
     gfx->print(timeBuf);
 

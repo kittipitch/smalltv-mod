@@ -39,12 +39,24 @@ static void stripNonAscii(const char* in, char* out, size_t outCap) {
 }
 
 // ---- calendar: pushed payload ----------------------------------------------
-// { "ok":true, "events":[{"summary":"Team sync","start":"2026-07-27T10:00:00+01:00","allDay":false}, ...] }
+// { "ok":true, "events":[{"summary":"Team sync","start":"2026-07-27T10:00:00+01:00","allDay":false,"color":"7986cb"}, ...] }
 // "events" is an empty array (not absent) when there's no upcoming event.
+// "color" (hex, no '#') is optional -- the source Google Calendar's own
+// backgroundColor, absent if that calendar had none set or on an older
+// daemon that predates per-event coloring.
 static void calendarFilter(JsonDocument& f) {
   f["ok"] = true;
   JsonObject ev = f["events"].add<JsonObject>();
-  ev["summary"] = true; ev["start"] = true; ev["allDay"] = true;
+  ev["summary"] = true; ev["start"] = true; ev["allDay"] = true; ev["color"] = true;
+}
+
+// Args: 6-char hex string (no '#') -> RGB565. Malformed input (wrong
+// length, non-hex chars) is treated as absent by the caller checking
+// hasColor before this is invoked, not guarded against here.
+static uint16_t hexToRGB565(const char* hex) {
+  uint32_t v = (uint32_t)strtoul(hex, nullptr, 16);
+  uint8_t r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
 
 bool calendarApply(const String& body) {
@@ -64,6 +76,14 @@ bool calendarApply(const String& body) {
     stripNonAscii(ev["summary"].as<const char*>(), g_cal.items[n].summary, sizeof(g_cal.items[n].summary));
     strlcpy(g_cal.items[n].start, ev["start"].as<const char*>(), sizeof(g_cal.items[n].start));
     g_cal.items[n].allDay = ev["allDay"] | false;
+    const char* colorStr = ev["color"].is<const char*>() ? ev["color"].as<const char*>() : nullptr;
+    if (colorStr && strlen(colorStr) == 6) {
+      g_cal.items[n].color = hexToRGB565(colorStr);
+      g_cal.items[n].hasColor = true;
+    } else {
+      g_cal.items[n].color = 0;
+      g_cal.items[n].hasColor = false;
+    }
     n++;
   }
   g_cal.count = n;

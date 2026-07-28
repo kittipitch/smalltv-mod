@@ -10,6 +10,10 @@ struct CalendarEventItem {
   char summary[CAL_TITLE_LEN];
   char start[CAL_START_LEN];
   bool allDay;
+  uint16_t color;      // RGB565, source calendar's real Google color
+  bool     hasColor;   // false = daemon sent none (old daemon, or the source
+                        // calendar has no color set) -- render with the
+                        // existing default accent color, not a bogus black
 };
 
 // Pushed by clawdmeter-daemon's --calendar feature (POST /api/calendar). The
@@ -26,6 +30,8 @@ struct CalendarEvent {
       items[i].summary[0] = 0;
       items[i].start[0] = 0;
       items[i].allDay = false;
+      items[i].color = 0;
+      items[i].hasColor = false;
     }
     count = 0;
     valid = false;
