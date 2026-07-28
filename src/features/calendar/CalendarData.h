@@ -77,15 +77,21 @@ struct WeatherData {
 struct ZaiData {
   int  pct5h;
   bool hasPct5h;
+  int  r5h;         // minutes until TIME_LIMIT resets, same shape as Claude's sr/wr
+  bool hasR5h;
   int  pctTokens;
   bool hasPctTokens;
+  int  rTokens;      // minutes until TOKENS_LIMIT resets
+  bool hasRTokens;
 
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
 
   void clear() {
     pct5h = 0; hasPct5h = false;
+    r5h = 0; hasR5h = false;
     pctTokens = 0; hasPctTokens = false;
+    rTokens = 0; hasRTokens = false;
     valid = false;
     lastOkMs = 0;
   }

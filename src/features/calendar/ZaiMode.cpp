@@ -24,18 +24,28 @@ static uint16_t pctColor(int pct) {
   return C_UGREEN;
 }
 
-// Same card shape as UsageMode.cpp's drawMeter() -- big %, label, fill bar --
-// so this page reads as a sibling of the Claude usage page, not a different
-// visual language. No reset countdown yet: both TIME_LIMIT and TOKENS_LIMIT
-// do carry a nextResetTime (confirmed live against the real endpoint -- an
-// earlier session's partial capture wrongly assumed TOKENS_LIMIT had none,
-// see CLAUDE.md's z.ai section for the correction), the daemon just doesn't
-// parse/push it yet -- a real feature to build later, not a hard limitation.
-// `full` gates the label + panel background exactly like
-// drawMeter() -- see that function's comment for why (an Opus review caught
-// an unconditional-fill bug there; same reasoning applies here).
+// Identical to UsageMode.cpp's fmtReset() -- kept as a near-copy rather than
+// a shared helper, same reasoning as drawZaiClockOverlay below.
+static void fmtReset(int mins, char* out, size_t n) {
+  if (mins <= 0) { strlcpy(out, "now", n); return; }
+  int d = mins / 1440, h = (mins % 1440) / 60, m = mins % 60;
+  if (d > 0)      snprintf(out, n, "%dd %dh", d, h);
+  else if (h > 0) snprintf(out, n, "%dh %2dm", h, m);
+  else            snprintf(out, n, "%dm", m);
+}
+
+// Same card shape as UsageMode.cpp's drawMeter() -- big %, label, fill bar,
+// reset countdown -- so this page reads as a sibling of the Claude usage
+// page, not a different visual language. Both z.ai limits carry a
+// nextResetTime (confirmed live against the real endpoint -- an earlier
+// session's partial capture wrongly assumed TOKENS_LIMIT had none, see
+// CLAUDE.md's z.ai section for the correction), now parsed by the daemon.
+// `full` gates the label + panel background exactly like drawMeter() --
+// see that function's comment for why (an Opus review caught an
+// unconditional-fill bug there; same reasoning applies here).
 static void drawZaiMeter(Arduino_GFX* gfx, int top, const char* label,
-                          bool has, int pct, bool full, bool growRight) {
+                          bool has, int pct, bool hasReset, int resetMins,
+                          bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
@@ -69,6 +79,19 @@ static void drawZaiMeter(Arduino_GFX* gfx, int top, const char* label,
   // quota pages don't disagree when the user toggles it.
   int fx = growRight ? (bx + bw - fw) : bx;
   if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pct));
+
+  // Row is always drawn, same as UsageMode.cpp's drawMeter() -- when
+  // hasReset is false (daemon on an old version, or a future z.ai shape
+  // change dropping nextResetTime), it prints "--" rather than a fake
+  // "now", but still occupies the row so nothing else needs to clear it.
+  char rs[16], line[10 + sizeof(rs) + 1];
+  if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
+  else          strlcpy(rs, "--", sizeof(rs));
+  snprintf(line, sizeof(line), "Resets in %-7s", rs);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 64);
+  gfx->print(line);
 }
 
 static void drawZaiPage(Arduino_GFX* gfx, const ZaiData& z, bool full, bool growRight) {
@@ -82,8 +105,8 @@ static void drawZaiPage(Arduino_GFX* gfx, const ZaiData& z, bool full, bool grow
     gfx->print("Z.AI");
   }
 
-  drawZaiMeter(gfx, 50,  "5h",     z.hasPct5h,      z.pct5h,      full, growRight);
-  drawZaiMeter(gfx, 138, "Tokens", z.hasPctTokens,  z.pctTokens,  full, growRight);
+  drawZaiMeter(gfx, 50,  "5h",     z.hasPct5h,     z.pct5h,     z.hasR5h,     z.r5h,     full, growRight);
+  drawZaiMeter(gfx, 138, "Tokens", z.hasPctTokens, z.pctTokens, z.hasRTokens, z.rTokens, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp -- per explicit request, any
