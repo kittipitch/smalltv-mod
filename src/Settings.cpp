@@ -301,7 +301,7 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselWeather = carouselZai = true;
+  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselZai = true;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -389,6 +389,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["mode"]              = (s.mode == MODE_RADAR)    ? "radar"
                             : (s.mode == MODE_USAGE)    ? "usage"
                             : (s.mode == MODE_CAL_AGENDA)  ? "agenda"
+                            : (s.mode == MODE_CAL_AGENDA2) ? "agenda2"
                             : (s.mode == MODE_CAL_WEATHER) ? "weather"
                             : (s.mode == MODE_ZAI)      ? "zai"
                             : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
@@ -397,6 +398,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselUsage"]     = s.carouselUsage;
   root["carouselRadar"]     = s.carouselRadar;
   root["carouselAgenda"]    = s.carouselAgenda;
+  root["carouselAgenda2"]   = s.carouselAgenda2;
   root["carouselWeather"]   = s.carouselWeather;
   root["carouselZai"]       = s.carouselZai;
   root["carouselOrder"]     = s.carouselOrder;
@@ -479,6 +481,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
     s.mode = m.equalsIgnoreCase("radar")    ? MODE_RADAR
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
            : m.equalsIgnoreCase("agenda")   ? MODE_CAL_AGENDA
+           : m.equalsIgnoreCase("agenda2")  ? MODE_CAL_AGENDA2
            : m.equalsIgnoreCase("weather")  ? MODE_CAL_WEATHER
            : m.equalsIgnoreCase("zai")      ? MODE_ZAI
            : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL : MODE_STOCKS;
@@ -488,6 +491,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselUsage"].is<bool>())   s.carouselUsage = root["carouselUsage"];
   if (root["carouselRadar"].is<bool>())   s.carouselRadar = root["carouselRadar"];
   if (root["carouselAgenda"].is<bool>())  s.carouselAgenda = root["carouselAgenda"];
+  if (root["carouselAgenda2"].is<bool>()) s.carouselAgenda2 = root["carouselAgenda2"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
   if (root["carouselOrder"].is<const char*>()) s.carouselOrder = root["carouselOrder"].as<String>();

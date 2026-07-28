@@ -52,6 +52,7 @@ static DisplayMode* kModes[] = {
 #endif
 #if WITH_CALENDAR
   &g_calendarAgendaMode,
+  &g_calendarAgendaMode2,
   &g_calendarWeatherMode,
 #endif
 };
@@ -110,6 +111,9 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     case MODE_USAGE:  return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
     case MODE_CAL_AGENDA:  return s.carouselAgenda;
+    // Only in rotation when there's actually a 4th-6th event to show --
+    // same "skip until there's real content" pattern as ticker/z.ai above.
+    case MODE_CAL_AGENDA2: return s.carouselAgenda2 && calendarGet().count > 3;
     case MODE_CAL_WEATHER: return s.carouselWeather;
 #if WITH_CALENDAR
     // Same "skip until there's real content" pattern as ticker above --

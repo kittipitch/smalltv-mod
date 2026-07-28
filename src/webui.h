@@ -105,6 +105,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="usage">Claude usage</option>
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
+    <option value="agenda2">Next event (page 2)</option>
     <option value="weather">Weather + air quality</option>
     <option value="zai">Z.AI quota</option>
     <option value="carousel">Carousel (rotate modes)</option>
@@ -416,8 +417,8 @@ var TZMAP={
 function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
  keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
 
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','weather','zai']};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselWeather','carouselZai']};
+var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','zai']};
+var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselZai']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -428,6 +429,7 @@ var CAR_MODES=[
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
+ {id:'agenda2',chk:'carouselAgenda2',label:'Next event (page 2)'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'}
 ];
 var carOrder=CAR_MODES.map(function(m){return m.id});
@@ -501,7 +503,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselZai',c.carouselZai!==false);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselZai',c.carouselZai!==false);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -583,7 +585,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselWeather:gc('carouselWeather'), carouselZai:gc('carouselZai'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselZai:gc('carouselZai'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

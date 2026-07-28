@@ -6,6 +6,7 @@
 #include "WeatherIcons.h"
 
 CalendarAgendaMode  g_calendarAgendaMode;
+CalendarAgendaMode2 g_calendarAgendaMode2;
 CalendarWeatherMode g_calendarWeatherMode;
 
 // Local palette subset (same Anthropic-inspired hex values UsageMode.cpp
@@ -152,18 +153,18 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
   gfx->drawBitmap(cx - WX_ICON_SIZE / 2, cy - WX_ICON_SIZE / 2, mask, WX_ICON_SIZE, WX_ICON_SIZE, color);
 }
 
-// ---- render (2 independent modes, each its own carousel entry) -------------
+// ---- render (3 independent modes, each its own carousel entry) -------------
 // Agenda reuses the gray card panel look from UsageMode.cpp's drawMeter()
 // (fillRoundRect at x=8, w=224, radius 8, C_PANEL) per explicit request --
 // "steal that gray frame" -- one card per upcoming event, up to
 // EVENTS_PER_PAGE stacked on one screen exactly like the 5h/7d meter cards.
-// With CAL_MAX_EVENTS raised to 6, a 4th-6th event doesn't cram onto one
-// screen (cards would get too short to read) -- instead the page auto-flips
-// between events 1-3 and 4-6 every PAGE_DWELL_MS (see service() below),
-// "one after another" per explicit request. Single page, no flip timer, when
-// there are 3 or fewer events -- avoids a pointless still-empty second page.
+// With CAL_MAX_EVENTS raised to 6, events 4-6 get their own carousel entry
+// (CalendarAgendaMode2, "page" 1 here) rather than an internal auto-flip
+// timer within this mode -- see CalendarMode.h's header comment for why
+// that first attempt (a PAGE_DWELL_MS timer) didn't reliably show page 2 at
+// all (needed PAGE_DWELL_MS < the carousel's own carouselSec, not
+// guaranteed) and was replaced with a real second mode instead.
 #define EVENTS_PER_PAGE 3
-#define PAGE_DWELL_MS   8000
 
 static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c, uint8_t page) {
   gfx->fillScreen(C_BLACK);
@@ -332,23 +333,34 @@ void CalendarAgendaMode::invalidate(const Settings& s) {
 void CalendarAgendaMode::service(const Settings& s) {
   (void)s;
   const CalendarEvent& c = calendarGet();
-  if (c.lastOkMs != calRenderedOk_) {
-    calRenderedOk_ = c.lastOkMs;
-    needRender_ = true;
-    page_ = 0;                    // fresh data -- always start back on page 1
-    pageSwitchMs_ = millis();
-  }
-
-  uint8_t numPages = (c.valid && c.count > EVENTS_PER_PAGE) ? 2 : 1;
-  if (numPages > 1 && (uint32_t)(millis() - pageSwitchMs_) >= PAGE_DWELL_MS) {
-    page_ = (page_ + 1) % numPages;
-    pageSwitchMs_ = millis();
-    needRender_ = true;
-  }
-
+  if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawAgendaPage(gfx, c, page_);
+    if (gfx) drawAgendaPage(gfx, c, 0);
+    needRender_ = false;
+  }
+}
+
+// ---- DisplayMode: Agenda page 2 (events 4-6) ----------------------------
+void CalendarAgendaMode2::begin(const Settings& s) {
+  calendarInit(s);
+  needRender_ = true;
+  calRenderedOk_ = 0xFFFFFFFF;
+}
+
+void CalendarAgendaMode2::invalidate(const Settings& s) {
+  (void)s;
+  needRender_ = true;
+  calRenderedOk_ = 0xFFFFFFFF;
+}
+
+void CalendarAgendaMode2::service(const Settings& s) {
+  (void)s;
+  const CalendarEvent& c = calendarGet();
+  if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
+  if (needRender_) {
+    Arduino_GFX* gfx = gfxDev();
+    if (gfx) drawAgendaPage(gfx, c, 1);
     needRender_ = false;
   }
 }
