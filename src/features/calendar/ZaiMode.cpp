@@ -105,8 +105,8 @@ static void drawZaiPage(Arduino_GFX* gfx, const ZaiData& z, bool full, bool grow
     gfx->print("Z.AI");
   }
 
-  drawZaiMeter(gfx, 50,  "5h",     z.hasPct5h,     z.pct5h,     z.hasR5h,     z.r5h,     full, growRight);
-  drawZaiMeter(gfx, 138, "Tokens", z.hasPctTokens, z.pctTokens, z.hasRTokens, z.rTokens, full, growRight);
+  drawZaiMeter(gfx, 50,  "5h",  z.hasPct5h,  z.pct5h,  z.hasR5h,  z.r5h,  full, growRight);
+  drawZaiMeter(gfx, 138, "MCP", z.hasPctMcp, z.pctMcp, z.hasRMcp, z.rMcp, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp -- per explicit request, any

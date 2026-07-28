@@ -115,7 +115,7 @@ bool weatherApply(const String& body) {
 // partial/changed upstream response doesn't drop the whole push.
 static void zaiFilter(JsonDocument& f) {
   f["ok"] = true; f["pct5h"] = true; f["r5h"] = true;
-  f["pctTokens"] = true; f["rTokens"] = true;
+  f["pctMcp"] = true; f["rMcp"] = true;
 }
 
 bool zaiApply(const String& body) {
@@ -125,13 +125,13 @@ bool zaiApply(const String& body) {
   if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
 
   bool got5h = doc["pct5h"].is<int>();
-  bool gotTokens = doc["pctTokens"].is<int>();
-  if (!got5h && !gotTokens) return false;
+  bool gotMcp = doc["pctMcp"].is<int>();
+  if (!got5h && !gotMcp) return false;
 
-  if (got5h)     { g_zai.pct5h = doc["pct5h"].as<int>(); g_zai.hasPct5h = true; }
-  if (gotTokens) { g_zai.pctTokens = doc["pctTokens"].as<int>(); g_zai.hasPctTokens = true; }
-  if (doc["r5h"].is<int>())     { g_zai.r5h = doc["r5h"].as<int>(); g_zai.hasR5h = true; }
-  if (doc["rTokens"].is<int>()) { g_zai.rTokens = doc["rTokens"].as<int>(); g_zai.hasRTokens = true; }
+  if (got5h)  { g_zai.pct5h = doc["pct5h"].as<int>(); g_zai.hasPct5h = true; }
+  if (gotMcp) { g_zai.pctMcp = doc["pctMcp"].as<int>(); g_zai.hasPctMcp = true; }
+  if (doc["r5h"].is<int>())  { g_zai.r5h = doc["r5h"].as<int>(); g_zai.hasR5h = true; }
+  if (doc["rMcp"].is<int>()) { g_zai.rMcp = doc["rMcp"].as<int>(); g_zai.hasRMcp = true; }
   g_zai.valid = true;
   g_zai.lastOkMs = millis();
   return true;

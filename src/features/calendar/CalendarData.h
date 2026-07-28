@@ -74,15 +74,23 @@ struct WeatherData {
 // quota endpoint (api.z.ai/api/monitor/usage/quota/limit) is undocumented
 // and could change shape without notice -- kept to the two percentages
 // this device actually needs, everything else parsed defensively.
+// pct5h/r5h come from z.ai's "TOKENS_LIMIT" entry (the real rolling
+// 5-hour cycle) and pctMcp/rMcp from "TIME_LIMIT" (the real monthly
+// MCP-tools quota -- search-prime/web-reader/zread) -- deliberately NOT a
+// literal 1:1 mapping of z.ai's own field names, which are backwards from
+// what they sound like (TIME_LIMIT's own "usage" cap of 100 matches z.ai
+// Lite's published 100/month MCP allowance, not its ~400/week prompt
+// allowance). See the daemon's poll_zai() comment for the full evidence
+// trail, including the first WRONG mapping this superseded.
 struct ZaiData {
   int  pct5h;
   bool hasPct5h;
-  int  r5h;         // minutes until TIME_LIMIT resets, same shape as Claude's sr/wr
+  int  r5h;           // minutes until the 5h quota resets, same shape as Claude's sr/wr
   bool hasR5h;
-  int  pctTokens;
-  bool hasPctTokens;
-  int  rTokens;      // minutes until TOKENS_LIMIT resets
-  bool hasRTokens;
+  int  pctMcp;
+  bool hasPctMcp;
+  int  rMcp;           // minutes until the monthly MCP-tools quota resets
+  bool hasRMcp;
 
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
@@ -90,8 +98,8 @@ struct ZaiData {
   void clear() {
     pct5h = 0; hasPct5h = false;
     r5h = 0; hasR5h = false;
-    pctTokens = 0; hasPctTokens = false;
-    rTokens = 0; hasRTokens = false;
+    pctMcp = 0; hasPctMcp = false;
+    rMcp = 0; hasRMcp = false;
     valid = false;
     lastOkMs = 0;
   }
