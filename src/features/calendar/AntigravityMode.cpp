@@ -82,6 +82,20 @@ static void drawAntigravityLabelCard(Arduino_GFX* gfx, int top, const char* labe
   // near-overlap: whichever draws last wins the shared pixels, so the
   // label always survives a data-only redraw instead of getting clipped
   // to "Mode" the way a full-gated label would.
+  // Unlike every other card's value ("%3d%%"/" --", always the same length),
+  // this one is a variable-length truncated model name -- a wider name
+  // followed by a shorter one on a data-only render (full=false, no panel
+  // clear) leaves the old name's leftover tail visible to the left of the
+  // new, right-aligned text ("GemiGPT" confirmed live). setTextColor's
+  // per-glyph opaque background only clears the new text's own footprint,
+  // not the wider old footprint outside it -- so clear the whole value
+  // row first, every draw, regardless of `full`. Left bound derived from
+  // the same 140px budget gfxFitSize(text, 140, ...) below is called with
+  // (not a separate hand-picked margin against the "Model" label) -- the
+  // label redraws after the value anyway (opaque, unconditional), so the
+  // clear is free to run left of it with no visual cost.
+  gfx->fillRect(x + w - 140 - 14, top + 8, 140, 28, C_PANEL);
+
   char text[10];
   truncateDots((label && label[0]) ? label : "Model", text, sizeof(text), 8);
   uint8_t sz = gfxFitSize(text, 140, 3);

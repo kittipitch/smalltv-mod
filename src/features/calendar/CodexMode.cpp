@@ -194,7 +194,7 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   if (full) {
     gfx->fillScreen(C_BLACK);
     // Header: real logo (user-supplied Codex CLI app icon, see
-    // CodexIcon.h for the rasterization), same 32x32-at-y=8 position
+    // CodexIcon.h for the rasterization), same 32x32-at-y=12 position
     // AntigravityMode.cpp's icon uses, drawn in C_CODEX_PURPLE (sampled
     // from the source image's own fill) per live feedback ("we can use
     // that purple color but make it mono"). x=56 text start leaves room
