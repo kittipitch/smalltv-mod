@@ -231,7 +231,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div><label>Latitude</label><input id="radarLat" type="number" step="0.0001" placeholder="52.3676"></div>
     <div><label>Longitude</label><input id="radarLon" type="number" step="0.0001" placeholder="4.9041"></div>
    </div>
-   <small class="hint">The radar centres on this point. Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen prompts you to set it.</small>
+   <small class="hint">The radar centres on this point. Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 to use the location set on the Agenda &amp; weather tab instead; the screen only prompts you to set one if neither is configured.</small>
   </div>
   <div class="card"><h2>Range &amp; data</h2>
    <div class="row">

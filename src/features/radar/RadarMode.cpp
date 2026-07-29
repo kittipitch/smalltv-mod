@@ -83,7 +83,7 @@ static void drawRadar(const Settings& s) {
   int ad = scaleR(5, k);
   for (uint8_t i = 0; i < s.radar.airportCount; i++) {
     float d, b;
-    geo(s.radar.lat, s.radar.lon, s.radar.airports[i].lat, s.radar.airports[i].lon, d, b);
+    geo(radarHomeLat(s), radarHomeLon(s), s.radar.airports[i].lat, s.radar.airports[i].lon, d, b);
     if (d > range) continue;
     int x, y;
     polar(d / range * RR, b, x, y);
@@ -197,7 +197,11 @@ void RadarMode::invalidate(const Settings& s) {
 }
 
 void RadarMode::render(const Settings& s) {
-  if (s.radar.lat == 0.0f && s.radar.lon == 0.0f) {
+  // radarHomeLat/Lon() falls back to the weather location when radar's own
+  // isn't set (see RadarClient.cpp) -- match radarService()'s own guard so
+  // this prompt doesn't show "set home location" while data is actually
+  // being fetched off the weather-location fallback.
+  if (radarHomeLat(s) == 0.0f && radarHomeLon(s) == 0.0f) {
     gfxMessage("Plane radar", "Set home location", C_YELLOW);
     return;
   }

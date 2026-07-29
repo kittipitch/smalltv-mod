@@ -31,6 +31,21 @@ void radarInit(const Settings& s) {
 
 void radarForceRefresh() { g_nextPollMs = millis(); }
 
+// Radar's own lat/lon (Settings.radar.lat/lon) falls back to the weather
+// location (Settings.calendar.lat/lon) when unset -- per explicit feedback
+// ("plane radar shud use the home location from what we set in the weather
+// app no?"). Kept as a fallback, not a hard tie, so radar.lat/lon still
+// wins when a user deliberately points radar somewhere other than home
+// (e.g. tracking a different airport). Exported (RadarClient.h) so
+// RadarMode.cpp's airport-geo and "no home set" prompt use the identical
+// logic instead of duplicating it and risking drift.
+float radarHomeLat(const Settings& s) {
+  return (s.radar.lat != 0.0f || s.radar.lon != 0.0f) ? s.radar.lat : s.calendar.lat;
+}
+float radarHomeLon(const Settings& s) {
+  return (s.radar.lat != 0.0f || s.radar.lon != 0.0f) ? s.radar.lon : s.calendar.lon;
+}
+
 // ---- geo: flat-earth projection around home (good enough at radar ranges) --
 static void geo(float homeLat, float homeLon, float lat, float lon,
                 float& distKm, float& brg) {
@@ -75,9 +90,9 @@ static String buildDirectUrl(const Settings& s) {
   String u = F("https://");
   u += F(ADSB_HOST);
   u += F(ADSB_PATH);
-  u += String(s.radar.lat, 4);
+  u += String(radarHomeLat(s), 4);
   u += F("/lon/");
-  u += String(s.radar.lon, 4);
+  u += String(radarHomeLon(s), 4);
   u += F("/dist/");
   u += String(rangeNm(s.radar.rangeKm));
   return u;
@@ -87,8 +102,8 @@ static String buildWebhookUrl(const Settings& s) {
   String u = s.radar.webhookUrl;
   char sep = (u.indexOf('?') >= 0) ? '&' : '?';
   u += sep;
-  u += "lat=" + String(s.radar.lat, 4);
-  u += "&lon=" + String(s.radar.lon, 4);
+  u += "lat=" + String(radarHomeLat(s), 4);
+  u += "&lon=" + String(radarHomeLon(s), 4);
   u += "&dist=" + String(s.radar.rangeKm);   // webhook works in km
   return u;
 }
@@ -133,7 +148,7 @@ static bool parseAdsb(const Settings& s, Stream& stream) {
     strlcpy(t.callsign, fl, sizeof(t.callsign));
     trimTail(t.callsign);
 
-    geo(s.radar.lat, s.radar.lon, t.lat, t.lon, t.distKm, t.bearingDeg);
+    geo(radarHomeLat(s), radarHomeLon(s), t.lat, t.lon, t.distKm, t.bearingDeg);
     insertNearest(t);
   }
 
@@ -177,8 +192,9 @@ static bool fetchUrl(const Settings& s, const String& url) {
 
 // ---------------------------------------------------------------------------
 void radarService(const Settings& s) {
-  // No home set yet -> nothing to fetch (the mode shows a prompt instead).
-  if (s.radar.lat == 0.0f && s.radar.lon == 0.0f) return;
+  // No home set yet (neither radar's own nor a weather-location fallback)
+  // -> nothing to fetch (the mode shows a prompt instead).
+  if (radarHomeLat(s) == 0.0f && radarHomeLon(s) == 0.0f) return;
 
   if ((int32_t)(millis() - g_nextPollMs) < 0) return;
   g_nextPollMs = millis() + (uint32_t)s.radar.pollSec * 1000UL;
