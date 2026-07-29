@@ -142,3 +142,31 @@ struct CodexData {
     lastOkMs = 0;
   }
 };
+
+// Antigravity CLI (`agy`) quota -- {ok,pctModel?,label?,rModel?}. Single-card
+// shape, unlike Codex/z.ai's two windows: the daemon's poll_antigravity()
+// only has one clean metric (the model with the LOWEST
+// quotaInfo.remainingFraction, picked deterministically -- see that
+// function's docstring for why "first isRecommended" wasn't stable and why
+// the account-level credit-pool fields it tried first were wrong). `label`
+// is which model that percentage belongs to -- shown on the card since the
+// model backing the number can change poll to poll.
+struct AntigravityData {
+  int  pctModel;
+  bool hasPctModel;
+  char label[24];        // model name, e.g. "Gemini 3.6 Flash (High)"
+  bool hasLabel;
+  int  rModel;          // minutes until this model's quota resets
+  bool hasRModel;
+
+  bool     valid;      // populated at least once by a successful push
+  uint32_t lastOkMs;
+
+  void clear() {
+    pctModel = 0; hasPctModel = false;
+    label[0] = 0; hasLabel = false;
+    rModel = 0; hasRModel = false;
+    valid = false;
+    lastOkMs = 0;
+  }
+};

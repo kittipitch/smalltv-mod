@@ -6,6 +6,7 @@ static CalendarEvent g_cal;
 static WeatherData   g_weather;
 static ZaiData        g_zai;
 static CodexData      g_codex;
+static AntigravityData g_antigravity;
 static bool          g_inited = false;
 
 void calendarInit(const Settings& s) {
@@ -14,6 +15,7 @@ void calendarInit(const Settings& s) {
   g_weather.clear();
   g_zai.clear();
   g_codex.clear();
+  g_antigravity.clear();
   g_inited = true;
 }
 
@@ -21,6 +23,7 @@ const CalendarEvent& calendarGet() { return g_cal; }
 const WeatherData&   weatherGet()  { return g_weather; }
 const ZaiData&        zaiGet()      { return g_zai; }
 const CodexData&      codexGet()    { return g_codex; }
+const AntigravityData& antigravityGet() { return g_antigravity; }
 
 // Drop non-ASCII bytes (emoji, accented chars) -- this font (CP437 glyph
 // table) renders each UTF-8 continuation byte as its own garbage glyph, so an
@@ -187,5 +190,34 @@ bool codexApply(const String& body) {
   if (doc["rWeek"].is<int>()) { g_codex.rWeek = doc["rWeek"].as<int>(); g_codex.hasRWeek = true; }
   g_codex.valid = true;
   g_codex.lastOkMs = millis();
+  return true;
+}
+
+// ---- Antigravity quota: pushed payload -------------------------------------
+// { "ok":true, "pctModel":2, "rModel":291 }
+// Antigravity CLI (`agy`) quota -- unlike Codex, each daemon poll fires a
+// real, costed prompt (see clawdmeter_daemon.py's poll_antigravity()), so
+// this is a single-card shape, not two windows.
+static void antigravityFilter(JsonDocument& f) {
+  f["ok"] = true; f["pctModel"] = true; f["label"] = true; f["rModel"] = true;
+}
+
+bool antigravityApply(const String& body) {
+  JsonDocument filter; antigravityFilter(filter);
+  JsonDocument doc;
+  if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
+  if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
+
+  bool gotPct = doc["pctModel"].is<int>();
+  if (!gotPct) return false;
+
+  g_antigravity.pctModel = doc["pctModel"].as<int>(); g_antigravity.hasPctModel = true;
+  if (doc["label"].is<const char*>()) {
+    strlcpy(g_antigravity.label, doc["label"].as<const char*>(), sizeof(g_antigravity.label));
+    g_antigravity.hasLabel = true;
+  }
+  if (doc["rModel"].is<int>()) { g_antigravity.rModel = doc["rModel"].as<int>(); g_antigravity.hasRModel = true; }
+  g_antigravity.valid = true;
+  g_antigravity.lastOkMs = millis();
   return true;
 }

@@ -32,7 +32,7 @@ static void scheduleReboot(uint32_t inMs) {
 
 // Write-auth gate for state-changing endpoints — both the browser-facing
 // config writes AND the daemon's data-push endpoints (/api/usage,
-// /api/calendar, /api/weather, /api/zai, /api/codex). Empty stored key (the default) means no
+// /api/calendar, /api/weather, /api/zai, /api/codex, /api/antigravity). Empty stored key (the default) means no
 // check at all — must stay that way so nobody gets locked out by upgrading.
 // Accepts either an X-Secret-Key header or a ?key= query param (the latter
 // so /update's plain-form upload path, and any client that can't set custom
@@ -327,6 +327,18 @@ static void handleCodexPush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+static void handleAntigravityPush() {
+  if (!checkAuth()) { sendUnauthorized(); return; }
+  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
+#if WITH_CALENDAR
+  bool ok = antigravityApply(server.arg("plain"));
+#else
+  bool ok = false;
+#endif
+  server.send(ok ? 200 : 400, "application/json",
+              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
 // ---- OTA ------------------------------------------------------------------
 static bool g_updateAuthorized = false;
 
@@ -403,6 +415,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/weather", HTTP_POST, handleWeatherPush);      // daemon pushes weather/AQI here
   server.on("/api/zai", HTTP_POST, handleZaiPush);               // daemon pushes z.ai quota here
   server.on("/api/codex", HTTP_POST, handleCodexPush);           // daemon pushes Codex quota here
+  server.on("/api/antigravity", HTTP_POST, handleAntigravityPush); // daemon pushes Antigravity quota here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 
   // Common captive-portal probe endpoints

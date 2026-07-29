@@ -32,7 +32,8 @@
 #include "CalendarMode.h"
 #include "ZaiMode.h"
 #include "CodexMode.h"
-#include "CalendarClient.h"   // zaiGet()/codexGet() for carouselHas()'s data-presence gate
+#include "AntigravityMode.h"
+#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet() for carouselHas()'s data-presence gate
 #endif
 
 // ---- mode registry --------------------------------------------------------
@@ -48,6 +49,7 @@ static DisplayMode* kModes[] = {
 #if WITH_CALENDAR
   &g_zaiMode,
   &g_codexMode,
+  &g_antigravityMode,
 #endif
 #if WITH_RADAR
   &g_radarMode,
@@ -149,6 +151,10 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // carousel until the daemon has a working OpenAI key configured and has
     // actually pushed data at least once.
     case MODE_CODEX:  return s.carouselCodex && codexGet().valid;
+    // Same "skip until there's real content" pattern -- stays out of the
+    // carousel until the daemon has agy authenticated and has actually
+    // pushed data at least once.
+    case MODE_ANTIGRAVITY: return s.carouselAntigravity && antigravityGet().valid;
 #endif
     default:          return true;
   }
