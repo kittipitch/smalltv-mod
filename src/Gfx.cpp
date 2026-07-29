@@ -83,12 +83,38 @@ class Arduino_ST7789_SmallTV : public Arduino_ST7789 {
     }
   }
 
-#if TFT_BGR
-  // This board's panel is wired B-G-R. Arduino_ST7789 hardcodes the MADCTL RGB
-  // order, so re-issue MADCTL with the BGR bit (0x08) set on every rotation
-  // change. Only rotations 0-3 are used by the SmallTV (setRotation(r & 3)).
+  // This panel is 240x240 but its ST7789 controller has 320 rows of GRAM
+  // (ST7789_TFTHEIGHT). Arduino_TFT's stock offset table (col_offset1/2,
+  // row_offset1/2 passed into the constructor, all 0 here) can't express
+  // the correction this hardware needs, so it's set directly here instead.
+  // Confirmed live via photos of all 4 rotations, two flash rounds:
+  // 0/90 clean with no offset. Rotation 2 (180, MY only) needs
+  // _yStart=80 -- confirmed fixed on-device. Rotation 3 (270, MY+MV) was
+  // first tried with _yStart=80 too (same physical-bottom garbage as 180
+  // made that look plausible) -- flashed, and it made things WORSE (both
+  // a garbage band AND a shifted/split image), proving _yStart was wrong
+  // for this rotation. MV transposes the controller's row axis onto
+  // screen-space X, so 270 actually needs _xStart=80 instead -- this
+  // matches the stock Arduino_TFT offset table's own case-3 mapping
+  // (ROW_OFFSET2 -> _xStart), which turned out right all along; this
+  // override just expresses it directly rather than threading a value
+  // through the constructor's 4-slot table. Confirmed fixed on-device
+  // after the 2nd flash. Re-confirm by photo after any change here --
+  // this hardware did not behave the way the same-physical-edge photo
+  // evidence from the first flash round suggested it would.
+  // Only rotations 0-3 are used by the SmallTV (setRotation(r & 3)).
   void setRotation(uint8_t r) override {
-    Arduino_TFT::setRotation(r);           // updates _rotation + width/height
+    // Calls the parent (Arduino_ST7789), not Arduino_TFT -- Arduino_ST7789
+    // ::setRotation is what actually issues MADCTL (it also calls
+    // Arduino_TFT::setRotation internally, which sets _xStart/_yStart from
+    // the all-zero offset table first; overwritten below).
+    Arduino_ST7789::setRotation(r);
+    _yStart = (_rotation == 2) ? 80 : 0;
+    _xStart = (_rotation == 3) ? 80 : 0;
+#if TFT_BGR
+    // This board's panel is wired B-G-R. Arduino_ST7789 hardcodes the MADCTL
+    // RGB order, so re-issue MADCTL with the BGR bit (0x08) set on every
+    // rotation change.
     uint8_t madctl;
     switch (_rotation) {
       case 1:  madctl = ST7789_MADCTL_MX | ST7789_MADCTL_MV; break;
@@ -100,8 +126,8 @@ class Arduino_ST7789_SmallTV : public Arduino_ST7789 {
     _bus->beginWrite();
     _bus->writeC8D8(ST7789_MADCTL, madctl);
     _bus->endWrite();
-  }
 #endif
+  }
 };
 
 static Arduino_DataBus* bus = nullptr;
@@ -136,7 +162,10 @@ void gfxBegin(const Settings& s) {
 #else
   bus = new Arduino_HWSPI(TFT_DC, TFT_CS);   // ESP8266 HW-SPI (fixed SCLK/MOSI)
 #endif
-  // IPS=true so the panel colors are not inverted; full 240x240, no offsets.
+  // IPS=true so the panel colors are not inverted; full 240x240, no
+  // constructor-level offsets -- the vertical-flip offset for rotations
+  // 180/270 is applied explicitly in setRotation() below, not via this
+  // constructor's offset table (see that override for why).
   // Use the SmallTV variant so the SPI bus comes up in mode 3 (see class above).
   gfx = new Arduino_ST7789_SmallTV(bus, TFT_RST, 0 /*rotation*/, true /*IPS*/,
                                    TFT_WIDTH, TFT_HEIGHT, 0, 0, 0, 0);
