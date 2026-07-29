@@ -329,7 +329,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
 <div style="text-align:center;padding:0 0 16px"><button class="btn" onclick="saveAll()">Save settings</button></div>
 <div style="text-align:center;padding:0 0 24px;font-size:12px">
- <a id="footRepo" href="https://github.com/giovi321/smalltv-mod" target="_blank" style="color:var(--acc2);text-decoration:none">GitHub: giovi321/smalltv-mod</a>
+ <a id="footRepo" href="https://github.com/kittipitch/smalltv-mod" target="_blank" style="color:var(--acc2);text-decoration:none">GitHub: kittipitch/smalltv-mod</a>
  <span id="footVer" class="muted"></span>
 </div>
 <div id="toast" class="toast"></div>

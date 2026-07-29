@@ -15,7 +15,20 @@
 #define FW_VERSION  "2.8.2"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
-#define REPO_URL      "https://github.com/giovi321/smalltv-mod"
+//
+// REPO_URL is display-only (web UI footer + the Update tab's "the GitHub
+// repo" hint, both set at runtime from /api/status's "repo" field — see
+// webui.h's onstatus() handler) -- points students at this fork, where
+// kittipitch/smalltv-mod's own tagged releases now live.
+//
+// REPO_OWNER/REPO_NAME are functional: OtaUpdate.cpp's self-update check
+// and StockClient.cpp's ticker "GitHub static quotes" fetch both hit
+// these directly via the GitHub API/raw content, not REPO_URL. Kept
+// pointing at giovi321 deliberately -- this fork has no GitHub Actions
+// quotes-publishing workflow and self-update here would otherwise need
+// its own maintained release cadence to be useful. Changing REPO_URL
+// alone does not repoint either of those.
+#define REPO_URL      "https://github.com/kittipitch/smalltv-mod"
 #define REPO_OWNER    "giovi321"
 #define REPO_NAME     "smalltv-mod"
 // Release asset the GitHub self-updater pulls — one app image per target.
