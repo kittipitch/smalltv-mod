@@ -3,6 +3,7 @@
 #include "Gfx.h"
 #include "CalendarClient.h"
 #include "Clock.h"
+#include "AntigravityIcon.h"
 
 AntigravityMode g_antigravityMode;
 
@@ -112,13 +113,14 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
 static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
-    // Header: plain text title, no logo bitmap (no icon-rasterization
-    // pipeline run this session -- see ZaiMode.cpp for the pipeline that
-    // would produce one, if this page ever gets one later).
+    // Header: logo + short "agy" label (the CLI's own name, not the full
+    // "Antigravity" product name) -- same icon+text layout as ZaiMode.cpp
+    // (icon at 6,4 40x40, text starting at x=56).
+    gfx->drawBitmap(6, 4, kAntigravityIcon, ANTIGRAVITY_ICON_SIZE, ANTIGRAVITY_ICON_SIZE, C_WHITE);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
-    gfx->setCursor(8, 12);
-    gfx->print("Antigravity");
+    gfx->setCursor(56, 12);
+    gfx->print("agy");
   }
 
   // Model-name row, its OWN row (y=60) -- NOT inside the card. The card's
