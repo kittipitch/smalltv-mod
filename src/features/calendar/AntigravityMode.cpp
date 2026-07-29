@@ -56,39 +56,60 @@ static void truncateDots(const char* in, char* out, size_t outCap, int maxChars)
   out[keep] = '.'; out[keep + 1] = '.'; out[keep + 2] = 0;
 }
 
-// Card 1: the real model name -- per live feedback ("model name can be
-// full text now since we have two cards"), superseding an earlier
-// shortModelLabel() abbreviation ("gem3.6f") this card used to show.
-// FIXED at size 2 ("thats too tiny" -- an earlier version autoscaled down
-// to size 1 for long names, e.g. "Gemini 3.6 Flash (High)" at 23 chars,
-// producing an 8px-tall value under a 16px "Model" heading, the same
-// readability inversion already rejected once on the weather page).
-// Long names are hard-truncated with ".." instead of shrunk -- at size 2
-// (12px/char) the 196px usable width fits 16 chars; anything longer loses
-// the tail, not the font size. Cleared with an explicit fillRect every
-// draw, unconditional (not gated on `full`) -- a real model name's length
-// varies poll to poll ("GPT-OSS 120B (Medium)" vs "Gemini 3.1 Pro"), so a
-// fixed-width-padding trick isn't reliable here; an explicit clear rect is.
-static void drawAntigravityLabelCard(Arduino_GFX* gfx, int top, const char* label, bool full) {
+// Card 1: the real model name, now built on the SAME skeleton every other
+// quota card on this device uses (label top-left/value top-right/bar/
+// countdown row, identical x/w/h/bx/by/bw/bh coordinates to
+// drawCodexMeter()/drawZaiMeter()/UsageMode.cpp's drawMeter()) -- per live
+// feedback ("make sure the two cards layout matches in all screens...
+// similar position of cards and text"). An earlier version put the name
+// on its own bespoke row at top+40 with no bar/countdown row at all,
+// which was the one card on the device that didn't match this shape.
+// The bar and countdown row intentionally duplicate what card 2 already
+// shows for the same model (pctModel/rModel) -- there's no separate
+// metric for card 1 to show, and repeating it here is what makes the two
+// cards look like a matched pair instead of two different card designs.
+static void drawAntigravityLabelCard(Arduino_GFX* gfx, int top, const char* label,
+                                      bool has, int pct, bool hasReset, int resetMins,
+                                      bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
-  if (full) {
-    gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
-    gfx->setTextSize(2);
-    gfx->setTextColor(C_DIM);
-    gfx->setCursor(x + 14, top + 12);
-    gfx->print("Model");
-  }
-  gfx->fillRect(x + 14, top + 38, w - 28, 28, C_PANEL);  // size3 glyphs are 24px tall
-  // size3 white, one step up from the "Resets in .." row's size2 -- per
-  // live feedback ("or larger"). At size3 (18px/char) the 196px usable
-  // width fits 10 chars; truncateDots() drops the tail past that instead
-  // of shrinking the font.
-  char text[11];
-  truncateDots((label && label[0]) ? label : "Model", text, sizeof(text), 10);
-  gfx->setTextSize(3);
+  if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+
+  // Value slot: the model name, right-aligned like every other card's big
+  // value, truncated+sized so its worst-case cursor (x=78 at maxW=140)
+  // still comes close to the label's x=22..82 span -- 4px short of clear.
+  // Label drawn UNCONDITIONALLY (not gated on `full`), opaque, AFTER the
+  // value -- same fix drawCodexResetCard uses for the identical
+  // near-overlap: whichever draws last wins the shared pixels, so the
+  // label always survives a data-only redraw instead of getting clipped
+  // to "Mode" the way a full-gated label would.
+  char text[10];
+  truncateDots((label && label[0]) ? label : "Model", text, sizeof(text), 8);
+  uint8_t sz = gfxFitSize(text, 140, 3);
+  int tw = gfxTextW(text, sz);
+  gfx->setTextSize(sz);
   gfx->setTextColor(C_WHITE, C_PANEL);
-  gfx->setCursor(x + 14, top + 40);
+  gfx->setCursor(x + w - tw - 14, top + 10);
   gfx->print(text);
+
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 12);
+  gfx->print("Model");
+
+  int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
+  gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
+  int fw = has ? (int)(bw * constrain(pct, 0, 100) / 100.0f) : 0;
+  int fx = growRight ? (bx + bw - fw) : bx;
+  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pct));
+
+  char rs[16], line[10 + sizeof(rs) + 1];
+  if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
+  else          strlcpy(rs, "--", sizeof(rs));
+  snprintf(line, sizeof(line), "Resets in %-7s", rs);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 64);
+  gfx->print(line);
 }
 
 // Card 2: big %, fill bar, reset countdown -- same shape as
@@ -164,7 +185,8 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
 
   // Two cards, same top=50/138 stacking Codex/z.ai use for their two
   // windows. Card 1: model code. Card 2: percentage/bar/reset.
-  drawAntigravityLabelCard(gfx, 50, a.hasLabel ? a.label : "", full);
+  drawAntigravityLabelCard(gfx, 50, a.hasLabel ? a.label : "",
+                            a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
   drawAntigravityMeter(gfx, 138, a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
 }
 
