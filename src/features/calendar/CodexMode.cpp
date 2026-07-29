@@ -166,23 +166,27 @@ static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits, int c
   int urgencyPct = hasUrgency ? (int)((1.0f - remainFrac) * 100.0f + 0.5f) : 0;
   if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(urgencyPct));
 
-  // "Expires in", not "Resets in" -- per live feedback ("the expiry date
+  // "Expires", not "Resets in" -- per live feedback ("the expiry date
   // of free reset it shud say expire or sth") -- this is a one-shot
   // credit lapsing unused, not a recurring window resetting, so the
-  // wording needs to say which. Same "always draw, print -- when absent"
-  // convention as drawCodexMeter's row -- also covers credits==0 (a real
-  // "none available" state, distinct from "daemon hasn't sent this field
+  // wording needs to say which. Dropped the "in" (vs. a first attempt,
+  // "Expires in") so this row's cursor can stay at the same x+14 as
+  // drawCodexMeter's "Resets in" row -- "Expires in %-7s" was 18 chars,
+  // one more than "Resets in"'s 17, which ran 6px past the card's right
+  // edge at x+14; shifting the cursor to x+8 to compensate fixed the
+  // overflow but broke left-edge alignment between the two cards'
+  // bottom rows, caught live ("why the word resets in / expires dont
+  // line up"). Same "always draw, print -- when absent" convention as
+  // drawCodexMeter's row -- also covers credits==0 (a real "none
+  // available" state, distinct from "daemon hasn't sent this field
   // yet").
-  char rs[16], line[11 + sizeof(rs) + 1];
+  char rs[16], line[8 + sizeof(rs) + 1];
   if (hasCredits && credits > 0 && hasExpire) fmtReset(expireMins, rs, sizeof(rs));
   else                                         strlcpy(rs, "--", sizeof(rs));
-  snprintf(line, sizeof(line), "Expires in %-7s", rs);
+  snprintf(line, sizeof(line), "Expires %-7s", rs);
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
-  // x+8, not x+14 -- "Expires in %-7s" is 18 chars (vs. drawCodexMeter's
-  // "Resets in %-7s" at 17), and at x+14 the extra char ran 6px past the
-  // card's right edge (x+w=232). x+8 puts its worst case flush at 232.
-  gfx->setCursor(x + 8, top + 64);
+  gfx->setCursor(x + 14, top + 64);
   gfx->print(line);
 }
 
