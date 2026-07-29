@@ -89,7 +89,8 @@ static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
   snprintf(line, sizeof(line), "Resets in %-7s", rs);
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 64);
+  // top+66, not +64 -- see UsageMode.cpp's drawMeter() comment
+  gfx->setCursor(x + 14, top + 66);
   gfx->print(line);
 }
 
@@ -186,7 +187,8 @@ static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits, int c
   snprintf(line, sizeof(line), "Expires %-7s", rs);
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 64);
+  // top+66, not +64 -- see UsageMode.cpp's drawMeter() comment
+  gfx->setCursor(x + 14, top + 66);
   gfx->print(line);
 }
 

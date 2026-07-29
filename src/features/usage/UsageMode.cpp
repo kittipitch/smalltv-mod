@@ -116,7 +116,11 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
   snprintf(line, sizeof(line), "Resets in %-7s", rs);
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 64);
+  // top+66, not +64 -- was flush against the bar's bottom edge (by+bh=64),
+  // zero gap ("bar too close to text"). Text draws opaque per-glyph
+  // (setTextColor(fg, C_PANEL)), so it self-clears at the new position --
+  // no separate clear needed, unlike touching the bar itself would require.
+  gfx->setCursor(x + 14, top + 66);
   gfx->print(line);
 }
 
