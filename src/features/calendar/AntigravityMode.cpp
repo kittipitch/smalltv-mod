@@ -14,6 +14,8 @@ AntigravityMode g_antigravityMode;
 #define C_ACCENT  0xDBAA   // terra-cotta -- getting close
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
 #define C_BARBG   0x2945   // unfilled bar track
+#define C_SKY     0x5D9C   // muted blue -- same value CalendarMode.cpp uses for weather rain
+                            // icon strokes; picked for the logo per live feedback ("bluish")
 // C_RED comes from Gfx.h (shared across modes already, see UsageMode.cpp)
 
 // Same threshold philosophy as UsageMode.cpp's barColor()/ZaiMode.cpp's
@@ -23,24 +25,6 @@ static uint16_t pctColor(int pct) {
   if (pct >= 90) return C_RED;
   if (pct >= 75) return C_ACCENT;
   return C_UGREEN;
-}
-
-// Hard-truncate to maxChars, appending ".." when the source is longer (this
-// font has no ellipsis glyph). maxChars includes the ".." itself. Copied
-// from CalendarMode.cpp's truncateDots() (not exported/shared) -- needed
-// here because, unlike Codex/z.ai's fixed short static labels
-// ("5h"/"Week"/"MCP"), this page's model-name row is a real model name
-// from the daemon ("Gemini 3.5 Flash (Low)" is 22 chars -- at this row's
-// setTextSize(2), 12px/char, that's 264px against a 224px-wide row).
-static void truncateDots(const char* in, char* out, size_t outCap, int maxChars) {
-  int len = (int)strlen(in);
-  if (len <= maxChars) { strlcpy(out, in, outCap); return; }
-  if (outCap < 4) { strlcpy(out, "..", outCap); return; }
-  int keep = maxChars - 2;
-  if (keep < 1) keep = 1;
-  if ((size_t)(keep + 3) > outCap) keep = (int)outCap - 3;
-  memcpy(out, in, keep);
-  out[keep] = '.'; out[keep + 1] = '.'; out[keep + 2] = 0;
 }
 
 // Identical to UsageMode.cpp's/CodexMode.cpp's fmtReset() -- kept as a
@@ -54,13 +38,62 @@ static void fmtReset(int mins, char* out, size_t n) {
   else            snprintf(out, n, "%dm", m);
 }
 
-// Same card shape as CodexMode.cpp's drawCodexMeter() -- big %, label, fill
-// bar, reset countdown. Only ONE card on this page (not two like
-// Codex/z.ai): the daemon's poll_antigravity() only has one clean metric
-// (a single model's quotaInfo.remainingFraction) -- see that function's
-// docstring in clawdmeter_daemon.py for why the account-level credit-pool
-// fields it tried first were wrong and dropped.
-static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
+// Two stacked cards, same shape/spacing as Codex/z.ai's two-window layout
+// (top=50/138, 82px tall each) -- per live feedback ("we can have two
+// cards") replacing an earlier single-card version that crammed a
+// shortened model code onto its own line inside the percentage card.
+
+// Hard-truncate to maxChars, appending ".." when the source is longer
+// (this font has no ellipsis glyph). maxChars includes the ".." itself.
+static void truncateDots(const char* in, char* out, size_t outCap, int maxChars) {
+  int len = (int)strlen(in);
+  if (len <= maxChars) { strlcpy(out, in, outCap); return; }
+  if (outCap < 4) { strlcpy(out, "..", outCap); return; }
+  int keep = maxChars - 2;
+  if (keep < 1) keep = 1;
+  if ((size_t)(keep + 3) > outCap) keep = (int)outCap - 3;
+  memcpy(out, in, keep);
+  out[keep] = '.'; out[keep + 1] = '.'; out[keep + 2] = 0;
+}
+
+// Card 1: the real model name -- per live feedback ("model name can be
+// full text now since we have two cards"), superseding an earlier
+// shortModelLabel() abbreviation ("gem3.6f") this card used to show.
+// FIXED at size 2 ("thats too tiny" -- an earlier version autoscaled down
+// to size 1 for long names, e.g. "Gemini 3.6 Flash (High)" at 23 chars,
+// producing an 8px-tall value under a 16px "Model" heading, the same
+// readability inversion already rejected once on the weather page).
+// Long names are hard-truncated with ".." instead of shrunk -- at size 2
+// (12px/char) the 196px usable width fits 16 chars; anything longer loses
+// the tail, not the font size. Cleared with an explicit fillRect every
+// draw, unconditional (not gated on `full`) -- a real model name's length
+// varies poll to poll ("GPT-OSS 120B (Medium)" vs "Gemini 3.1 Pro"), so a
+// fixed-width-padding trick isn't reliable here; an explicit clear rect is.
+static void drawAntigravityLabelCard(Arduino_GFX* gfx, int top, const char* label, bool full) {
+  const int x = 8, w = 224, h = 82;
+  if (full) {
+    gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_DIM);
+    gfx->setCursor(x + 14, top + 12);
+    gfx->print("Model");
+  }
+  gfx->fillRect(x + 14, top + 38, w - 28, 28, C_PANEL);  // size3 glyphs are 24px tall
+  // size3 white, one step up from the "Resets in .." row's size2 -- per
+  // live feedback ("or larger"). At size3 (18px/char) the 196px usable
+  // width fits 10 chars; truncateDots() drops the tail past that instead
+  // of shrinking the font.
+  char text[11];
+  truncateDots((label && label[0]) ? label : "Model", text, sizeof(text), 10);
+  gfx->setTextSize(3);
+  gfx->setTextColor(C_WHITE, C_PANEL);
+  gfx->setCursor(x + 14, top + 40);
+  gfx->print(text);
+}
+
+// Card 2: big %, fill bar, reset countdown -- same shape as
+// CodexMode.cpp's drawCodexMeter().
+static void drawAntigravityMeter(Arduino_GFX* gfx, int top,
                                   bool has, int pct, bool hasReset, int resetMins,
                                   bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
@@ -84,7 +117,7 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
     gfx->setTextSize(2);
     gfx->setTextColor(C_DIM);
     gfx->setCursor(x + 14, top + 12);
-    gfx->print(label);
+    gfx->print("Quota");
   }
 
   int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
@@ -114,42 +147,21 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
   if (full) {
     gfx->fillScreen(C_BLACK);
     // Header: logo + short "agy" label (the CLI's own name, not the full
-    // "Antigravity" product name) -- same icon+text layout as ZaiMode.cpp
-    // (icon at 6,4 40x40, text starting at x=56).
-    gfx->drawBitmap(6, 4, kAntigravityIcon, ANTIGRAVITY_ICON_SIZE, ANTIGRAVITY_ICON_SIZE, C_WHITE);
+    // "Antigravity" product name). Icon shrunk to 32x32 (was 40x40) per
+    // live feedback -- y=8 instead of ZaiMode.cpp's y=4 keeps it vertically
+    // centered against the "agy" text row (y=12..36 at setTextSize(3))
+    // now that it's 8px shorter.
+    gfx->drawBitmap(6, 8, kAntigravityIcon, ANTIGRAVITY_ICON_SIZE, ANTIGRAVITY_ICON_SIZE, C_SKY);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(56, 12);
     gfx->print("agy");
   }
 
-  // Model-name row, its OWN row (y=60) -- NOT inside the card. The card's
-  // internal label slot (x+14, same row as the percentage, sized for a
-  // short static string like Codex's "5h"/"Week") is 12 chars wide at
-  // most before it collides with the percentage text on the right; a real
-  // model name ("Gemini 3.5 Flash (Low)") doesn't fit there. This row
-  // spans the full 224px width instead. Drawn UNCONDITIONALLY (not gated
-  // on `full`) with fixed-width padding (`%-18s`) and an opaque
-  // setTextColor(fg,bg) -- the model backing the percentage can change
-  // between polls (that's the whole reason this label exists: see
-  // poll_antigravity()'s docstring on why "first isRecommended" wasn't
-  // stable), so a shorter new label must fully overwrite a longer old one
-  // on every data-only redraw, not just on a structural repaint.
-  char trimmed[19];
-  truncateDots(a.hasLabel ? a.label : "Model", trimmed, sizeof(trimmed), 18);
-  char label[19];
-  snprintf(label, sizeof(label), "%-18s", trimmed);
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_DIM, C_BLACK);
-  gfx->setCursor(8, 60);
-  gfx->print(label);
-
-  // Single card, vertically centered between the header and the bottom
-  // edge (same 82px card height as Codex/z.ai's cards, just one instead of
-  // two stacked at 50/138 -- top=94 splits the remaining space evenly).
-  // Its own internal label reverts to a static "Model" -- the real model
-  // name is the row above.
-  drawAntigravityMeter(gfx, 94, "Model", a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
+  // Two cards, same top=50/138 stacking Codex/z.ai use for their two
+  // windows. Card 1: model code. Card 2: percentage/bar/reset.
+  drawAntigravityLabelCard(gfx, 50, a.hasLabel ? a.label : "", full);
+  drawAntigravityMeter(gfx, 138, a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/CodexMode.cpp -- per the same
