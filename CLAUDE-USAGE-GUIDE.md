@@ -1,13 +1,15 @@
-# Making a GeekMagic Screen Show Your Claude Code Quota, Agenda, and Weather — Full Guide
+# Making a GeekMagic Screen Show Your Claude Code / Codex / Antigravity / z.ai Quota, Agenda, and Weather — Full Guide
 
 Source (Thai original): https://share.aiceo.im/geekmagic-claude-meter/
 
 ## Goal
 
 A tiny desk display showing:
-- Your Claude Code (CC) usage in real time — % used of your 5-hour and 7-day limits
-- Your next few Google Calendar events (agenda)
+- Your Claude Code (CC), Codex CLI, Antigravity CLI, and/or z.ai usage in
+  real time — quota %, reset/expiry countdowns
+- Your next few Google Calendar events (agenda, up to 6 across two pages)
 - Local weather, rain chance, and air quality (AQI/PM2.5)
+- Nearby aircraft (plane radar), centred on your home or weather location
 - (Optional) a stock/crypto ticker
 
 ...without opening chat, your calendar app, or a weather site to check.
@@ -16,37 +18,51 @@ A tiny desk display showing:
 
 - **GeekMagic SmallTV / SmallTV Ultra** — a tiny pixel-display desk gadget,
   ESP8266 chip (WiFi 2.4GHz only)
-- **Stock firmware** — only does clock/weather/photo album; no Claude usage
+- **Stock firmware** — only does clock/weather/photo album; no quota-page
   support (that's PRO-model-only, for crypto/stocks)
 - **This firmware fork ([`kittipitch/smalltv-mod`](https://github.com/kittipitch/smalltv-mod))**
   — community firmware (originally by giovi321) adding a Claude usage mode,
-  then extended in this fork with an Agenda + Weather/AQI mode, device
-  write-auth (secret key), display color correction, and a usage-bar
-  direction option
+  then extended in this fork with z.ai/Codex/Antigravity quota pages, an
+  Agenda + Weather/AQI mode, plane radar, device write-auth (secret key),
+  display color correction, user-configurable carousel order, and a
+  usage-bar direction option
 - **[`clawdmeter-daemon`](https://github.com/kittipitch/clawdmeter-daemon)**
   — a small program that runs on a computer you control (Mac, Linux, or
-  Windows), reads your Claude quota (and optionally your Google Calendar and
-  local weather), and pushes it all over WiFi to the device
+  Windows), reads your Claude/Codex/Antigravity/z.ai quota (and optionally
+  your Google Calendar and local weather), and pushes it all over WiFi to
+  the device
 
 ## What the device can show
 
 The web UI (`http://<device-ip>/`) lets you turn any of these on and pick a
-`carousel` that rotates through whichever are enabled, or pin the display to
-one mode:
+`carousel` that rotates through whichever are enabled (drag to reorder), or
+pin the display to one mode:
 
 - **Claude usage** — animated mascot + big 5h/7d percentages, fill bars
   (direction configurable — left-to-right by default), reset countdowns
-- **Agenda** — up to 3 upcoming Google Calendar events, one card each
+- **z.ai** — 5h cycle % and a monthly MCP-tools quota %, each with a reset
+  countdown
+- **Codex** — weekly quota % + reset countdown, plus a second card for free
+  "rate-limit reset" credits and when the soonest one expires unused
+- **Antigravity** — the tightest-constrained model's quota % + reset
+  countdown, with the model name shown (it can change poll to poll)
+- **Agenda** — up to 6 upcoming Google Calendar events (3 per page, a
+  second page auto-appears if you have more than 3), color-coded by which
+  calendar each event came from
 - **Weather + AQI** — current temperature, condition (icon + word + WMO
   code), rain probability, US AQI (6-band color scale), PM2.5, and your
   city name
+- **Plane radar** — nearby aircraft as heading triangles with callsign/
+  altitude labels, centred on your home location (or the weather location
+  above, if you haven't set a separate one for radar)
 - **Stock/crypto ticker** — optional, off by default if you don't configure
   any symbols
-- A small clock overlay (top-right) on the Claude-usage page
+- A small clock overlay (top-right) on every quota page
 
-All data (usage, agenda, weather) is **pushed** to the device by the daemon
-running on your computer — the device itself never talks to Claude, Google,
-or a weather API directly.
+All data (usage, agenda, weather, z.ai, Codex, Antigravity) is **pushed** to
+the device by the daemon running on your computer — the device itself never
+talks to any of those APIs directly. Plane radar is the one exception: the
+device fetches aircraft data itself, directly from the free adsb.fi feed.
 
 ## Steps
 
@@ -127,9 +143,10 @@ works everywhere regardless of platform.
 
 ### 3. Set the device's modes
 
-In the web UI: pick which modes to include in the carousel (Usage, Agenda &
-weather, Ticker), or pin one mode permanently. This can be done anytime from
-`http://<device-ip>/`, no reflash needed.
+In the web UI: pick which modes to include in the carousel (Usage, z.ai,
+Codex, Antigravity, Radar, Agenda & weather, Ticker), drag them into
+whatever rotation order you want, or pin one mode permanently. This can be
+done anytime from `http://<device-ip>/`, no reflash needed.
 
 If your daemon machine can't resolve the device's `.local` hostname, find its
 IP instead via your router's DHCP client list (look for an `ESP-xxxxxx`
@@ -185,6 +202,32 @@ actually run anything. Install a real interpreter first:
 2. Add `--weather` to your daemon command line — no API key needed
    (Open-Meteo is free and keyless)
 
+**Optional: Plane radar**
+1. Radar's own home lat/lon (Radar tab) is optional — leave it at 0/0 and
+   it automatically uses the location you set for Weather above. Only fill
+   it in if you want radar centred somewhere different (e.g. a nearby
+   airport instead of home).
+2. No daemon flag needed — the device fetches aircraft data itself,
+   directly from the free [adsb.fi](https://adsb.fi) API, no key required.
+
+**Optional: z.ai quota**
+1. Get an API key from your z.ai account settings
+2. Add `--zai --zai-key <your-key>` to your daemon command line (or set
+   `CLAWDMETER_ZAI_KEY`) — this hits an endpoint z.ai hasn't publicly
+   documented, so treat it as best-effort
+
+**Optional: Codex CLI quota**
+1. Run `codex login` on the daemon's own machine, if you haven't already —
+   this rides your existing ChatGPT plan, no separate API key
+2. Add `--codex` to your daemon command line. Free to poll — it just reads
+   Codex's own already-cached rate-limit state, no model call
+
+**Optional: Antigravity CLI quota**
+1. Authenticate `agy` on the daemon's own machine, if you haven't already
+2. Add `--antigravity` to your daemon command line. **Unlike Codex, this
+   isn't free** — every poll fires a real, cheap-model prompt, so the
+   default interval is kept long (30 minutes) on purpose
+
 **Optional: device write-auth (secret key)**
 If you want to stop other devices on your LAN from being able to overwrite
 the screen or its settings, set a secret key in the device's web UI (Update
@@ -213,16 +256,34 @@ quota. The daemon uses the cheapest model (`claude-haiku-4-5`) with
 (~1,440 checks/day) — raising `--interval` to e.g. 300s (5 minutes) cuts
 that self-consumption roughly 5x, trading slightly slower on-screen updates.
 
+**Codex CLI quota**: free to check — it just reads state Codex's own CLI
+already caches locally, no model call at all.
+
+**Antigravity CLI quota**: the opposite of Codex — its local quota data only
+populates after a real prompt has run, so every poll fires one (the
+cheapest available model). Small real cost, which is why the default
+interval is 30 minutes rather than something short.
+
+**z.ai quota**: a plain HTTP GET against your account's own usage endpoint —
+no completion call, so effectively free like Codex.
+
 ## System overview
 
 ```
 Claude Code (token via claude setup-token)  --\
-Google Calendar (OAuth, --calendar-auth)     ---> clawdmeter-daemon --> GeekMagic screen
-Open-Meteo (weather, no key needed)         --/     (always running)      (smalltv-mod)
+Codex CLI (codex login)                      --\
+Antigravity CLI (agy, real prompt per poll)   ---> clawdmeter-daemon --> GeekMagic screen
+z.ai (API key)                               --/     (always running)      (smalltv-mod)
+Google Calendar (OAuth, --calendar-auth)     --/
+Open-Meteo (weather, no key needed)         --/
 ```
 
+Plane radar is the one exception — the device fetches aircraft data itself,
+directly from adsb.fi, not through the daemon.
+
 Each data source is independent and optional — run with just `--push` for
-usage only, or add `--calendar`/`--weather` for the rest.
+usage only, or add `--calendar`/`--weather`/`--zai`/`--codex`/`--antigravity`
+for the rest.
 
 ---
 
