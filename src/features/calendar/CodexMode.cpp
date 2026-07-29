@@ -3,6 +3,7 @@
 #include "Gfx.h"
 #include "CalendarClient.h"
 #include "Clock.h"
+#include "CodexIcon.h"
 
 CodexMode g_codexMode;
 
@@ -92,27 +93,84 @@ static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
   gfx->print(line);
 }
 
+// Card 2: free rate-limit reset credits -- found live in the app-server
+// RPC's `rateLimitResetCredits` field (undocumented, not part of the
+// primary/secondary rate-limit windows drawCodexMeter shows). The point of
+// this card is to use a credit before it lapses unused, so the bottom row
+// is a countdown, not just a static count. Same visual shape as
+// drawCodexMeter (big value top-right, label top-left, countdown row) but
+// no fill bar -- a credit count isn't a percentage of anything.
+static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits, int credits,
+                                bool hasExpire, int expireMins, bool full) {
+  const int x = 8, w = 224, h = 82;
+  if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+
+  // Label drawn UNCONDITIONALLY (not gated on `full`), unlike
+  // drawCodexMeter's static "Week" label -- "Free reset" (10 chars) at
+  // x+14 overlaps the value's cursor position (x=128 when the value is
+  // "%3d", 3 chars, sized up to size5 by gfxFitSize) at x=130..142.
+  // Drawing the value first (opaque, C_PANEL bg) then the label
+  // (opaque, same bg) after it, every time, means the label always wins
+  // the overlap instead of getting silently clipped by the next
+  // data-only value redraw -- same fix AntigravityMode.cpp's label card
+  // uses for the same reason.
+  char cv[8];
+  if (hasCredits) snprintf(cv, sizeof(cv), "%3d", constrain(credits, 0, 999));
+  else            strlcpy(cv, " --", sizeof(cv));
+  uint8_t sz = gfxFitSize(cv, 150, 5);
+  int cvw = gfxTextW(cv, sz);
+  gfx->setTextSize(sz);
+  gfx->setTextColor(C_WHITE, C_PANEL);
+  gfx->setCursor(x + w - cvw - 14, top + 10);
+  gfx->print(cv);
+
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 12);
+  gfx->print("Free reset");
+
+  // Same "always draw the row, print -- when absent" convention as
+  // drawCodexMeter's reset line -- also covers credits==0 (a real "none
+  // available" state, distinct from "daemon hasn't sent this field yet").
+  char rs[16], line[10 + sizeof(rs) + 1];
+  if (hasCredits && credits > 0 && hasExpire) fmtReset(expireMins, rs, sizeof(rs));
+  else                                         strlcpy(rs, "--", sizeof(rs));
+  snprintf(line, sizeof(line), "Resets in %-7s", rs);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 64);
+  gfx->print(line);
+}
+
 static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
-    // Header: plain text title, no logo bitmap (no icon-rasterization
-    // pipeline run this session -- see ZaiMode.cpp for the pipeline that
-    // would produce one, if this page ever gets one later).
+    // Header: real logo (user-supplied Codex CLI app icon, see
+    // CodexIcon.h for the rasterization), same 32x32-at-y=8 position
+    // AntigravityMode.cpp's icon uses, drawn in C_CODEX_PURPLE (sampled
+    // from the source image's own fill) per live feedback ("we can use
+    // that purple color but make it mono"). x=56 text start leaves room
+    // for the icon, same as "agy"'s header.
+    gfx->drawBitmap(6, 8, kCodexIcon, CODEX_ICON_SIZE, CODEX_ICON_SIZE, C_CODEX_PURPLE);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
-    gfx->setCursor(8, 12);
+    gfx->setCursor(56, 12);
     gfx->print("Codex");
   }
 
-  // Only draw a card when that window has actually been populated at least
-  // once -- confirmed live that some accounts/plan tiers never report a
-  // short ("5h") window at all (secondary stayed null every poll on the
-  // account this was tested against), so a fixed "always draw both" layout
-  // would show a permanent "--" row rather than real absence. Fixed y
-  // positions are kept either way (not dynamically stacked) so a full vs.
-  // partial redraw never disagrees on where a card belongs.
-  if (c.hasPct5h)   drawCodexMeter(gfx, 50,  "5h",   true, c.pct5h,   c.hasR5h,   c.r5h,   full, growRight);
-  if (c.hasPctWeek) drawCodexMeter(gfx, 138, "Week", true, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
+  // Two fixed cards, per live feedback ("top is weekly quota and reset;
+  // bottom is remaining reset and expiration") -- card 1 the weekly
+  // quota/reset meter, card 2 the free-reset-credit meter, replacing an
+  // earlier layout that reserved this space for a "5h" window (this
+  // account's `secondary` has been null every single poll this whole
+  // session -- confirmed live in CalendarData.h's CodexData comment) plus
+  // a cramped bottom-margin text line for the credit info. `pct5h`/`r5h`
+  // are still received and stored on CodexData (see CalendarClient.cpp)
+  // in case a real 5h-window account is found later, they're just not
+  // drawn -- both fixed card slots are now spoken for.
+  if (c.hasPctWeek) drawCodexMeter(gfx, 50, "Week", true, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
+  drawCodexResetCard(gfx, 138, c.hasResetCredits, c.resetCredits,
+                      c.hasResetCreditExpireMins, c.resetCreditExpireMins, full);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/ZaiMode.cpp -- per the same

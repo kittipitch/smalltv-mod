@@ -172,6 +172,7 @@ bool zaiApply(const String& body) {
 static void codexFilter(JsonDocument& f) {
   f["ok"] = true; f["pct5h"] = true; f["r5h"] = true;
   f["pctWeek"] = true; f["rWeek"] = true;
+  f["resetCredits"] = true; f["resetCreditExpireMins"] = true;
 }
 
 bool codexApply(const String& body) {
@@ -188,6 +189,14 @@ bool codexApply(const String& body) {
   if (gotWeek) { g_codex.pctWeek = doc["pctWeek"].as<int>(); g_codex.hasPctWeek = true; }
   if (doc["r5h"].is<int>())   { g_codex.r5h = doc["r5h"].as<int>(); g_codex.hasR5h = true; }
   if (doc["rWeek"].is<int>()) { g_codex.rWeek = doc["rWeek"].as<int>(); g_codex.hasRWeek = true; }
+  if (doc["resetCredits"].is<int>()) {
+    g_codex.resetCredits = doc["resetCredits"].as<int>();
+    g_codex.hasResetCredits = true;
+  }
+  if (doc["resetCreditExpireMins"].is<int>()) {
+    g_codex.resetCreditExpireMins = doc["resetCreditExpireMins"].as<int>();
+    g_codex.hasResetCreditExpireMins = true;
+  }
   g_codex.valid = true;
   g_codex.lastOkMs = millis();
   return true;

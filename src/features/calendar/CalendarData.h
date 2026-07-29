@@ -120,6 +120,15 @@ struct ZaiData {
 // pct5h/r5h track the shorter window (labeled "5h", when present -- was
 // null on the account this was tested against), pctWeek/rWeek the longer
 // weekly window (confirmed live: window_minutes=10080).
+//
+// resetCredits/resetCreditExpireMins: Codex accounts get occasional
+// free "full rate-limit reset" credits (found live in the app-server
+// RPC's `rateLimitResetCredits` field, alongside the rate limits
+// themselves -- not documented anywhere, discovered by reading the raw
+// response). resetCredits is how many are currently available;
+// resetCreditExpireMins is minutes until the soonest-expiring one lapses
+// unused -- the whole point of showing this is to use it before it's
+// gone, not just know it exists.
 struct CodexData {
   int  pct5h;
   bool hasPct5h;
@@ -130,6 +139,11 @@ struct CodexData {
   int  rWeek;           // minutes until the weekly window resets
   bool hasRWeek;
 
+  int  resetCredits;              // count of available free rate-limit resets
+  bool hasResetCredits;
+  int  resetCreditExpireMins;     // minutes until the soonest one expires unused
+  bool hasResetCreditExpireMins;
+
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
 
@@ -138,6 +152,8 @@ struct CodexData {
     r5h = 0; hasR5h = false;
     pctWeek = 0; hasPctWeek = false;
     rWeek = 0; hasRWeek = false;
+    resetCredits = 0; hasResetCredits = false;
+    resetCreditExpireMins = 0; hasResetCreditExpireMins = false;
     valid = false;
     lastOkMs = 0;
   }
