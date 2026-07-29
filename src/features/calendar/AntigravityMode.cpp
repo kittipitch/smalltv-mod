@@ -147,14 +147,18 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
   if (full) {
     gfx->fillScreen(C_BLACK);
     // Header: logo + short "agy" label (the CLI's own name, not the full
-    // "Antigravity" product name). Icon shrunk to 32x32 (was 40x40) per
-    // live feedback -- y=8 instead of ZaiMode.cpp's y=4 keeps it vertically
-    // centered against the "agy" text row (y=12..36 at setTextSize(3))
-    // now that it's 8px shorter.
-    gfx->drawBitmap(6, 8, kAntigravityIcon, ANTIGRAVITY_ICON_SIZE, ANTIGRAVITY_ICON_SIZE, C_SKY);
+    // "Antigravity" product name). y=12, not the mascot's own blit y=4 --
+    // UsageMode.cpp's header mascot is blitted at y=4 but its idle-pose
+    // sprite has 4 blank leading grid rows (cellPx=2, so 8px of real
+    // headroom before the ink starts) -- this icon is bbox-cropped, ink
+    // starts at row 0, so matching the mascot's *visible* margin means
+    // y=4+8=12. Per live feedback ("the claude mascot has some head room
+    // from the screen edge... apply that to all logos"), superseding an
+    // earlier y=8 chosen for text-baseline centering.
+    gfx->drawBitmap(6, 12, kAntigravityIcon, ANTIGRAVITY_ICON_SIZE, ANTIGRAVITY_ICON_SIZE, C_SKY);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
-    gfx->setCursor(56, 12);
+    gfx->setCursor(56, 16);  // y=16 centers the text against the y=12 icon
     gfx->print("agy");
   }
 

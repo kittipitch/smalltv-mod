@@ -143,6 +143,9 @@ struct CodexData {
   bool hasResetCredits;
   int  resetCreditExpireMins;     // minutes until the soonest one expires unused
   bool hasResetCreditExpireMins;
+  int  pctResetCreditUsed;        // % of the soonest credit's life elapsed (0=just
+  bool hasPctResetCreditUsed;     // granted, 100=about to expire) -- drives its bar fill,
+                                   // same shape as every other quota meter's bar
 
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
@@ -154,6 +157,7 @@ struct CodexData {
     rWeek = 0; hasRWeek = false;
     resetCredits = 0; hasResetCredits = false;
     resetCreditExpireMins = 0; hasResetCreditExpireMins = false;
+    pctResetCreditUsed = 0; hasPctResetCreditUsed = false;
     valid = false;
     lastOkMs = 0;
   }

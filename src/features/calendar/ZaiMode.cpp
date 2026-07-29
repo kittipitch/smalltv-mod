@@ -97,11 +97,20 @@ static void drawZaiMeter(Arduino_GFX* gfx, int top, const char* label,
 static void drawZaiPage(Arduino_GFX* gfx, const ZaiData& z, bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
-    // Header: small logo + title, same slot/scale as UsageMode's mascot+CLAUDE.
-    gfx->drawBitmap(6, 4, kZaiIcon, ZAI_ICON_SIZE, ZAI_ICON_SIZE, C_WHITE);
+    // Header: small logo + title. UsageMode.cpp's header mascot is
+    // blitted at y=4 but its idle-pose sprite has 4 blank leading grid
+    // rows (cellPx=2, so 8px of real headroom before the ink starts) --
+    // matching that *visible* margin for a bbox-cropped icon (ink at
+    // row 0) means y=4+8=12. But this icon is 40x40, not 32x32 -- at
+    // y=12 it would run to y=52, 2px into the first quota card's rounded
+    // corner at y=50. Kept at y=8 instead (splits the difference: still
+    // more headroom than the pre-fix y=4, doesn't collide with the
+    // card). Per live feedback ("the claude mascot has some head room
+    // from the screen edge... apply that to all logos").
+    gfx->drawBitmap(6, 8, kZaiIcon, ZAI_ICON_SIZE, ZAI_ICON_SIZE, C_WHITE);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
-    gfx->setCursor(56, 12);
+    gfx->setCursor(56, 16);  // y=16 centers the text against the y=8 icon
     gfx->print("Z.AI");
   }
 
