@@ -173,7 +173,6 @@ static void codexFilter(JsonDocument& f) {
   f["ok"] = true; f["pct5h"] = true; f["r5h"] = true;
   f["pctWeek"] = true; f["rWeek"] = true;
   f["resetCredits"] = true; f["resetCreditExpireMins"] = true;
-  f["pctResetCreditUsed"] = true;
 }
 
 bool codexApply(const String& body) {
@@ -197,10 +196,6 @@ bool codexApply(const String& body) {
   if (doc["resetCreditExpireMins"].is<int>()) {
     g_codex.resetCreditExpireMins = doc["resetCreditExpireMins"].as<int>();
     g_codex.hasResetCreditExpireMins = true;
-  }
-  if (doc["pctResetCreditUsed"].is<int>()) {
-    g_codex.pctResetCreditUsed = doc["pctResetCreditUsed"].as<int>();
-    g_codex.hasPctResetCreditUsed = true;
   }
   g_codex.valid = true;
   g_codex.lastOkMs = millis();

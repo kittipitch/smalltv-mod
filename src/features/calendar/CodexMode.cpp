@@ -100,15 +100,22 @@ static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
 // is a countdown, not just a static count. Structurally IDENTICAL to
 // drawCodexMeter -- same label/value/bar/countdown positions -- per live
 // feedback ("the cards are ugly make sure they use the same layout as
-// claude and z.ai page"). An earlier version dropped the fill bar (no
-// percentage made sense for a plain count), which left the card's middle
-// visibly empty. Fixed by having the bar show this credit's own urgency:
-// % of its life elapsed since being granted, 0% = just granted, 100% =
-// about to expire unused -- same pctColor() thresholds as every quota
-// bar, so a bar going red here means the same thing it means everywhere
-// else on this device ("act now").
+// claude and z.ai page").
+//
+// Bar semantics, per explicit live feedback ("the bottom bar for the
+// reset it shud be devided in 7 days and then the count down time shud
+// reflect the remaining time... green is good (7 days or more), red is
+// almost expire"): fill = remaining time / a fixed 7-day window, capped
+// at 100% when 7+ days remain -- FULL bar = safe, EMPTY bar = about to
+// expire. This replaced an earlier version whose bar filled based on %
+// of the credit's *actual* granted-to-expiry lifespan (which can be
+// ~30 days on this account, per the real RPC data -- see poll_codex()),
+// an unintuitive scale that didn't match "7 days" the way the user
+// described it. Computed entirely device-side from resetCreditExpireMins
+// (already pushed) -- no daemon involvement needed for this metric,
+// unlike the elapsed-fraction version it replaced.
+#define CODEX_RESET_WINDOW_MINS (7 * 24 * 60)
 static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits, int credits,
-                                bool hasPctUsed, int pctUsed,
                                 bool hasExpire, int expireMins, bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
@@ -147,10 +154,17 @@ static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits, int c
 
   int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
   gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
-  bool hasUrgency = hasCredits && credits > 0 && hasPctUsed;
-  int fw = hasUrgency ? (int)(bw * constrain(pctUsed, 0, 100) / 100.0f) : 0;
+  bool hasUrgency = hasCredits && credits > 0 && hasExpire;
+  float remainFrac = hasUrgency
+    ? constrain((float)expireMins / CODEX_RESET_WINDOW_MINS, 0.0f, 1.0f)
+    : 0.0f;
+  int fw = hasUrgency ? (int)(bw * remainFrac) : 0;
   int fx = growRight ? (bx + bw - fw) : bx;
-  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pctUsed));
+  // pctColor() expects "% used/urgent", not "% remaining" -- invert so a
+  // credit close to expiring (small remainFrac) still lands in the same
+  // red/amber/green bands every other quota bar on the device uses.
+  int urgencyPct = hasUrgency ? (int)((1.0f - remainFrac) * 100.0f + 0.5f) : 0;
+  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(urgencyPct));
 
   // "Expires in", not "Resets in" -- per live feedback ("the expiry date
   // of free reset it shud say expire or sth") -- this is a one-shot
@@ -165,7 +179,10 @@ static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits, int c
   snprintf(line, sizeof(line), "Expires in %-7s", rs);
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 64);
+  // x+8, not x+14 -- "Expires in %-7s" is 18 chars (vs. drawCodexMeter's
+  // "Resets in %-7s" at 17), and at x+14 the extra char ran 6px past the
+  // card's right edge (x+w=232). x+8 puts its worst case flush at 232.
+  gfx->setCursor(x + 8, top + 64);
   gfx->print(line);
 }
 
@@ -207,9 +224,23 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   // consistent w/ claude page"), matching UsageMode.cpp's "5h"/"7d"
   // card-label convention for the same real window length (10080
   // minutes = 7 days).
-  if (c.hasPctWeek) drawCodexMeter(gfx, 50, "7d", true, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
+  //
+  // Both cards drawn UNCONDITIONALLY now (was `if (c.hasPctWeek)
+  // drawCodexMeter(...)`), matching UsageMode.cpp/ZaiMode.cpp's pattern
+  // where every card always draws and internally falls back to "--" when
+  // its own `has*` flag is false. The old conditional-call pattern had a
+  // real bug: when hasPctWeek flipped false->true on a DATA-ONLY render
+  // (the common case -- a mode switch renders once before the daemon's
+  // push arrives, then the push lands as a separate render tick with
+  // needFullRender_ already spent), card 1's very first appearance would
+  // skip drawCodexMeter's own panel-fill and label (both gated on
+  // `full`) forever, until the next genuine structural redraw happened
+  // to come along -- confirmed live: a fresh mode switch showed only
+  // card 2, card 1 entirely missing its panel and "7d" label. Per live
+  // feedback ("we always draw both cards too here") -- z.ai never had
+  // this bug because it always called drawZaiMeter unconditionally.
+  drawCodexMeter(gfx, 50, "7d", c.hasPctWeek, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
   drawCodexResetCard(gfx, 138, c.hasResetCredits, c.resetCredits,
-                      c.hasPctResetCreditUsed, c.pctResetCreditUsed,
                       c.hasResetCreditExpireMins, c.resetCreditExpireMins, full, growRight);
 }
 
