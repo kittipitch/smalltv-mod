@@ -58,7 +58,7 @@ static void fmtReset(int mins, char* out, size_t n) {
 // showing a number/color pair that visually contradicts each other.
 static uint16_t barColor(int pctRounded) {
   if (pctRounded >= 90) return C_RED;
-  if (pctRounded >= 70) return C_ACCENT;
+  if (pctRounded >= 75) return C_ACCENT;
   if (pctRounded >= 50) return C_YELLOW;
   return C_UGREEN;
 }

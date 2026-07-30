@@ -24,7 +24,7 @@ ZaiMode g_zaiMode;
 // tight. Matches the statusline script's own green/yellow/orange/red bands.
 static uint16_t pctColor(int pct) {
   if (pct >= 90) return C_RED;
-  if (pct >= 70) return C_ACCENT;
+  if (pct >= 75) return C_ACCENT;
   if (pct >= 50) return C_YELLOW;
   return C_UGREEN;
 }
