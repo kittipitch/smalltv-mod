@@ -61,75 +61,86 @@ static void truncateDots(const char* in, char* out, size_t outCap, int maxChars)
   out[keep] = '.'; out[keep + 1] = '.'; out[keep + 2] = 0;
 }
 
-// Card 1: the real model name, now built on the SAME skeleton every other
-// quota card on this device uses (label top-left/value top-right/bar/
-// countdown row, identical x/w/h/bx/by/bw/bh coordinates to
-// drawCodexMeter()/drawZaiMeter()/UsageMode.cpp's drawMeter()) -- per live
-// feedback ("make sure the two cards layout matches in all screens...
-// similar position of cards and text"). An earlier version put the name
-// on its own bespoke row at top+40 with no bar/countdown row at all,
-// which was the one card on the device that didn't match this shape.
-// The bar and countdown row intentionally duplicate what card 2 already
-// shows for the same model (pctModel/rModel) -- there's no separate
-// metric for card 1 to show, and repeating it here is what makes the two
-// cards look like a matched pair instead of two different card designs.
+// Split label into up to 2 lines, each <= maxChars, breaking at the last
+// space at-or-before maxChars so real model names ("Gemini 3.6 Flash
+// (Medium)") wrap on a word boundary instead of getting hard-truncated
+// mid-word. If no space exists within maxChars (or the whole label already
+// fits on one line), line 2 is left empty. Line 2 itself is truncateDots-
+// capped in case the remainder is still too long for a single line.
+static void wrapModelName(const char* label, char* l1, size_t l1cap,
+                           char* l2, size_t l2cap, int maxChars) {
+  const char* src = (label && label[0]) ? label : "--";
+  int len = (int)strlen(src);
+  if (len <= maxChars) {
+    strlcpy(l1, src, l1cap);
+    l2[0] = 0;
+    return;
+  }
+  int splitAt = -1;
+  for (int i = maxChars; i >= 0; i--) {
+    if (src[i] == ' ') { splitAt = i; break; }
+  }
+  if (splitAt <= 0) {
+    truncateDots(src, l1, l1cap, maxChars);
+    l2[0] = 0;
+    return;
+  }
+  int keep = splitAt;
+  if (keep >= (int)l1cap) keep = (int)l1cap - 1;
+  memcpy(l1, src, keep);
+  l1[keep] = 0;
+  truncateDots(src + splitAt + 1, l2, l2cap, maxChars);
+}
+
+// Card 1: the real model name, shown whole (word-wrapped across 2 lines)
+// rather than hard-truncated to 8 chars. Started as the SAME skeleton
+// every other quota card on this device uses (label top-left/value
+// top-right/bar/countdown row) per live feedback ("make sure the two
+// cards layout matches in all screens... similar position of cards and
+// text") -- but the bar/countdown row there were always a duplicate of
+// card 2's own pctModel/rModel (no second metric exists for card 1 to
+// show), and per later live feedback ("in place of the top bar replace
+// w/ the model name .. the width shud help showing full") both the
+// duplicate bar AND the duplicate 8-char-truncated value in the header
+// row are gone -- the name now gets the whole card body (2 lines at
+// size2, word-wrapped) instead of appearing twice, truncated two
+// different ways. The countdown row is also dropped (redundant with card
+// 2's own, and there's no metric here to attach a countdown to) -- left
+// as blank space rather than shrinking the card, so card height (h=82,
+// shared by every quota page's card geometry) doesn't need to change.
 static void drawAntigravityLabelCard(Arduino_GFX* gfx, int top, const char* label,
-                                      bool has, int pct, bool hasReset, int resetMins,
-                                      bool full, bool growRight) {
+                                      bool full) {
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
-
-  // Value slot: the model name, right-aligned like every other card's big
-  // value, truncated+sized so its worst-case cursor (x=78 at maxW=140)
-  // still comes close to the label's x=22..82 span -- 4px short of clear.
-  // Label drawn UNCONDITIONALLY (not gated on `full`), opaque, AFTER the
-  // value -- same fix drawCodexResetCard uses for the identical
-  // near-overlap: whichever draws last wins the shared pixels, so the
-  // label always survives a data-only redraw instead of getting clipped
-  // to "Mode" the way a full-gated label would.
-  // Unlike every other card's value ("%3d%%"/" --", always the same length),
-  // this one is a variable-length truncated model name -- a wider name
-  // followed by a shorter one on a data-only render (full=false, no panel
-  // clear) leaves the old name's leftover tail visible to the left of the
-  // new, right-aligned text ("GemiGPT" confirmed live). setTextColor's
-  // per-glyph opaque background only clears the new text's own footprint,
-  // not the wider old footprint outside it -- so clear the whole value
-  // row first, every draw, regardless of `full`. Left bound derived from
-  // the same 140px budget gfxFitSize(text, 140, ...) below is called with
-  // (not a separate hand-picked margin against the "Model" label) -- the
-  // label redraws after the value anyway (opaque, unconditional), so the
-  // clear is free to run left of it with no visual cost.
-  gfx->fillRect(x + w - 140 - 14, top + 8, 140, 28, C_PANEL);
-
-  char text[10];
-  truncateDots((label && label[0]) ? label : "Model", text, sizeof(text), 8);
-  uint8_t sz = gfxFitSize(text, 140, 3);
-  int tw = gfxTextW(text, sz);
-  gfx->setTextSize(sz);
-  gfx->setTextColor(C_WHITE, C_PANEL);
-  gfx->setCursor(x + w - tw - 14, top + 10);
-  gfx->print(text);
 
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
   gfx->setCursor(x + 14, top + 12);
   gfx->print("Model");
 
-  int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
-  gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
-  int fw = has ? (int)(bw * constrain(pct, 0, 100) / 100.0f) : 0;
-  int fx = growRight ? (bx + bw - fw) : bx;
-  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pct));
+  // Name body: word-wrapped across 2 lines, fixed at size2 -- never
+  // auto-shrunk below it (gfxFitSize would floor to an unreadable size1
+  // for a long name, already rejected once on the weather page for
+  // exactly this readability tradeoff, not repeating it here).
+  // Variable-length text on every draw (not just `full`) -- same
+  // "GemiGPT" ghosting risk this card was already fixed for once, so
+  // both lines are cleared unconditionally before printing, every draw,
+  // regardless of whether the new name needs both lines.
+  const int nameMaxW = w - 28;              // x+14 .. x+w-14, same margin as every other row
+  const int nameMaxChars = nameMaxW / 12;    // size2 glyph width = 6px * 2
+  gfx->fillRect(x + 14, top + 44, nameMaxW, 34, C_PANEL);
+  char line1[20], line2[20];
+  wrapModelName(label, line1, sizeof(line1), line2, sizeof(line2), nameMaxChars);
+  gfx->setTextColor(C_WHITE, C_PANEL);
+  gfx->setCursor(x + 14, top + 44);
+  gfx->print(line1);
+  if (line2[0]) {
+    gfx->setCursor(x + 14, top + 62);
+    gfx->print(line2);
+  }
 
-  char rs[16], line[10 + sizeof(rs) + 1];
-  if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
-  else          strlcpy(rs, "--", sizeof(rs));
-  snprintf(line, sizeof(line), "Resets in %-7s", rs);
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_DIM, C_PANEL);
-  // top+66, not +64 -- see UsageMode.cpp's drawMeter() comment
-  gfx->setCursor(x + 14, top + 66);
-  gfx->print(line);
+  // Countdown row intentionally left blank (see header comment) -- no
+  // draw call here, just unused card space, same h=82 as every other card.
 }
 
 // Card 2: big %, fill bar, reset countdown -- same shape as
@@ -206,8 +217,7 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
 
   // Two cards, same top=50/138 stacking Codex/z.ai use for their two
   // windows. Card 1: model code. Card 2: percentage/bar/reset.
-  drawAntigravityLabelCard(gfx, 50, a.hasLabel ? a.label : "",
-                            a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
+  drawAntigravityLabelCard(gfx, 50, a.hasLabel ? a.label : "", full);
   drawAntigravityMeter(gfx, 138, a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
 }
 
