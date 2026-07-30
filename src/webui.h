@@ -556,7 +556,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  var ap=$('apPass'); if(ap)ap.placeholder=c.apPassSet?'(unchanged)':'(open)';
 })}
 
-function esc(s){return (''+(s==null?'':s)).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function esc(s){return (''+(s==null?'':s)).replace(/[<>&"']/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]})}
 function symHintFor(v){var h=$('symHint');if(!h)return;
  h.innerHTML=(v==='cash'
   ?'<b>cash.ch</b>: fetched directly by the device. The symbol is a listing key like <code>147478611-246-333</code>; the finder below turns a cash.ch link, ISIN, or name into one.'
@@ -743,14 +743,14 @@ function loadStatus(){j('/api/status').then(function(s){
  if(s.repo){var rl=$('repoLink'); if(rl)rl.href=s.repo+'/releases'; var fr=$('footRepo'); if(fr)fr.href=s.repo;}
  $('statusBox').innerHTML=
   kv('Firmware',s.fw+' '+s.version)+kv('Mode',s.mode.toUpperCase())+
-  kv('Name',C.hostname||'smalltv')+
-  kv('Network',s.ssid||'-')+kv('IP',s.ip||'-')+kv('mDNS','<a href="http://'+(C.hostname||'smalltv')+'.local" target="_blank">http://'+(C.hostname||'smalltv')+'.local</a>')+
+  kv('Name',esc(C.hostname||'smalltv'))+
+  kv('Network',esc(s.ssid||'-'))+kv('IP',s.ip||'-')+kv('mDNS','<a href="http://'+esc(C.hostname||'smalltv')+'.local" target="_blank">http://'+esc(C.hostname||'smalltv')+'.local</a>')+
   kv('Signal',s.rssi?s.rssi+' dBm':'-')+
   kv('Free heap',s.heap+' B')+kv('Uptime',fmtUp(s.uptime))+kv('Last reset',s.reset||'-');
  var h='';(s.tickers||[]).forEach(function(t){
   var c=t.error?'var(--red)':(t.valid?'var(--acc)':'var(--mut)');
   var pc=t.changePct!=null?(t.changePct>=0?'+':'')+t.changePct.toFixed(2)+'%':'';
-  h+='<div class="kv"><b style="color:'+c+'">'+t.symbol+'</b><span>'+
+  h+='<div class="kv"><b style="color:'+c+'">'+esc(t.symbol)+'</b><span>'+
    (t.valid?(t.price+'  '+pc):(t.error?'error':'...'))+'</span></div>';});
  $('tickBox').innerHTML=h||'<span class="muted">No tickers configured</span>';
 })}

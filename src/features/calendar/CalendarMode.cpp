@@ -278,7 +278,13 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
   // Latin-1/0xB0 -- verified by rendering the actual glyph bitmap before
   // trusting the byte value).
-  if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(w.tempC));
+  // constrain() before lroundf(): tempC comes straight from a daemon push
+  // with no range validation upstream (weatherApply()/CalendarClient.cpp),
+  // and (int)lroundf() on an extreme/non-finite float (e.g. a malformed or
+  // malicious POST /api/weather {"tempC":1e10}, unauthenticated by default
+  // with no secret key set) is undefined behavior on this platform, not
+  // just a display glitch -- clamp first so the cast is always well-defined.
+  if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(constrain(w.tempC, -99.0f, 199.0f)));
   drawRow(gfx, 116, 3, wxOk ? C_WHITE : C_DIM, t);
 
   char p[16] = "Rain --";
@@ -307,19 +313,24 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   // guess here would print the wrong glyph). No superscript-3 glyph
   // exists in this font's 256-char set, so "m3" not "m³" -- a real
   // constraint, not an oversight. No space before the unit (matches how
-  // °C/% already omit it elsewhere on this page) -- with it, a
-  // realistic worst-case 3-digit reading ("PM 2.5 100.0 µg/m3", 19 chars
-  // at size2 = 228px) would run 2px past the screen's right edge
-  // (240px wide, 14px left margin, 12px/char at size2); without it,
-  // 18 chars = 216px stays inside the budget even at that same reading.
+  // °C/% already omit it elsewhere on this page) -- a realistic
+  // worst-case 3-digit reading is "PM 2.5 100.0\xE6g/m3", 17 chars at
+  // size2 = 204px, comfortably inside the 226px budget (240px screen,
+  // 14px left margin) even with the space kept; dropped anyway for
+  // consistency with °C/% on this same page, not because it was needed.
   char pm[24] = "PM 2.5 --";
   if (w.hasPm25) {
+    // constrain() before lroundf()/formatting: pm25 comes straight from a
+    // daemon push with no range validation upstream, same UB risk as tempC
+    // above -- clamp to what the pm[24] buffer and this line's width
+    // budget were actually sized for (never assume a source float is sane).
+    float pm25c = constrain(w.pm25, 0.0f, 999.9f);
     // Drop the ".0" when the source value is a whole number (Open-Meteo
     // often reports e.g. 12.0) -- keep one decimal otherwise.
-    if (fabsf(w.pm25 - roundf(w.pm25)) < 0.05f)
-      snprintf(pm, sizeof(pm), "PM 2.5 %d\xE6g/m3", (int)lroundf(w.pm25));
+    if (fabsf(pm25c - roundf(pm25c)) < 0.05f)
+      snprintf(pm, sizeof(pm), "PM 2.5 %d\xE6g/m3", (int)lroundf(pm25c));
     else
-      snprintf(pm, sizeof(pm), "PM 2.5 %.1f\xE6g/m3", w.pm25);
+      snprintf(pm, sizeof(pm), "PM 2.5 %.1f\xE6g/m3", pm25c);
   }
   drawRow(gfx, 212, 2, C_DIM, pm);
 }
