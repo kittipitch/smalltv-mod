@@ -107,16 +107,17 @@ static void drawZaiPage(Arduino_GFX* gfx, const ZaiData& z, bool full, bool grow
     // blitted at y=4 but its idle-pose sprite has 4 blank leading grid
     // rows (cellPx=2, so 8px of real headroom before the ink starts) --
     // matching that *visible* margin for a bbox-cropped icon (ink at
-    // row 0) means y=4+8=12. But this icon is 40x40, not 32x32 -- at
-    // y=12 it would run to y=52, 2px into the first quota card's rounded
-    // corner at y=50. Kept at y=8 instead (splits the difference: still
-    // more headroom than the pre-fix y=4, doesn't collide with the
-    // card). Per live feedback ("the claude mascot has some head room
-    // from the screen edge... apply that to all logos").
-    gfx->drawBitmap(6, 8, kZaiIcon, ZAI_ICON_SIZE, ZAI_ICON_SIZE, C_WHITE);
+    // row 0) means y=4+8=12, same margin Codex/Antigravity's icons use.
+    // This icon used to be 40x40 with ink spanning 38 rows -- at y=12 it
+    // would've run to y=52, 2px into the first quota card's rounded
+    // corner at y=50, so it was kept at y=8 instead as a stopgap. Now
+    // that ZaiIcon.h's ink has been resized down to 28 rows (see that
+    // file's header comment), it fits the shared y=12 margin cleanly
+    // (ink ends at y=40, same 10px card clearance Codex/Antigravity get).
+    gfx->drawBitmap(6, 12, kZaiIcon, ZAI_ICON_SIZE, ZAI_ICON_SIZE, C_WHITE);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
-    gfx->setCursor(56, 16);  // y=16 centers the text against the y=8 icon
+    gfx->setCursor(56, 16);  // y=16 centers the text against the y=12 icon
     gfx->print("Z.AI");
   }
 
