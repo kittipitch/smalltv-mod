@@ -211,7 +211,10 @@ actually run anything. Install a real interpreter first:
    directly from the free [adsb.fi](https://adsb.fi) API, no key required.
 
 **Optional: z.ai quota**
-1. Get an API key from your z.ai account settings
+1. Log in at [z.ai](https://z.ai), open your account/profile menu →
+   **API Keys**, and copy an existing key or create one (plain static key,
+   no login flow — generate it on any machine with a browser, then use it
+   wherever the daemon runs)
 2. Add `--zai --zai-key <your-key>` to your daemon command line (or set
    `CLAWDMETER_ZAI_KEY`) — this hits an endpoint z.ai hasn't publicly
    documented, so treat it as best-effort
@@ -219,14 +222,38 @@ actually run anything. Install a real interpreter first:
 **Optional: Codex CLI quota**
 1. Run `codex login` on the daemon's own machine, if you haven't already —
    this rides your existing ChatGPT plan, no separate API key
-2. Add `--codex` to your daemon command line. Free to poll — it just reads
+2. **Headless / no browser on the daemon machine?** Run
+   `codex login --device-auth` instead — it prints a URL + code to open on
+   any *other* device with a browser; once you approve there, this
+   machine's login completes on its own
+3. Add `--codex` to your daemon command line. Free to poll — it just reads
    Codex's own already-cached rate-limit state, no model call
 
 **Optional: Antigravity CLI quota**
-1. Authenticate `agy` on the daemon's own machine, if you haven't already
-2. Add `--antigravity` to your daemon command line. **Unlike Codex, this
+1. Install `agy` on the daemon's own machine (native binary, no Node/npm):
+   ```
+   curl -fsSL https://antigravity.google/cli/install.sh | bash
+   ```
+2. Authenticate it. **Headless / no browser on the daemon machine?** `agy`'s
+   login needs a real interactive terminal, but works fine over SSH given a
+   real pty:
+   ```
+   ssh <daemon-host>
+   tmux new-session -s agyauth 'agy'
+   ```
+   Pick **Google OAuth**, open the printed URL in any browser, sign in, then
+   type the code it shows back into that same terminal (never paste it
+   anywhere else — it's a real, time-limited OAuth code). Answer the two
+   one-time prompts (data-sharing opt-out, trust this directory), then exit
+   with `Ctrl+C` twice — the daemon starts its own `agy` process per poll,
+   it doesn't need this session left running.
+3. Add `--antigravity` to your daemon command line. **Unlike Codex, this
    isn't free** — every poll fires a real, cheap-model prompt, so the
    default interval is kept long (30 minutes) on purpose
+
+See `clawdmeter-daemon`'s own `README.md` for the full detail/troubleshooting
+on any of the four (Claude, z.ai, Codex, Antigravity) if something above
+doesn't work.
 
 **Optional: device write-auth (secret key)**
 If you want to stop other devices on your LAN from being able to overwrite
