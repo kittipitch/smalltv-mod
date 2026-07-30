@@ -301,14 +301,25 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   }
   drawRow(gfx, 180, 3, aqiColor, aqiBuf);
 
-  char pm[16] = "PM 2.5 --";
+  // Unit is "\xE6g/m3" -- 0xE6 is the micro sign (µ) in this font's CP437
+  // layout, verified against the actual glyph bitmap before trusting the
+  // byte value (same rigor as the °C fix above: rendering a raw Latin-1
+  // guess here would print the wrong glyph). No superscript-3 glyph
+  // exists in this font's 256-char set, so "m3" not "m³" -- a real
+  // constraint, not an oversight. No space before the unit (matches how
+  // °C/% already omit it elsewhere on this page) -- with it, a
+  // realistic worst-case 3-digit reading ("PM 2.5 100.0 µg/m3", 19 chars
+  // at size2 = 228px) would run 2px past the screen's right edge
+  // (240px wide, 14px left margin, 12px/char at size2); without it,
+  // 18 chars = 216px stays inside the budget even at that same reading.
+  char pm[24] = "PM 2.5 --";
   if (w.hasPm25) {
     // Drop the ".0" when the source value is a whole number (Open-Meteo
     // often reports e.g. 12.0) -- keep one decimal otherwise.
     if (fabsf(w.pm25 - roundf(w.pm25)) < 0.05f)
-      snprintf(pm, sizeof(pm), "PM 2.5 %d", (int)lroundf(w.pm25));
+      snprintf(pm, sizeof(pm), "PM 2.5 %d\xE6g/m3", (int)lroundf(w.pm25));
     else
-      snprintf(pm, sizeof(pm), "PM 2.5 %.1f", w.pm25);
+      snprintf(pm, sizeof(pm), "PM 2.5 %.1f\xE6g/m3", w.pm25);
   }
   drawRow(gfx, 212, 2, C_DIM, pm);
 }

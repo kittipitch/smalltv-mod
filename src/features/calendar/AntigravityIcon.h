@@ -23,17 +23,53 @@
 // grid rows of ink at cellPx=2 -- 26px. Both drawn at the same y=12, so
 // the taller icon reached 4px further down than the mascot, crowding the
 // first card below more than every other page ("looks very close to the
-// border"). An exact 26px match would've required resampling (PIL
-// NEAREST), which shaved individual diagonal rows unevenly -- some legs
-// 1px, some 2px -- breaking the uniform 2x2 blockiness this icon (and
-// Codex's) was deliberately built around. Fixed instead by deleting one
-// duplicate row-pair (rows 6-7 of 30) from the solid 6-row belly
-// (0x00,0xFF,0xFF,0x00 x6, now x4) -- a plain removal, not a resample,
-// so every remaining row keeps its identical 2px partner. Lands at 28px
-// (2px taller than the mascot, not an exact match, but every row still
-// steps in clean 2px units) -- the explicit tradeoff picked over an
-// uneven 26px. Verified via an ASCII dump before/after: the two-peak
-// notch and every other row are untouched, only the belly got shorter.
+// border").
+//
+// THIS REPLACES AN EARLIER BAD EDIT that shrank height ONLY (a duplicate
+// row-pair deleted from the solid belly) while leaving the full 32px
+// width untouched -- i.e. a non-uniform squish that flattened the mark
+// and distorted its aspect ratio. Traced from explicit user feedback on
+// the sibling icon ("the logo of codex is ugly"), then confirmed for all
+// three: "so yes we do maintain the proportion to the original logo...
+// not flatten to get the height only."
+//
+// Correct method, applied here: decode the ORIGINAL undistorted array,
+// crop to its true ink bounding box (32w x 30h -- full canvas width, 30
+// of 32 rows), then resize with ONE uniform scale factor on both axes
+// via PIL: 28/30 = 0.933333, giving 30w x 28h (width 32 * 0.933333 =
+// 29.87, rounded to 30). Image.NEAREST is used, not LANCZOS -- this is
+// deliberately blocky 2x-doubled pixel art (see the rasterization note
+// above), so a smooth filter would defeat the whole look. The result is
+// then placed top-aligned at row 0 and horizontally centered (ox=1)
+// inside the unchanged 32x32 canvas; the surrounding area is blank.
+// Top-aligned, not vertically centered, on purpose: the icon draws at
+// drawBitmap(6, 12, ...), so centering would push the bottom ink edge
+// back to screen y=41 -- exactly where the original sat, re-creating the
+// card-crowding this shrink exists to fix.
+//
+// One extra step this icon needs and the other two must NOT get: the
+// source mark is perfectly mirror-symmetric about its vertical axis
+// (verified programmatically on the original array), but a 32->30 NEAREST
+// resample is not mirror-preserving -- it drops two columns that aren't
+// each other's partners, so the raw output had a 15px-wide odd body and
+// legs differing by 1px, reading as a lean on a mark that tapers to a
+// point. Fixed by OR-ing the resized grid with its own horizontal mirror
+// about the ink bbox center (cols 1-30, so c <-> 31-c) after the resize.
+// This cannot change the bounding box (it maps the bbox onto itself), so
+// the 30w x 28h result and the exact 28/30 scale factor are untouched --
+// re-verified after the fact, along with the two-peak notch still being
+// open. Do NOT copy this step to CodexIcon.h or ZaiIcon.h: their marks
+// (a ">_" glyph, a "Z") are asymmetric by design and mirroring would
+// corrupt them.
+//
+// Consequence worth knowing: at a 28/30 scale a few rows no longer come
+// in identical 2px pairs (the resample lands some steps on 1px). That is
+// unavoidable when scaling proportionally to a non-multiple height, and
+// is the accepted tradeoff -- correct proportions beat perfectly uniform
+// 2px steps. Any earlier comment here claiming "every remaining row
+// keeps its identical 2px partner" / "a plain removal, not a resample"
+// described the bad edit and no longer applies. Verified via an ASCII
+// dump of the final mask: the two-peak notch reads correctly.
 #pragma once
 #include <Arduino.h>
 
@@ -43,11 +79,12 @@ static const uint8_t kAntigravityIcon[128] PROGMEM = {
   0x00, 0x0F, 0xF0, 0x00, 0x00, 0x0F, 0xF0, 0x00, 0x00, 0x3F, 0xFC, 0x00,
   0x00, 0x3F, 0xFC, 0x00, 0x00, 0x3F, 0xFC, 0x00, 0x00, 0x3F, 0xFC, 0x00,
   0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00,
-  0x00, 0xFF, 0xFF, 0x00, 0x03, 0xFF, 0xFF, 0xC0, 0x03, 0xFF, 0xFF, 0xC0,
-  0x03, 0xFF, 0xFF, 0xC0, 0x03, 0xFF, 0xFF, 0xC0, 0x03, 0xFC, 0x3F, 0xC0,
-  0x03, 0xFC, 0x3F, 0xC0, 0x03, 0xF0, 0x0F, 0xC0, 0x03, 0xF0, 0x0F, 0xC0,
-  0x0F, 0xC0, 0x03, 0xF0, 0x0F, 0xC0, 0x03, 0xF0, 0x0F, 0x00, 0x00, 0xF0,
-  0x0F, 0x00, 0x00, 0xF0, 0x3F, 0x00, 0x00, 0xFC, 0x3F, 0x00, 0x00, 0xFC,
-  0x3C, 0x00, 0x00, 0x3C, 0x3C, 0x00, 0x00, 0x3C, 0xF0, 0x00, 0x00, 0x0F,
-  0xF0, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x01, 0xFF, 0xFF, 0x80,
+  0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80,
+  0x01, 0xFC, 0x3F, 0x80, 0x01, 0xFC, 0x3F, 0x80, 0x01, 0xF0, 0x0F, 0x80,
+  0x01, 0xF0, 0x0F, 0x80, 0x07, 0xC0, 0x03, 0xE0, 0x07, 0xC0, 0x03, 0xE0,
+  0x07, 0x80, 0x01, 0xE0, 0x1F, 0x80, 0x01, 0xF8, 0x1F, 0x80, 0x01, 0xF8,
+  0x1E, 0x00, 0x00, 0x78, 0x1E, 0x00, 0x00, 0x78, 0x78, 0x00, 0x00, 0x1E,
+  0x78, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
