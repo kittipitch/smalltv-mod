@@ -206,9 +206,13 @@ bool codexApply(const String& body) {
 // { "ok":true, "pctModel":2, "rModel":291 }
 // Antigravity CLI (`agy`) quota -- unlike Codex, each daemon poll fires a
 // real, costed prompt (see clawdmeter_daemon.py's poll_antigravity()), so
-// this is a single-card shape, not two windows.
+// this fires once per interval, same cost as the old single-card shape --
+// the two-family split (Pro/Flash) below is free, it's just how the
+// already-returned model list gets parsed on the daemon side.
 static void antigravityFilter(JsonDocument& f) {
-  f["ok"] = true; f["pctModel"] = true; f["label"] = true; f["rModel"] = true;
+  f["ok"] = true;
+  f["pctPro"] = true; f["labelPro"] = true; f["rPro"] = true;
+  f["pctFlash"] = true; f["labelFlash"] = true; f["rFlash"] = true;
 }
 
 bool antigravityApply(const String& body) {
@@ -217,15 +221,23 @@ bool antigravityApply(const String& body) {
   if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
   if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
 
-  bool gotPct = doc["pctModel"].is<int>();
-  if (!gotPct) return false;
+  bool gotAny = doc["pctPro"].is<int>() || doc["pctFlash"].is<int>();
+  if (!gotAny) return false;
 
-  g_antigravity.pctModel = doc["pctModel"].as<int>(); g_antigravity.hasPctModel = true;
-  if (doc["label"].is<const char*>()) {
-    strlcpy(g_antigravity.label, doc["label"].as<const char*>(), sizeof(g_antigravity.label));
-    g_antigravity.hasLabel = true;
+  if (doc["pctPro"].is<int>()) { g_antigravity.pctPro = doc["pctPro"].as<int>(); g_antigravity.hasPctPro = true; }
+  if (doc["labelPro"].is<const char*>()) {
+    strlcpy(g_antigravity.labelPro, doc["labelPro"].as<const char*>(), sizeof(g_antigravity.labelPro));
+    g_antigravity.hasLabelPro = true;
   }
-  if (doc["rModel"].is<int>()) { g_antigravity.rModel = doc["rModel"].as<int>(); g_antigravity.hasRModel = true; }
+  if (doc["rPro"].is<int>()) { g_antigravity.rPro = doc["rPro"].as<int>(); g_antigravity.hasRPro = true; }
+
+  if (doc["pctFlash"].is<int>()) { g_antigravity.pctFlash = doc["pctFlash"].as<int>(); g_antigravity.hasPctFlash = true; }
+  if (doc["labelFlash"].is<const char*>()) {
+    strlcpy(g_antigravity.labelFlash, doc["labelFlash"].as<const char*>(), sizeof(g_antigravity.labelFlash));
+    g_antigravity.hasLabelFlash = true;
+  }
+  if (doc["rFlash"].is<int>()) { g_antigravity.rFlash = doc["rFlash"].as<int>(); g_antigravity.hasRFlash = true; }
+
   g_antigravity.valid = true;
   g_antigravity.lastOkMs = millis();
   return true;

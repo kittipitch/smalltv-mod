@@ -43,11 +43,6 @@ static void fmtReset(int mins, char* out, size_t n) {
   else            snprintf(out, n, "%dm", m);
 }
 
-// Two stacked cards, same shape/spacing as Codex/z.ai's two-window layout
-// (top=50/138, 82px tall each) -- per live feedback ("we can have two
-// cards") replacing an earlier single-card version that crammed a
-// shortened model code onto its own line inside the percentage card.
-
 // Hard-truncate to maxChars, appending ".." when the source is longer
 // (this font has no ellipsis glyph). maxChars includes the ".." itself.
 static void truncateDots(const char* in, char* out, size_t outCap, int maxChars) {
@@ -61,116 +56,88 @@ static void truncateDots(const char* in, char* out, size_t outCap, int maxChars)
   out[keep] = '.'; out[keep + 1] = '.'; out[keep + 2] = 0;
 }
 
-// Split label into up to 2 lines, each <= maxChars, breaking at the last
-// space at-or-before maxChars so real model names ("Gemini 3.6 Flash
-// (Medium)") wrap on a word boundary instead of getting hard-truncated
-// mid-word. If no space exists within maxChars (or the whole label already
-// fits on one line), line 2 is left empty. Line 2 itself is truncateDots-
-// capped in case the remainder is still too long for a single line.
-static void wrapModelName(const char* label, char* l1, size_t l1cap,
-                           char* l2, size_t l2cap, int maxChars) {
-  const char* src = (label && label[0]) ? label : "--";
-  int len = (int)strlen(src);
-  if (len <= maxChars) {
-    strlcpy(l1, src, l1cap);
-    l2[0] = 0;
-    return;
-  }
-  int splitAt = -1;
-  for (int i = maxChars; i >= 0; i--) {
-    if (src[i] == ' ') { splitAt = i; break; }
-  }
-  if (splitAt <= 0) {
-    truncateDots(src, l1, l1cap, maxChars);
-    l2[0] = 0;
-    return;
-  }
-  int keep = splitAt;
-  if (keep >= (int)l1cap) keep = (int)l1cap - 1;
-  memcpy(l1, src, keep);
-  l1[keep] = 0;
-  truncateDots(src + splitAt + 1, l2, l2cap, maxChars);
-}
-
-// Card 1: the real model name, shown whole (word-wrapped across 2 lines)
-// rather than hard-truncated to 8 chars. Started as the SAME skeleton
-// every other quota card on this device uses (label top-left/value
-// top-right/bar/countdown row) per live feedback ("make sure the two
-// cards layout matches in all screens... similar position of cards and
-// text") -- but the bar/countdown row there were always a duplicate of
-// card 2's own pctModel/rModel (no second metric exists for card 1 to
-// show), and per later live feedback ("in place of the top bar replace
-// w/ the model name .. the width shud help showing full") both the
-// duplicate bar AND the duplicate 8-char-truncated value in the header
-// row are gone -- the name now gets the whole card body (2 lines at
-// size2, word-wrapped) instead of appearing twice, truncated two
-// different ways. The countdown row is also dropped (redundant with card
-// 2's own, and there's no metric here to attach a countdown to) -- left
-// as blank space rather than shrinking the card, so card height (h=82,
-// shared by every quota page's card geometry) doesn't need to change.
-static void drawAntigravityLabelCard(Arduino_GFX* gfx, int top, const char* label,
-                                      bool full) {
-  const int x = 8, w = 224, h = 82;
-  if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
-
-  gfx->setTextSize(2);
-  gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 12);
-  gfx->print("Model");
-
-  // Name body: word-wrapped across 2 lines, fixed at size2 -- never
-  // auto-shrunk below it (gfxFitSize would floor to an unreadable size1
-  // for a long name, already rejected once on the weather page for
-  // exactly this readability tradeoff, not repeating it here).
-  // Variable-length text on every draw (not just `full`) -- same
-  // "GemiGPT" ghosting risk this card was already fixed for once, so
-  // both lines are cleared unconditionally before printing, every draw,
-  // regardless of whether the new name needs both lines.
-  const int nameMaxW = w - 28;              // x+14 .. x+w-14, same margin as every other row
-  const int nameMaxChars = nameMaxW / 12;    // size2 glyph width = 6px * 2
-  gfx->fillRect(x + 14, top + 44, nameMaxW, 34, C_PANEL);
-  char line1[20], line2[20];
-  wrapModelName(label, line1, sizeof(line1), line2, sizeof(line2), nameMaxChars);
-  gfx->setTextColor(C_WHITE, C_PANEL);
-  gfx->setCursor(x + 14, top + 44);
-  gfx->print(line1);
-  if (line2[0]) {
-    gfx->setCursor(x + 14, top + 62);
-    gfx->print(line2);
-  }
-
-  // Countdown row intentionally left blank (see header comment) -- no
-  // draw call here, just unused card space, same h=82 as every other card.
-}
-
-// Card 2: big %, fill bar, reset countdown -- same shape as
-// CodexMode.cpp's drawCodexMeter().
-static void drawAntigravityMeter(Arduino_GFX* gfx, int top,
+// Two stacked cards, same shape/spacing as Codex/z.ai's two-window layout
+// (top=50/138, 82px tall each). Per live feedback ("ok let's bring back 2
+// bars... remove the line that says Model and replace it w/ model
+// names.. we will show pro and flash % and re[set] time") this is now two
+// REAL metrics, not one number shown twice: this account's real model
+// configs (confirmed live via `agy models`) split into a Gemini Pro
+// family (gemini-3.1-pro-*) and a Gemini Flash family
+// (gemini-3.5/3.6-flash-*) -- see clawdmeter_daemon.py's poll_antigravity()
+// for the per-family "pick tightest variant" logic. Non-Gemini models this
+// account also has (Claude Sonnet/Opus, GPT-OSS) aren't shown here, they
+// already have their own dedicated pages on this device. Identical shape
+// to drawZaiMeter()/drawCodexMeter() -- label top-left (the daemon's
+// "<version> <family>" string, e.g. "3.6 Flash", replacing the generic
+// "Model"/"Quota" captions two earlier designs used here), big value
+// top-right, bar, countdown row.
+//
+// The value is fixed at size4, not the size5 every other quota page's
+// card uses -- a deliberate, page-scoped exception (tried size3 first,
+// per live feedback ("can we use size 4")). A naive size4 with the old
+// 3-digit "%3d%%" format would NOT have fit the full label (only ~8
+// chars of room, "3.6 Flash" needs 9) -- what actually makes size4 work
+// is capping the DISPLAYED value at 2 digits (see the `dispPct` comment
+// below, per live feedback "the percentage is 2 number max"), which
+// gives back the exact width size3 had. Card x/w/h/top positions are
+// UNCHANGED from every other quota page (top=50/138, h=82) throughout
+// every revision of this card -- only the value's own font size and
+// digit-width vary.
+static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
                                   bool has, int pct, bool hasReset, int resetMins,
                                   bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
-  // Both branches must produce the same-length string (see UsageMode.cpp's
-  // drawMeter() comment on the "%3d%%" fixed-width invariant) -- a runtime
-  // ternary picking the *format string* would also silently disable
-  // -Wformat-truncation, since GCC can't check a non-literal format.
+  // Displayed value is capped at 2 digits (99% max), NOT the real `pct`
+  // used for the bar fill/color below -- per explicit live feedback
+  // ("the percentage is 2 number max"). This is a deliberate display-only
+  // clamp (a common "don't print 100% until truly done" UI convention),
+  // not a data-accuracy compromise: the bar itself, and pctColor()'s red
+  // threshold, still use the real unclamped `pct`, so a genuinely
+  // exhausted quota still reads as a full red bar even though the number
+  // reads "99%" instead of "100%". This is what makes size4 (not size3)
+  // fit the full label: a fixed 3-char "NN%"/" --" is 72px at size4 --
+  // identical width to a fixed 4-char "%3d%%" at size3 -- so this trades
+  // one digit of display precision at the true-100% edge case for a
+  // visibly bigger value everywhere else.
+  int dispPct = has ? (pct > 99 ? 99 : (pct < 0 ? 0 : pct)) : 0;
   char pc[8];
-  if (has) snprintf(pc, sizeof(pc), "%3d%%", constrain(pct, 0, 100));
-  else     strlcpy(pc, "  --", sizeof(pc));
-  uint8_t sz = gfxFitSize(pc, 150, 5);
+  if (has) snprintf(pc, sizeof(pc), "%2d%%", dispPct);
+  else     strlcpy(pc, " --", sizeof(pc));
+  uint8_t sz = gfxFitSize(pc, 150, 4);
   int pcw = gfxTextW(pc, sz);
   gfx->setTextSize(sz);
   gfx->setTextColor(C_WHITE, C_PANEL);
   gfx->setCursor(x + w - pcw - 14, top + 10);
   gfx->print(pc);
 
-  if (full) {
-    gfx->setTextSize(2);
-    gfx->setTextColor(C_DIM);
-    gfx->setCursor(x + 14, top + 12);
-    gfx->print("Quota");
-  }
+  // Label drawn UNCONDITIONALLY (not gated on `full`), opaque, fixed-width
+  // padded -- unlike z.ai's "5h"/"MCP" (static, safe to gate on `full`
+  // since they never change), this label is the daemon-reported string
+  // and CAN change poll to poll (a Flash generation swap, or an old
+  // daemon that never sends labelPro/labelFlash at all) -- gating on
+  // `full` would leave a stale/blank label on a data-only redraw, the
+  // exact single-card-looking bug already found and fixed once on the
+  // Codex page (`drawCodexPage()` calling a card function conditionally).
+  // Fixed at exactly 10 chars (truncated, then padded) -- NOT simply
+  // padded to whatever length the label happens to be. At size4 with the
+  // 2-digit value cap above, the value's cursor is x=146
+  // (x+w-pcw-14, pcw=72 for a fixed 3-char "NN%"), and this label row
+  // starts at x=22 -- 124px/10.3 chars of headroom before the two rows'
+  // bounding boxes (which DO overlap vertically: label y=12..28, value
+  // y=10..42) start to collide. Real labels seen live are 9 chars
+  // ("3.6 Flash"); 10 leaves a small margin for a future double-digit
+  // minor version ("3.10 Flash"). truncateDots caps anything longer
+  // still.
+  char lblRaw[12];
+  truncateDots((label && label[0]) ? label : "--", lblRaw, sizeof(lblRaw), 10);
+  char lbl[11];
+  snprintf(lbl, sizeof(lbl), "%-10s", lblRaw);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 12);
+  gfx->print(lbl);
 
   int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
   gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
@@ -216,9 +183,13 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
   }
 
   // Two cards, same top=50/138 stacking Codex/z.ai use for their two
-  // windows. Card 1: model code. Card 2: percentage/bar/reset.
-  drawAntigravityLabelCard(gfx, 50, a.hasLabel ? a.label : "", full);
-  drawAntigravityMeter(gfx, 138, a.hasPctModel, a.pctModel, a.hasRModel, a.rModel, full, growRight);
+  // windows. Card 1: Gemini Pro family. Card 2: Gemini Flash family. Both
+  // always drawn unconditionally (not gated on has*) -- same
+  // both-cards-always-drawn fix already applied to CodexMode.cpp.
+  drawAntigravityMeter(gfx, 50,  a.hasLabelPro ? a.labelPro : "Pro",
+                        a.hasPctPro, a.pctPro, a.hasRPro, a.rPro, full, growRight);
+  drawAntigravityMeter(gfx, 138, a.hasLabelFlash ? a.labelFlash : "Flash",
+                        a.hasPctFlash, a.pctFlash, a.hasRFlash, a.rFlash, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/CodexMode.cpp -- per the same

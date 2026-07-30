@@ -44,8 +44,13 @@ pin the display to one mode:
   countdown
 - **Codex** — weekly quota % + reset countdown, plus a second card for free
   "rate-limit reset" credits and when the soonest one expires unused
-- **Antigravity** — the tightest-constrained model's quota % + reset
-  countdown, with the model name shown (it can change poll to poll)
+- **Antigravity** — two cards: your Gemini Pro family's quota % + reset
+  countdown, and your Gemini Flash family's, each labeled with which
+  version is currently backing the number (e.g. "3.6 Flash" — picks the
+  newest version your account has, not just whichever is numerically
+  tightest). Non-Gemini models this account may also have access to
+  (Claude, GPT-OSS variants run through `agy`) aren't shown here — they
+  have their own dedicated pages already
 - **Agenda** — up to 6 upcoming Google Calendar events (3 per page, a
   second page auto-appears if you have more than 3), color-coded by which
   calendar each event came from

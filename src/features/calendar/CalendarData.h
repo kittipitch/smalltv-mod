@@ -160,29 +160,46 @@ struct CodexData {
   }
 };
 
-// Antigravity CLI (`agy`) quota -- {ok,pctModel?,label?,rModel?}. Single-card
-// shape, unlike Codex/z.ai's two windows: the daemon's poll_antigravity()
-// only has one clean metric (the model with the LOWEST
-// quotaInfo.remainingFraction, picked deterministically -- see that
-// function's docstring for why "first isRecommended" wasn't stable and why
-// the account-level credit-pool fields it tried first were wrong). `label`
-// is which model that percentage belongs to -- shown on the card since the
-// model backing the number can change poll to poll.
+// Antigravity CLI (`agy`) quota -- {ok,pctPro?,labelPro?,rPro?,pctFlash?,
+// labelFlash?,rFlash?}. Two-window shape, same as Codex/z.ai: the daemon's
+// poll_antigravity() splits this account's real model configs into a
+// Gemini Pro family and a Gemini Flash family (non-Gemini models this
+// account also has -- Claude Sonnet/Opus, GPT-OSS -- aren't surfaced here,
+// they have their own dedicated pages already) and reports each family's
+// LATEST version's tightest-constrained variant separately -- version
+// wins over quota (a numerically tighter but older-generation entry, e.g.
+// 3.5 Flash, is not picked over a newer one, e.g. 3.6 Flash) -- see that
+// function's docstring for the full reasoning. `labelPro`/`labelFlash`
+// are "<version> <family>" strings (e.g. "3.6 Flash") -- shown on each
+// card since which reasoning-tier variant backs the number can change
+// poll to poll. Wide enough that AntigravityMode.cpp's two cards use a
+// smaller value font (size3, not every other quota card's size5) to
+// leave room for it -- see that file's drawAntigravityMeter() comment.
 struct AntigravityData {
-  int  pctModel;
-  bool hasPctModel;
-  char label[24];        // model name, e.g. "Gemini 3.6 Flash (High)"
-  bool hasLabel;
-  int  rModel;          // minutes until this model's quota resets
-  bool hasRModel;
+  int  pctPro;
+  bool hasPctPro;
+  char labelPro[16];     // e.g. "3.1 Pro"
+  bool hasLabelPro;
+  int  rPro;             // minutes until the Pro family's quota resets
+  bool hasRPro;
+
+  int  pctFlash;
+  bool hasPctFlash;
+  char labelFlash[16];   // e.g. "3.6 Flash"
+  bool hasLabelFlash;
+  int  rFlash;           // minutes until the Flash family's quota resets
+  bool hasRFlash;
 
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
 
   void clear() {
-    pctModel = 0; hasPctModel = false;
-    label[0] = 0; hasLabel = false;
-    rModel = 0; hasRModel = false;
+    pctPro = 0; hasPctPro = false;
+    labelPro[0] = 0; hasLabelPro = false;
+    rPro = 0; hasRPro = false;
+    pctFlash = 0; hasPctFlash = false;
+    labelFlash[0] = 0; hasLabelFlash = false;
+    rFlash = 0; hasRFlash = false;
     valid = false;
     lastOkMs = 0;
   }
