@@ -108,7 +108,12 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
   uint8_t sz = gfxFitSize(pc, 150, 4);
   int pcw = gfxTextW(pc, sz);
   gfx->setTextSize(sz);
-  gfx->setTextColor(C_WHITE, C_PANEL);
+  // Red ONLY at the true-100% edge case ("99%" would otherwise be
+  // indistinguishable from a real 99), white everywhere else -- per
+  // explicit request, this page only. Not a severity threshold (that's
+  // what the bar's pctColor() already is) -- this is a correctness flag:
+  // red means "the number shown is capped, the real value is higher."
+  gfx->setTextColor((has && pct >= 100) ? C_RED : C_WHITE, C_PANEL);
   gfx->setCursor(x + w - pcw - 14, top + 10);
   gfx->print(pc);
 
