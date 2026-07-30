@@ -50,7 +50,11 @@ pin the display to one mode:
   newest version your account has, not just whichever is numerically
   tightest). Non-Gemini models this account may also have access to
   (Claude, GPT-OSS variants run through `agy`) aren't shown here — they
-  have their own dedicated pages already
+  have their own dedicated pages already. The shown percentage is capped
+  at 99% (the bar/color underneath still reflects the real value), and
+  the number itself turns red exactly when the real quota is fully
+  exhausted (100%) — white otherwise — so a capped 99% is never mistaken
+  for a real 99%
 - **Agenda** — up to 6 upcoming Google Calendar events (3 per page, a
   second page auto-appears if you have more than 3), color-coded by which
   calendar each event came from
