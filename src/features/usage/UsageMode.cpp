@@ -8,7 +8,10 @@
 UsageMode g_usageMode;
 
 // Claude-usage palette (Anthropic-inspired dark theme, RGB565 of the originals)
-#define C_ACCENT  0xDBAA   // terra-cotta 0xd97757
+#define C_ACCENT  0xDBAA   // terra-cotta 0xd97757 -- orange band
+#define C_YELLOW  0xFE01   // caution yellow ~#FFC107 -- same value CalendarMode.cpp's
+                            // C_STORM uses, already proven distinguishable from C_ACCENT
+                            // on this screen
 #define C_UGREEN  0x7C6B   // green 0x788c5d
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e
 #define C_BARBG   0x2945   // unfilled bar track 0x2a2a28
@@ -49,9 +52,14 @@ static void fmtReset(int mins, char* out, size_t n) {
   else            snprintf(out, n, "%dm", m);
 }
 
-static uint16_t barColor(float pct) {
-  if (pct >= 90) return C_RED;
-  if (pct >= 75) return C_ACCENT;
+// Takes the already-rounded displayed percentage, not the raw float -- a
+// raw float and the "%3d%%" display can round to different bands right at
+// a threshold (e.g. 49.6 displays "50%" but is still < 50 unrounded),
+// showing a number/color pair that visually contradicts each other.
+static uint16_t barColor(int pctRounded) {
+  if (pctRounded >= 90) return C_RED;
+  if (pctRounded >= 70) return C_ACCENT;
+  if (pctRounded >= 50) return C_YELLOW;
   return C_UGREEN;
 }
 
@@ -76,8 +84,9 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
   // Label left, percentage right, bar fills from the right edge.
+  int pctRounded = (int)lroundf(constrain(pct, 0.0f, 100.0f));
   char pc[8];
-  snprintf(pc, sizeof(pc), "%3d%%", (int)lroundf(constrain(pct, 0.0f, 100.0f)));
+  snprintf(pc, sizeof(pc), "%3d%%", pctRounded);
   uint8_t sz = gfxFitSize(pc, 150, 5);
   int pcw = gfxTextW(pc, sz);
   gfx->setTextSize(sz);
@@ -104,7 +113,7 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
   // (growRight=false) anchors to the left edge (bx), growing rightward —
   // the more familiar "loading bar" direction.
   int fx = growRight ? (bx + bw - fw) : bx;
-  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, barColor(pct));
+  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, barColor(pctRounded));
 
   char rs[16], line[10 + sizeof(rs) + 1];
   fmtReset(resetMins, rs, sizeof(rs));

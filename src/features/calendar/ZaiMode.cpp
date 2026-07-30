@@ -11,16 +11,21 @@ ZaiMode g_zaiMode;
 // yet, each mode defines what it needs.
 #define C_DIM     0xB574   // secondary/placeholder text, warm grey
 #define C_UGREEN  0x7C6B   // sage green -- comfortable usage
+#define C_YELLOW  0xFE01   // caution yellow ~#FFC107 -- same value CalendarMode.cpp's
+                            // C_STORM uses, already proven distinguishable from C_ACCENT
+                            // on this screen
 #define C_ACCENT  0xDBAA   // terra-cotta -- getting close
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
 #define C_BARBG   0x2945   // unfilled bar track
 // C_RED comes from Gfx.h (shared across modes already, see UsageMode.cpp)
 
 // Same threshold philosophy as UsageMode.cpp's barColor() -- green under
-// 75%, terra-cotta approaching the cap, red once actually tight.
+// 50%, yellow climbing, terra-cotta approaching the cap, red once actually
+// tight. Matches the statusline script's own green/yellow/orange/red bands.
 static uint16_t pctColor(int pct) {
   if (pct >= 90) return C_RED;
-  if (pct >= 75) return C_ACCENT;
+  if (pct >= 70) return C_ACCENT;
+  if (pct >= 50) return C_YELLOW;
   return C_UGREEN;
 }
 
