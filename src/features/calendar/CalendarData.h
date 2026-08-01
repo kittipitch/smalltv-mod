@@ -57,9 +57,13 @@ struct WeatherData {
   bool     hasUvIndex;
 
   float    pm25;
-  int      aqi;         // US AQI
+  int      aqi;         // US AQI, Open-Meteo's own 24h-rolling-average-derived value
+  int      aqiNow;       // US AQI computed daemon-side from THIS hour's pm25 alone
+                          // (python-aqi, classic pre-2024 EPA breakpoints) -- a fast-
+                          // reacting complement to aqi, not a replacement for it.
   bool     hasPm25;
   bool     hasAqi;
+  bool     hasAqiNow;
 
   char     city[WX_CITY_LEN];  // reverse-geocoded by the daemon, cached there
   bool     hasCity;
@@ -73,7 +77,7 @@ struct WeatherData {
     tempC = 0; precipPct = 0; hasTemp = hasPrecip = false;
     weatherCode = 0; hasWeatherCode = false;
     uvIndex = 0; hasUvIndex = false;
-    pm25 = 0; aqi = 0; hasPm25 = hasAqi = false;
+    pm25 = 0; aqi = 0; aqiNow = 0; hasPm25 = hasAqi = hasAqiNow = false;
     city[0] = 0; hasCity = false;
     valid = false; forecastError = false; aqError = false;
     lastOkMs = 0;

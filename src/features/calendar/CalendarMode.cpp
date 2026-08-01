@@ -367,32 +367,52 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   }
   drawRow(gfx, 180, 3, aqiColor, aqiBuf);
 
-  // Unit is "\xE6g/m3" -- 0xE6 is the micro sign (µ) in this font's CP437
-  // layout, verified against the actual glyph bitmap before trusting the
-  // byte value (same rigor as the °C fix above: rendering a raw Latin-1
-  // guess here would print the wrong glyph). No superscript-3 glyph
-  // exists in this font's 256-char set, so "m3" not "m³" -- a real
-  // constraint, not an oversight. No space before the unit (matches how
-  // °C/% already omit it elsewhere on this page) -- a realistic
-  // worst-case 3-digit reading is "PM 2.5 100.0\xE6g/m3", 17 chars at
-  // size2 = 204px, comfortably inside the 226px budget (240px screen,
-  // 14px left margin) even with the space kept; dropped anyway for
-  // consistency with °C/% on this same page, not because it was needed.
-  char pm[24] = "PM 2.5 --";
+  // Unit dropped (used to be the µg/m3 suffix) to make room for aqiNow --
+  // a real-time AQI computed daemon-side from THIS hour's PM2.5 alone
+  // (python-aqi, classic EPA breakpoints), unlike the AQI row above which
+  // is Open-Meteo's own 24h-rolling-average us_aqi and can stay elevated
+  // for hours after a real spike has already passed (confirmed live this
+  // session) -- this row is the fast-reacting complement, colored by the
+  // same severity bands as the AQI row so a fresh spike is visible
+  // immediately instead of waiting on the rolling average to catch up.
+  char pm[32] = "PM 2.5 --";
+  uint16_t pmColor = C_DIM;
   if (w.hasPm25) {
     // constrain() before lroundf()/formatting: pm25 comes straight from a
     // daemon push with no range validation upstream, same UB risk as tempC
-    // above -- clamp to what the pm[24] buffer and this line's width
-    // budget were actually sized for (never assume a source float is sane).
+    // above -- clamp to what this line's width budget was actually sized
+    // for (never assume a source float is sane).
     float pm25c = constrain(w.pm25, 0.0f, 999.9f);
+    char pmVal[10];
     // Drop the ".0" when the source value is a whole number (Open-Meteo
     // often reports e.g. 12.0) -- keep one decimal otherwise.
     if (fabsf(pm25c - roundf(pm25c)) < 0.05f)
-      snprintf(pm, sizeof(pm), "PM 2.5 %d\xE6g/m3", (int)lroundf(pm25c));
+      snprintf(pmVal, sizeof(pmVal), "%d", (int)lroundf(pm25c));
     else
-      snprintf(pm, sizeof(pm), "PM 2.5 %.1f\xE6g/m3", pm25c);
+      snprintf(pmVal, sizeof(pmVal), "%.1f", pm25c);
+    if (w.hasAqiNow) {
+      // Same UB guard as every other daemon-pushed field on this page:
+      // aqiNow is already clamped to python-aqi's 0-500 range server-side,
+      // but re-clamp here too since /api/weather can be hit directly.
+      int aqiN = w.aqiNow;
+      if (aqiN < 0) aqiN = 0;
+      if (aqiN > 500) aqiN = 500;
+      snprintf(pm, sizeof(pm), "PM 2.5 %s NOW %d", pmVal, aqiN);
+      pmColor = (aqiN <= 50)  ? C_AQI_GOOD :
+                (aqiN <= 100) ? C_AQI_MODERATE :
+                (aqiN <= 150) ? C_AQI_SENSITIVE :
+                (aqiN <= 200) ? C_AQI_UNHEALTHY :
+                (aqiN <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
+    } else {
+      snprintf(pm, sizeof(pm), "PM 2.5 %s", pmVal);
+    }
   }
-  drawRow(gfx, 212, 2, C_DIM, pm);
+  // gfxFitSize (not a fixed size 2) since the combined string's length now
+  // varies with both pm25's and aqiNow's real digit counts -- e.g. worst
+  // case "PM 2.5 100.0 AQI 500" (20 chars) would overflow the 226px budget
+  // at a fixed size 2 (240px); auto-shrinking is a defensive fallback for
+  // that edge case, not the expected everyday rendering.
+  drawRow(gfx, 212, gfxFitSize(pm, 226, 2), pmColor, pm);
 }
 
 // ---- DisplayMode: Agenda -----------------------------------------------

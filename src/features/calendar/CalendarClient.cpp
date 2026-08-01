@@ -106,7 +106,7 @@ bool calendarApply(const String& body) {
 static void weatherFilter(JsonDocument& f) {
   f["ok"] = true; f["tempC"] = true; f["precipPct"] = true;
   f["weatherCode"] = true; f["uvIndex"] = true;
-  f["pm25"] = true; f["aqi"] = true; f["city"] = true;
+  f["pm25"] = true; f["aqi"] = true; f["aqiNow"] = true; f["city"] = true;
 }
 
 bool weatherApply(const String& body) {
@@ -121,8 +121,9 @@ bool weatherApply(const String& body) {
   bool gotUv = doc["uvIndex"].is<float>() || doc["uvIndex"].is<int>();
   bool gotPm = doc["pm25"].is<float>() || doc["pm25"].is<int>();
   bool gotAqi = doc["aqi"].is<int>();
+  bool gotAqiNow = doc["aqiNow"].is<int>();
   bool gotCity = doc["city"].is<const char*>();
-  if (!gotTemp && !gotPrecip && !gotCode && !gotUv && !gotPm && !gotAqi && !gotCity) return false;
+  if (!gotTemp && !gotPrecip && !gotCode && !gotUv && !gotPm && !gotAqi && !gotAqiNow && !gotCity) return false;
 
   if (gotTemp)   { g_weather.tempC = doc["tempC"].as<float>(); g_weather.hasTemp = true; }
   if (gotPrecip) { g_weather.precipPct = doc["precipPct"].as<int>(); g_weather.hasPrecip = true; }
@@ -130,9 +131,10 @@ bool weatherApply(const String& body) {
   if (gotUv)     { g_weather.uvIndex = doc["uvIndex"].as<float>(); g_weather.hasUvIndex = true; }
   if (gotPm)     { g_weather.pm25 = doc["pm25"].as<float>(); g_weather.hasPm25 = true; }
   if (gotAqi)    { g_weather.aqi = doc["aqi"].as<int>(); g_weather.hasAqi = true; }
+  if (gotAqiNow) { g_weather.aqiNow = doc["aqiNow"].as<int>(); g_weather.hasAqiNow = true; }
   if (gotCity)   { stripNonAscii(doc["city"].as<const char*>(), g_weather.city, sizeof(g_weather.city)); g_weather.hasCity = true; }
   g_weather.forecastError = !(gotTemp || gotPrecip || gotCode || gotUv);
-  g_weather.aqError = !(gotPm || gotAqi);
+  g_weather.aqError = !(gotPm || gotAqi || gotAqiNow);
   g_weather.valid = true;
   g_weather.lastOkMs = millis();
   return true;
