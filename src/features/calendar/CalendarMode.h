@@ -74,6 +74,22 @@ class CalendarWeatherMode : public DisplayMode {
   uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.lastOkMs drawn (covers AQI too)
 };
 
-extern CalendarAgendaMode  g_calendarAgendaMode;
-extern CalendarAgendaMode2 g_calendarAgendaMode2;
-extern CalendarWeatherMode g_calendarWeatherMode;
+class CalendarForecastMode : public DisplayMode {
+ public:
+  const char* id() const override { return "forecast"; }
+  uint8_t     modeConst() const override { return MODE_CAL_FORECAST; }
+
+  void begin(const Settings& s) override;
+  void service(const Settings& s) override;
+  void invalidate(const Settings& s) override;
+  void wake(const Settings& s) override { needRender_ = true; }
+
+ private:
+  bool     needRender_ = true;
+  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.lastOkMs drawn
+};
+
+extern CalendarAgendaMode   g_calendarAgendaMode;
+extern CalendarAgendaMode2  g_calendarAgendaMode2;
+extern CalendarWeatherMode  g_calendarWeatherMode;
+extern CalendarForecastMode g_calendarForecastMode;

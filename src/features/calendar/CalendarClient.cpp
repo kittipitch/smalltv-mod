@@ -107,6 +107,12 @@ static void weatherFilter(JsonDocument& f) {
   f["ok"] = true; f["tempC"] = true; f["precipPct"] = true;
   f["weatherCode"] = true; f["uvIndex"] = true;
   f["pm25"] = true; f["aqi"] = true; f["aqiNow"] = true; f["city"] = true;
+  // Array filter: one representative element describes which fields to
+  // keep on EVERY element of "forecast", per ArduinoJson's own filter
+  // semantics for arrays (not one filter entry per real array index).
+  JsonObject fc = f["forecast"].add<JsonObject>();
+  fc["date"] = true; fc["code"] = true; fc["hi"] = true; fc["lo"] = true;
+  fc["precip"] = true; fc["aqi"] = true;
 }
 
 bool weatherApply(const String& body) {
@@ -123,7 +129,8 @@ bool weatherApply(const String& body) {
   bool gotAqi = doc["aqi"].is<int>();
   bool gotAqiNow = doc["aqiNow"].is<int>();
   bool gotCity = doc["city"].is<const char*>();
-  if (!gotTemp && !gotPrecip && !gotCode && !gotUv && !gotPm && !gotAqi && !gotAqiNow && !gotCity) return false;
+  bool gotForecast = doc["forecast"].is<JsonArrayConst>();
+  if (!gotTemp && !gotPrecip && !gotCode && !gotUv && !gotPm && !gotAqi && !gotAqiNow && !gotCity && !gotForecast) return false;
 
   if (gotTemp)   { g_weather.tempC = doc["tempC"].as<float>(); g_weather.hasTemp = true; }
   if (gotPrecip) { g_weather.precipPct = doc["precipPct"].as<int>(); g_weather.hasPrecip = true; }
@@ -133,6 +140,47 @@ bool weatherApply(const String& body) {
   if (gotAqi)    { g_weather.aqi = doc["aqi"].as<int>(); g_weather.hasAqi = true; }
   if (gotAqiNow) { g_weather.aqiNow = doc["aqiNow"].as<int>(); g_weather.hasAqiNow = true; }
   if (gotCity)   { stripNonAscii(doc["city"].as<const char*>(), g_weather.city, sizeof(g_weather.city)); g_weather.hasCity = true; }
+
+  // "forecast" is independently optional like every other field here, but
+  // unlike a stale single value (a slightly-old temp/AQI number still
+  // reads as roughly right), stale forecast days show wrong DATES once
+  // the real date has moved on -- worse than showing nothing. So a push
+  // that omits "forecast" entirely explicitly clears it rather than
+  // leaving the last-parsed days in place (State's keep-last-good only
+  // preserves the previous payload on a whole-poll failure; a poll that
+  // succeeds overall via a different field, e.g. AQI, while its own
+  // forecast fetch specifically failed, is a real and reachable case --
+  // confirmed live this session that partial poll failures happen).
+  if (gotForecast) {
+    JsonArrayConst forecast = doc["forecast"].as<JsonArrayConst>();
+    uint8_t n = 0;
+    for (JsonObjectConst day : forecast) {
+      if (n >= WX_FC_DAYS) break;
+      bool hasDate = day["date"].is<const char*>();
+      bool hasCode = day["code"].is<int>();
+      bool hasHi = day["hi"].is<int>();
+      bool hasLo = day["lo"].is<int>();
+      if (!hasDate || !hasCode || !hasHi || !hasLo) continue;   // skip malformed entries
+      strlcpy(g_weather.fc[n].date, day["date"].as<const char*>(), sizeof(g_weather.fc[n].date));
+      g_weather.fc[n].code = day["code"].as<int>();
+      g_weather.fc[n].hi = day["hi"].as<int>();
+      g_weather.fc[n].lo = day["lo"].as<int>();
+      g_weather.fc[n].precip = day["precip"].is<int>() ? day["precip"].as<int>() : -1;
+      if (day["aqi"].is<int>()) {
+        g_weather.fc[n].aqi = day["aqi"].as<int>();
+        g_weather.fc[n].hasAqi = true;
+      } else {
+        g_weather.fc[n].hasAqi = false;
+      }
+      n++;
+    }
+    g_weather.fcCount = n;
+    g_weather.hasForecast = n > 0;
+  } else {
+    g_weather.fcCount = 0;
+    g_weather.hasForecast = false;
+  }
+
   g_weather.forecastError = !(gotTemp || gotPrecip || gotCode || gotUv);
   g_weather.aqError = !(gotPm || gotAqi || gotAqiNow);
   g_weather.valid = true;

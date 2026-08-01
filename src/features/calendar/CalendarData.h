@@ -44,6 +44,21 @@ struct CalendarEvent {
 // with no AQI (or vice versa) is a normal, expected state, not an error.
 #define WX_CITY_LEN 24   // truncated for display well before this
 
+#define WX_FC_DAYS 3   // tomorrow, +2, +3 -- today's own conditions are
+                        // already shown on the main weather page
+
+struct ForecastDay {
+  char date[6];   // "MM-DD", daemon-formatted (device does no date math here)
+  int  code;      // WMO weather code, same table as WeatherData.weatherCode
+  int  hi;        // daily max temp, whole degrees C (daemon-rounded)
+  int  lo;        // daily min temp, whole degrees C (daemon-rounded)
+  int  precip;    // max precipitation probability that day, %
+  int  aqi;       // daily AQI: python-aqi/EPA on that day's max hourly PM2.5
+                   // (daemon-side, same algorithm as WeatherData.aqiNow) --
+                   // independently optional, see hasAqi below
+  bool hasAqi;
+};
+
 struct WeatherData {
   float    tempC;
   int      precipPct;
@@ -68,6 +83,11 @@ struct WeatherData {
   char     city[WX_CITY_LEN];  // reverse-geocoded by the daemon, cached there
   bool     hasCity;
 
+  ForecastDay fc[WX_FC_DAYS];
+  uint8_t     fcCount;    // 0..WX_FC_DAYS, how many of fc[] are populated
+                           // (gates access, same pattern as CalendarEvent.count)
+  bool        hasForecast;
+
   bool     valid;        // at least one field populated at least once
   bool     forecastError; // last forecast (temp/precip) fetch failed
   bool     aqError;       // last air-quality fetch failed
@@ -79,6 +99,7 @@ struct WeatherData {
     uvIndex = 0; hasUvIndex = false;
     pm25 = 0; aqi = 0; aqiNow = 0; hasPm25 = hasAqi = hasAqiNow = false;
     city[0] = 0; hasCity = false;
+    fcCount = 0; hasForecast = false;
     valid = false; forecastError = false; aqError = false;
     lastOkMs = 0;
   }

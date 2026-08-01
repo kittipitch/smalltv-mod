@@ -419,8 +419,8 @@ var TZMAP={
 function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
  keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
 
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','zai','codex','antigravity']};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselZai','carouselCodex','carouselAntigravity']};
+var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','forecast','zai','codex','antigravity']};
+var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -441,7 +441,8 @@ var CAR_MODES=[
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
- {id:'weather',chk:'carouselWeather',label:'Weather + air quality'}
+ {id:'weather',chk:'carouselWeather',label:'Weather + air quality'},
+ {id:'forecast',chk:'carouselForecast',label:'3-day forecast'}
 ];
 var carOrder=CAR_MODES.map(function(m){return m.id});
 
@@ -530,7 +531,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -612,7 +613,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

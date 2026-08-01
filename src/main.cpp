@@ -58,6 +58,7 @@ static DisplayMode* kModes[] = {
   &g_calendarAgendaMode,
   &g_calendarAgendaMode2,
   &g_calendarWeatherMode,
+  &g_calendarForecastMode,
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
@@ -142,6 +143,7 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // same "skip until there's real content" pattern as ticker/z.ai above.
     case MODE_CAL_AGENDA2: return s.carouselAgenda2 && calendarGet().count > 3;
     case MODE_CAL_WEATHER: return s.carouselWeather;
+    case MODE_CAL_FORECAST: return s.carouselForecast;
 #if WITH_CALENDAR
     // Same "skip until there's real content" pattern as ticker above --
     // stays out of the carousel until the daemon has a working z.ai key
