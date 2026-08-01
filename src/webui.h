@@ -469,7 +469,12 @@ function renderCarouselList(cfg){
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
   var extra=id==='agenda'?renderAgenda2Toggle(cfg):'';
-  return '<div class="chk" style="display:flex;align-items:center;gap:8px">'+
+  // Rows with `extra` (currently only agenda's page-2 toggle) are taller than
+  // one line, so align-items:center would center the checkbox against the
+  // whole 2-line block instead of the row label's own line -- flex-start
+  // keeps the checkbox flush with the label text it belongs to.
+  var alignStyle=extra?'align-items:flex-start':'align-items:center';
+  return '<div class="chk" style="display:flex;'+alignStyle+';gap:8px">'+
    '<input id="'+m.chk+'" type="checkbox"'+(checked?' checked':'')+'>'+
    '<div style="flex:1"><label>'+m.label+'</label>'+extra+'</div>'+
    '<button type="button" class="btn sec" style="padding:4px 10px" onclick="carMove('+i+',-1)"'+(i===0?' disabled':'')+'>&#9650;</button>'+
