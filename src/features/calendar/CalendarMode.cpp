@@ -416,7 +416,15 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
     gfx->print(nowBuf);
   }
 
-  char pm[16] = "PM 2.5 --";
+  // Unit is "\xE6g/m3" -- 0xE6 is the micro sign (µ) in this font's CP437
+  // layout, verified against the actual glyph bitmap before trusting the
+  // byte value. No superscript-3 glyph exists in this font's 256-char
+  // set, so "m3" not "m³" -- a real constraint, not an oversight. No
+  // space before the unit, same reasoning as when this was first added:
+  // worst case at the 999.9 clamp below, "PM 2.5 999.9\xE6g/m3" is 17
+  // chars at size 2 = 204px, inside the 226px row budget -- gfxFitSize
+  // (not a fixed size) is a defensive fallback, not load-bearing here.
+  char pm[24] = "PM 2.5 --";
   if (w.hasPm25) {
     // constrain() before lroundf()/formatting: pm25 comes straight from a
     // daemon push with no range validation upstream, same UB risk as tempC
@@ -430,9 +438,9 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
       snprintf(pmVal, sizeof(pmVal), "%d", (int)lroundf(pm25c));
     else
       snprintf(pmVal, sizeof(pmVal), "%.1f", pm25c);
-    snprintf(pm, sizeof(pm), "PM 2.5 %s", pmVal);
+    snprintf(pm, sizeof(pm), "PM 2.5 %s\xE6g/m3", pmVal);
   }
-  drawRow(gfx, 212, 2, C_DIM, pm);
+  drawRow(gfx, 212, gfxFitSize(pm, 226, 2), C_DIM, pm);
 }
 
 // ---- DisplayMode: Agenda -----------------------------------------------
