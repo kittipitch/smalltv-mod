@@ -48,7 +48,8 @@ struct CalendarEvent {
                         // already shown on the main weather page
 
 struct ForecastDay {
-  char date[6];   // "MM-DD", daemon-formatted (device does no date math here)
+  char day[6];    // "Tmr"/"Mon"/"Tue"/etc, daemon-formatted (fixed English
+                   // 3-4 char labels, no date math or i18n done here)
   int  code;      // WMO weather code, same table as WeatherData.weatherCode
   int  hi;        // daily max temp, whole degrees C (daemon-rounded)
   int  lo;        // daily min temp, whole degrees C (daemon-rounded)

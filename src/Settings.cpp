@@ -302,6 +302,7 @@ void Settings::setDefaults() {
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
   carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselAntigravity = true;
+  forecastVertical = false;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -391,6 +392,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_CAL_AGENDA)  ? "agenda"
                             : (s.mode == MODE_CAL_AGENDA2) ? "agenda2"
                             : (s.mode == MODE_CAL_WEATHER) ? "weather"
+                            : (s.mode == MODE_CAL_FORECAST) ? "forecast"
                             : (s.mode == MODE_ZAI)      ? "zai"
                             : (s.mode == MODE_CODEX)    ? "codex"
                             : (s.mode == MODE_ANTIGRAVITY) ? "antigravity"
@@ -403,6 +405,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselAgenda2"]   = s.carouselAgenda2;
   root["carouselWeather"]   = s.carouselWeather;
   root["carouselForecast"]  = s.carouselForecast;
+  root["forecastVertical"]  = s.forecastVertical;
   root["carouselZai"]       = s.carouselZai;
   root["carouselCodex"]     = s.carouselCodex;
   root["carouselAntigravity"] = s.carouselAntigravity;
@@ -488,6 +491,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("agenda")   ? MODE_CAL_AGENDA
            : m.equalsIgnoreCase("agenda2")  ? MODE_CAL_AGENDA2
            : m.equalsIgnoreCase("weather")  ? MODE_CAL_WEATHER
+           : m.equalsIgnoreCase("forecast") ? MODE_CAL_FORECAST
            : m.equalsIgnoreCase("zai")      ? MODE_ZAI
            : m.equalsIgnoreCase("codex")    ? MODE_CODEX
            : m.equalsIgnoreCase("antigravity") ? MODE_ANTIGRAVITY
@@ -501,6 +505,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselAgenda2"].is<bool>()) s.carouselAgenda2 = root["carouselAgenda2"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
   if (root["carouselForecast"].is<bool>()) s.carouselForecast = root["carouselForecast"];
+  if (root["forecastVertical"].is<bool>()) s.forecastVertical = root["forecastVertical"];
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
   if (root["carouselAntigravity"].is<bool>()) s.carouselAntigravity = root["carouselAntigravity"];

@@ -111,7 +111,7 @@ static void weatherFilter(JsonDocument& f) {
   // keep on EVERY element of "forecast", per ArduinoJson's own filter
   // semantics for arrays (not one filter entry per real array index).
   JsonObject fc = f["forecast"].add<JsonObject>();
-  fc["date"] = true; fc["code"] = true; fc["hi"] = true; fc["lo"] = true;
+  fc["day"] = true; fc["code"] = true; fc["hi"] = true; fc["lo"] = true;
   fc["precip"] = true; fc["aqi"] = true;
 }
 
@@ -156,12 +156,12 @@ bool weatherApply(const String& body) {
     uint8_t n = 0;
     for (JsonObjectConst day : forecast) {
       if (n >= WX_FC_DAYS) break;
-      bool hasDate = day["date"].is<const char*>();
+      bool hasDay = day["day"].is<const char*>();
       bool hasCode = day["code"].is<int>();
       bool hasHi = day["hi"].is<int>();
       bool hasLo = day["lo"].is<int>();
-      if (!hasDate || !hasCode || !hasHi || !hasLo) continue;   // skip malformed entries
-      strlcpy(g_weather.fc[n].date, day["date"].as<const char*>(), sizeof(g_weather.fc[n].date));
+      if (!hasDay || !hasCode || !hasHi || !hasLo) continue;   // skip malformed entries
+      strlcpy(g_weather.fc[n].day, day["day"].as<const char*>(), sizeof(g_weather.fc[n].day));
       g_weather.fc[n].code = day["code"].as<int>();
       g_weather.fc[n].hi = day["hi"].as<int>();
       g_weather.fc[n].lo = day["lo"].as<int>();

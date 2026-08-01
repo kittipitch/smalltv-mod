@@ -463,13 +463,23 @@ function renderAgenda2Toggle(cfg){
   '<input id="carouselAgenda2" type="checkbox"'+(checked?' checked':'')+'> Also show events 4-6 (page 2, right after this one)</label>';
 }
 
+// Nested layout toggle rendered inside the "3-day forecast" row -- lets
+// the horizontal-rows and 3-column-vertical layouts be compared live
+// without a firmware reflash to switch back and forth.
+function renderForecastVerticalToggle(cfg){
+ var cur=$('forecastVertical');
+ var checked=cur?cur.checked:(cfg?cfg.forecastVertical===true:false);
+ return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin-top:4px;font-weight:normal">'+
+  '<input id="forecastVertical" type="checkbox"'+(checked?' checked':'')+'> Vertical layout (3 columns, bigger font)</label>';
+}
+
 function renderCarouselList(cfg){
  var el=$('carouselList'); if(!el)return;
  el.innerHTML=carOrder.map(function(id,i){
   var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
-  var extra=id==='agenda'?renderAgenda2Toggle(cfg):'';
+  var extra=id==='agenda'?renderAgenda2Toggle(cfg):(id==='forecast'?renderForecastVerticalToggle(cfg):'');
   // Rows with `extra` (currently only agenda's page-2 toggle) are taller than
   // one line, so align-items:center would center the checkbox against the
   // whole 2-line block instead of the row label's own line -- flex-start
@@ -532,6 +542,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  renderCarouselList(c);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false);
+ sc('forecastVertical',c.forecastVertical===true);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -614,6 +625,7 @@ function collect(){
   carouselOrder:carOrder.join(','),
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
   carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'),
+  forecastVertical:gc('forecastVertical'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),
