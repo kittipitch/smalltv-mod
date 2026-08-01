@@ -324,7 +324,7 @@ void setup() {
     gfxCrash(g_epcStr, g_addrStr, netIP().c_str());
   } else {
     // Show which network we joined and how to reach the web UI, long enough to read.
-    gfxStaInfo(netSSID().c_str(), netIP().c_str(), g_settings.hostname.c_str());
+    gfxStaInfo(netSSID().c_str(), netIP().c_str(), g_settings.hostname.c_str(), netMAC().c_str());
     delay(3500);
   }
 }

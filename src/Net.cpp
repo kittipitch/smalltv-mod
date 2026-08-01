@@ -162,3 +162,7 @@ String netSSID() {
 int netRSSI() {
   return (g_mode == NET_STA) ? WiFi.RSSI() : 0;
 }
+
+String netMAC() {
+  return WiFi.macAddress();
+}

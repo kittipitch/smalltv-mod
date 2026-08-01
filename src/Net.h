@@ -16,3 +16,4 @@ bool     netConnected();  // STA associated with an IP
 String   netIP();         // current IP (STA or AP)
 String   netSSID();       // joined SSID (STA) or AP SSID
 int      netRSSI();       // STA signal, 0 in AP mode
+String   netMAC();        // station MAC, same in STA or AP mode

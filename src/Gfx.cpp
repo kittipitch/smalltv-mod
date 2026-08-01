@@ -238,18 +238,19 @@ void gfxApInfo(const char* ssid, const char* pass, const char* ip) {
   gfxDrawCentered(url.c_str(), 206, gfxFitSize(url.c_str(), 232, 2), C_GREEN);
 }
 
-void gfxStaInfo(const char* ssid, const char* ip, const char* host) {
+void gfxStaInfo(const char* ssid, const char* ip, const char* host, const char* mac) {
   if (!gfx) return;
   gfx->fillScreen(C_BLACK);
   gfxDrawCentered("CONNECTED", 18, 3, C_GREEN);
   gfxDrawCentered("Network:", 62, 2, C_GRAY);
   gfxDrawCentered(ssid && ssid[0] ? ssid : "-", 84, gfxFitSize(ssid, 232, 3), C_WHITE);
   gfxDrawCentered("Open in browser:", 126, 2, C_GRAY);
-  // IP shown big (always fits at size 2); mDNS name below as a friendlier option.
+  // IP shown big (always fits at size 2); MAC right below it, mDNS name last.
   gfxDrawCentered(ip && ip[0] ? ip : "-", 150, gfxFitSize(ip, 232, 3), C_GREEN);
+  if (mac && mac[0]) gfxDrawCentered(mac, 178, gfxFitSize(mac, 232, 2), C_GRAY);
   if (host && host[0]) {
     String url = String("http://") + host + ".local";
-    gfxDrawCentered(url.c_str(), 188, gfxFitSize(url.c_str(), 232, 2), C_GRAY);
+    gfxDrawCentered(url.c_str(), 208, gfxFitSize(url.c_str(), 232, 2), C_GRAY);
   }
 }
 
