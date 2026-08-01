@@ -41,3 +41,7 @@ dependencies.lock
 # manual quotes-branch staging dir (see .github/workflows/quotes.yml)
 /out/
 .omc/
+
+# Local WiFi credentials for scripts/join_wifi.sh -- never commit real values,
+# only .env.example.
+.env
