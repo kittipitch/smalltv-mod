@@ -644,15 +644,16 @@ static void drawForecastPageHorizontal(Arduino_GFX* gfx, const WeatherData& w) {
 // clear the 80px column:
 //   day    "Tmr"/3-letter abbr, 3 chars * 6*2=12     = 36px
 //   hi/lo  "-99"/"199", 3 chars * 6*3=18             = 54px
-//   precip "100%" (clamped 0-100), 4 chars * 6*2=12  = 48px
+//   precip "100%" (clamped 0-100), 4 chars * 6*3=18  = 72px -- tight
+//          (4px margin each side) but legal, bumped to size 3 on request
 //   aqi    "500" (clamped 0-500) or "--", 3 chars * 6*3=18 = 54px --
 //          explicitly re-verified for the 3-digit case per live feedback,
 //          not just carried over from an earlier round's math.
 // Vertical stack: 27 top + 16 day + 6 gap + 40 icon + 8 gap + 24 hi +
-// 6 gap + 24 lo + 10 gap + 16 precip + 12 gap + 24 aqi = 213, 27px
-// bottom clearance -- centered (advisor-audit finding: an earlier 8/46
-// top/bottom split read as top-heavy on the real panel; the content
-// itself, 186px tall, is unchanged, only shifted +19 to center it).
+// 6 gap + 24 lo + 10 gap + 24 precip + 18 gap + 24 aqi = 227, 13px
+// bottom clearance -- precip grew from size 2 (16px) to size 3 (24px)
+// on request, and the precip-AQI gap widened from 12 to 18 on request
+// ("a little space before the aqi value"), still fits.
 // Icon is a fixed 40x40 1-bit PROGMEM bitmap (see WeatherIcons.h) with
 // no scaling path in this codebase's drawBitmap call -- a real ask to
 // make it visually bigger needs a new baked icon asset at a larger
@@ -703,11 +704,17 @@ static void drawForecastPageVertical(Arduino_GFX* gfx, const WeatherData& w) {
       int precipV = d.precip; if (precipV > 100) precipV = 100;
       char precipBuf[6];
       snprintf(precipBuf, sizeof(precipBuf), "%d%%", precipV);
-      gfx->setTextSize(2);
+      gfx->setTextSize(3);
       gfx->setTextColor(C_SKY);
-      gfx->setCursor(colX + (80 - gfxTextW(precipBuf, 2)) / 2, 161);
+      gfx->setCursor(colX + (80 - gfxTextW(precipBuf, 3)) / 2, 161);
       gfx->print(precipBuf);
     }
+
+    // Faint separator in the precip-AQI gap -- same C_PANEL dim line the
+    // horizontal layout already uses between rows, marking the AQI value
+    // as its own thing rather than a continuation of the temp/precip
+    // block above it.
+    gfx->drawFastHLine(colX + 12, 194, 56, C_PANEL);
 
     char aqiBuf[6];
     uint16_t aqiColor;
@@ -725,7 +732,7 @@ static void drawForecastPageVertical(Arduino_GFX* gfx, const WeatherData& w) {
     }
     gfx->setTextSize(3);
     gfx->setTextColor(aqiColor);
-    gfx->setCursor(colX + (80 - gfxTextW(aqiBuf, 3)) / 2, 189);
+    gfx->setCursor(colX + (80 - gfxTextW(aqiBuf, 3)) / 2, 203);
     gfx->print(aqiBuf);
   }
 }
