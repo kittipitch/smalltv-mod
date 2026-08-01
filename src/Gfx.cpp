@@ -225,18 +225,18 @@ void gfxApInfo(const char* ssid, const char* pass, const char* ip, const char* m
   if (!gfx) return;
   gfx->fillScreen(C_BLACK);
   gfxDrawCentered("SETUP MODE", 18, 3, C_YELLOW);
-  if (mac && mac[0]) gfxDrawCentered(mac, 46, gfxFitSize(mac, 232, 2), C_GRAY);
-  gfxDrawCentered("Join WiFi:", 74, 2, C_GRAY);
-  gfxDrawCentered(ssid, 98, gfxFitSize(ssid, 232, 3), C_WHITE);
+  if (mac && mac[0]) gfxDrawCentered(mac, 52, gfxFitSize(mac, 232, 2), C_GRAY);
+  gfxDrawCentered("Join WiFi:", 88, 2, C_GRAY);
+  gfxDrawCentered(ssid, 108, gfxFitSize(ssid, 232, 3), C_WHITE);
   if (pass && pass[0]) {
-    gfxDrawCentered("Password:", 134, 2, C_GRAY);
-    gfxDrawCentered(pass, 156, gfxFitSize(pass, 232, 2), C_WHITE);
+    gfxDrawCentered("Password:", 152, 2, C_GRAY);
+    gfxDrawCentered(pass, 172, gfxFitSize(pass, 232, 2), C_WHITE);
   } else {
-    gfxDrawCentered("(open network)", 134, 2, C_GRAY);
+    gfxDrawCentered("(open network)", 152, 2, C_GRAY);
   }
-  gfxDrawCentered("Then open:", 192, 2, C_GRAY);
+  gfxDrawCentered("Then open:", 200, 2, C_GRAY);
   String url = String("http://") + ip;
-  gfxDrawCentered(url.c_str(), 216, gfxFitSize(url.c_str(), 232, 2), C_GREEN);
+  gfxDrawCentered(url.c_str(), 220, gfxFitSize(url.c_str(), 232, 2), C_GREEN);
 }
 
 void gfxStaInfo(const char* ssid, const char* ip, const char* host, const char* mac) {
