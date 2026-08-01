@@ -117,6 +117,25 @@ flashing it replaces the device's original modes (clock/weather/photo album)
 entirely — confirm with whoever owns the device first, since it's an
 all-or-nothing swap.
 
+⚠️ **If you ever need the UART/serial recovery path (bricked device, no
+working web server) and the serial port disappears on your computer**: first
+check the cable. The device's own USB-C cable is a real serial adapter (WCH
+CH340 bridge, `idVendor 0x1A86`, `idProduct 0x7523`), no case-opening needed
+— but only if the cable actually carries data. A charge-only cable, or
+routing through a USB hub/dock, can leave the CH340 fully absent from your
+computer's USB device list (not "no driver," just not there) even though the
+device has power. Try a real USB-C-to-USB-C data cable plugged directly into
+your computer, not through a dock or hub. One extra gotcha if your computer
+has other WCH-brand USB hardware (some docks use WCH hub chips too, not just
+WCH serial bridges): matching on vendor ID alone isn't enough to confirm
+you've found the right device — check `bDeviceClass` is `255`
+(vendor-specific/serial) and `idProduct` is `0x7523`, not `9` (USB hub) on
+some unrelated chip that happens to share the vendor. **This isn't a
+guaranteed fix** — it's the first thing to rule out, not a confirmed root
+cause. If it doesn't come back after trying a direct data cable, the port
+disappearing after a UART flash is a known open issue on this hardware with
+no confirmed cause yet.
+
 ### 2.5 Make the device's IP address permanent (optional, recommended)
 
 By default your router hands the device a new IP address occasionally (after
