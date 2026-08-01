@@ -53,6 +53,9 @@ struct WeatherData {
   int      weatherCode;  // WMO weather code (Open-Meteo "current.weather_code")
   bool     hasWeatherCode;
 
+  float    uvIndex;      // Open-Meteo "current.uv_index", same forecast call as tempC
+  bool     hasUvIndex;
+
   float    pm25;
   int      aqi;         // US AQI
   bool     hasPm25;
@@ -69,6 +72,7 @@ struct WeatherData {
   void clear() {
     tempC = 0; precipPct = 0; hasTemp = hasPrecip = false;
     weatherCode = 0; hasWeatherCode = false;
+    uvIndex = 0; hasUvIndex = false;
     pm25 = 0; aqi = 0; hasPm25 = hasAqi = false;
     city[0] = 0; hasCity = false;
     valid = false; forecastError = false; aqError = false;

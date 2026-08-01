@@ -32,6 +32,23 @@ CalendarWeatherMode g_calendarWeatherMode;
 #define C_AQI_VERY_UNHEALTHY   0x8B53   // #8a6a9c muted purple  (201-300)
 #define C_AQI_HAZARDOUS        0x69C7   // #6b3a3a muted maroon  (301+)
 
+// EPA/WHO UV Index reference chart, exact hex-to-RGB565 conversion (user
+// supplied the real 10-band chart -- not muted like C_AQI_*, since this is
+// meant to read as the actual standard scale, not a reinterpretation).
+// Ranges are half-open [lo, hi), matched to the same-rounded integer uv
+// value the display already computes.
+#define C_UV_0_1    0x4DA0   // #4eb400 -- Low        0 to 2
+#define C_UV_2      0xA660   // #a0ce00 -- Low         2 to 3
+#define C_UV_3      0xF720   // #f7e400 -- Moderate    3 to 4
+#define C_UV_4      0xFDA0   // #f8b600 -- Moderate    4 to 5
+#define C_UV_5      0xFC20   // #f88700 -- Moderate    5 to 6
+#define C_UV_6      0xFAC0   // #f85900 -- High        6 to 7
+#define C_UV_7      0xE961   // #e82c0e -- High        7 to 8
+#define C_UV_8      0xD803   // #d8001d -- Very High   8 to 9
+#define C_UV_9      0xF813   // #ff0099 -- Very High   9 to 10
+#define C_UV_10     0xB27F   // #b54cff -- Extreme    10 to 11
+#define C_UV_11PLUS 0x9C7F   // #998cff -- Extreme    11 or more
+
 static const char* MONTH3[] = {
   "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
 };
@@ -272,9 +289,52 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   char cond[20] = "--";
   if (wxOk && w.hasWeatherCode) snprintf(cond, sizeof(cond), "%s (%d)", wxLabel(cat), w.weatherCode);
   else if (wxOk) strlcpy(cond, wxLabel(cat), sizeof(cond));
-  drawRowCentered(gfx, 120, 80, 2, C_DIM, cond);
 
-  char t[10] = "--";
+  // UVI shares the condition row (same size 2, centered) rather than the
+  // temp row or a row of its own -- the page is already floor-to-ceiling
+  // packed (PM 2.5 row ends at y=228 on a 240px panel). Drawn as a second
+  // segment, not appended into cond's own string, so it keeps its own
+  // EPA/WHO-chart severity color (C_UV_*, the exact reference chart's
+  // saturated values, not a reuse of C_AQI_*'s muted palette) independent
+  // of the condition text's C_DIM. Centered as one unit: total width
+  // computed first, then both segments drawn from that shared start x --
+  // drawRowCentered() only supports a single color, so this is done by
+  // hand instead. Worst case: cond max "Cloudy (99)" (11 chars, 132px at
+  // size 2) + uvBuf max " UVI 20" (7 chars, 84px) = 216px, inside the
+  // 226px budget (240px screen, drawRow's real x=14 origin, not assumed).
+  char uvBuf[10] = "";
+  uint16_t uvColor = C_DIM;
+  if (w.hasUvIndex) {
+    // Same UB guard as tempC/pm25: constrain() before lroundf(), since
+    // uvIndex is equally an unvalidated daemon push.
+    int uv = (int)lroundf(constrain(w.uvIndex, 0.0f, 20.0f));
+    snprintf(uvBuf, sizeof(uvBuf), " UVI %d", uv);
+    uvColor = (uv <= 1)  ? C_UV_0_1 :
+              (uv == 2) ? C_UV_2 :
+              (uv == 3) ? C_UV_3 :
+              (uv == 4) ? C_UV_4 :
+              (uv == 5) ? C_UV_5 :
+              (uv == 6) ? C_UV_6 :
+              (uv == 7) ? C_UV_7 :
+              (uv == 8) ? C_UV_8 :
+              (uv == 9) ? C_UV_9 :
+              (uv == 10) ? C_UV_10 : C_UV_11PLUS;
+  }
+  int condW = gfxTextW(cond, 2);
+  int uvW = uvBuf[0] ? gfxTextW(uvBuf, 2) : 0;
+  int condRowX = 120 - (condW + uvW) / 2;
+  if (condRowX < 0) condRowX = 0;
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM);
+  gfx->setCursor(condRowX, 80);
+  gfx->print(cond);
+  if (uvBuf[0]) {
+    gfx->setTextColor(uvColor);
+    gfx->setCursor(condRowX + condW, 80);
+    gfx->print(uvBuf);
+  }
+
+  char tempPart[8] = "--";
   // Degree sign is 0xF8 in this font's glyph table (CP437 layout, not
   // Latin-1/0xB0 -- verified by rendering the actual glyph bitmap before
   // trusting the byte value).
@@ -284,8 +344,8 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   // malicious POST /api/weather {"tempC":1e10}, unauthenticated by default
   // with no secret key set) is undefined behavior on this platform, not
   // just a display glitch -- clamp first so the cast is always well-defined.
-  if (w.hasTemp) snprintf(t, sizeof(t), "%d\xF8" "C", (int)lroundf(constrain(w.tempC, -99.0f, 199.0f)));
-  drawRow(gfx, 116, 3, wxOk ? C_WHITE : C_DIM, t);
+  if (w.hasTemp) snprintf(tempPart, sizeof(tempPart), "%d\xF8" "C", (int)lroundf(constrain(w.tempC, -99.0f, 199.0f)));
+  drawRow(gfx, 116, 3, wxOk ? C_WHITE : C_DIM, tempPart);
 
   char p[16] = "Rain --";
   if (w.hasPrecip) snprintf(p, sizeof(p), "Rain %d%%", w.precipPct);
