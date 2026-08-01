@@ -522,14 +522,7 @@ void CalendarWeatherMode::service(const Settings& s) {
 
 // 3-day forecast (tomorrow..+3) -- today's own conditions are already on
 // the main weather page, so this list starts at tomorrow (daemon already
-// skips today when building the "forecast" array). Borderless stacked
-// rows, no card panel, matching drawWeatherPage's own visual style rather
-// than drawAgendaPage's gray-card look -- this page and the weather page
-// are the same "at a glance" family, agenda's cards are a different look.
-// No page-level header (unlike drawWeatherPage's city-name row) -- the
-// screen is floor-to-ceiling packed at 3 rows of the row height below,
-// and a page showing three explicit dates doesn't need a label to say
-// what kind of page it is the way a single current-conditions page does.
+// skips today when building the "forecast" array).
 static void drawForecastEmpty(Arduino_GFX* gfx) {
   gfx->fillScreen(C_BLACK);
   gfx->setTextSize(2);
@@ -538,106 +531,20 @@ static void drawForecastEmpty(Arduino_GFX* gfx) {
   gfx->print("No forecast yet");
 }
 
-static void drawForecastPageHorizontal(Arduino_GFX* gfx, const WeatherData& w) {
-  gfx->fillScreen(C_BLACK);
-
-  const int top0 = 6, rh = 76;
-  for (uint8_t i = 0; i < w.fcCount; i++) {
-    const ForecastDay& d = w.fc[i];
-    int y0 = top0 + i * rh;
-
-    // Day label, left-aligned. Daemon-formatted "Tmr"/"Mon"/etc, fixed
-    // English 3-4 chars, worst case 4*12=48px at size 2 -- no dynamic
-    // width/fit needed, unlike the daemon-pushed numeric fields below
-    // whose digit counts vary.
-    gfx->setTextSize(2);
-    gfx->setTextColor(C_WHITE);
-    gfx->setCursor(14, y0 + 4);
-    gfx->print(d.day);
-
-    // Precip probability, right-aligned on the day label's row. -1 sentinel
-    // (set in CalendarClient.cpp when the daemon didn't send "precip")
-    // means skip rather than print a bogus "-1%". Clamped to 0-100 like
-    // every other daemon-pushed field on this page -- unclamped, the
-    // compiler's own -Wformat-truncation flagged that "%d%%" into a
-    // 6-byte buffer isn't provably safe for an arbitrary int, and
-    // /api/weather is unauthenticated by default like every push endpoint
-    // here.
-    if (d.precip >= 0) {
-      int precipV = d.precip; if (precipV > 100) precipV = 100;
-      char precipBuf[6];
-      snprintf(precipBuf, sizeof(precipBuf), "%d%%", precipV);
-      int pw = gfxTextW(precipBuf, 2);
-      gfx->setTextColor(C_SKY);
-      gfx->setCursor(226 - pw, y0 + 4);
-      gfx->print(precipBuf);
-    }
-
-    // Icon at native 40x40 (WX_ICON_SIZE) -- no scaling path exists in
-    // this codebase's drawBitmap call, and at this row height (76px) the
-    // icon fits with clearance on every side without needing one.
-    WxCat cat = wxCategory(d.code, true);
-    drawWeatherIcon(gfx, 40, y0 + 50, cat);
-
-    // Lo/hi temp, own column starting past the icon's right edge (icon
-    // spans x=20..60, text starts x=70 -- 10px clearance). constrain()
-    // before formatting: hi/lo are unvalidated daemon-pushed ints like
-    // every other field on this page, same UB risk as tempC/pm25
-    // elsewhere. Worst case "-99--99\xF8C" is 9 chars = 108px at size 2,
-    // well inside the row -- no gfxFitSize needed. Low first, dash
-    // separator -- matches the reference layout's "16-26C" convention.
-    int hiC = d.hi; if (hiC < -99) hiC = -99; if (hiC > 199) hiC = 199;
-    int loC = d.lo; if (loC < -99) loC = -99; if (loC > 199) loC = 199;
-    char tempBuf[12];
-    snprintf(tempBuf, sizeof(tempBuf), "%d-%d\xF8" "C", loC, hiC);
-    gfx->setTextSize(2);
-    gfx->setTextColor(C_WHITE);
-    gfx->setCursor(70, y0 + 30);
-    gfx->print(tempBuf);
-
-    // Daily AQI, same column, same severity colors as the main weather
-    // page's AQI row -- python-aqi/EPA on that day's max hourly PM2.5
-    // (see clawdmeter_daemon.py's poll_weather()), independently optional
-    // like every daemon field: "AQI --" in C_DIM when the daemon's own
-    // aggregation failed for that day but temp/code still came through.
-    char aqiBuf[10];
-    uint16_t aqiColor;
-    if (d.hasAqi) {
-      int aqiV = d.aqi; if (aqiV < 0) aqiV = 0; if (aqiV > 500) aqiV = 500;
-      snprintf(aqiBuf, sizeof(aqiBuf), "AQI %d", aqiV);
-      aqiColor = (aqiV <= 50)  ? C_AQI_GOOD :
-                 (aqiV <= 100) ? C_AQI_MODERATE :
-                 (aqiV <= 150) ? C_AQI_SENSITIVE :
-                 (aqiV <= 200) ? C_AQI_UNHEALTHY :
-                 (aqiV <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
-    } else {
-      strlcpy(aqiBuf, "AQI --", sizeof(aqiBuf));
-      aqiColor = C_DIM;
-    }
-    gfx->setTextSize(2);
-    gfx->setTextColor(aqiColor);
-    gfx->setCursor(70, y0 + 50);
-    gfx->print(aqiBuf);
-
-    // Row separator, skipped after the last row.
-    if (i + 1 < w.fcCount) gfx->drawFastHLine(14, y0 + rh - 2, 212, C_PANEL);
-  }
-}
-
 // 3 columns (80px each), one per day, stacked top-to-bottom within each
-// column -- alternate to drawForecastPageHorizontal(), toggled via
-// Settings.forecastVertical, added on explicit request to compare bigger
-// text against the horizontal-rows baseline. Iterated live against the
-// real screen (not just the design pass) through several rounds: day
-// label went size2->3->back to 2 (3 read as too large), precip moved
-// under the icon then relocated again to sit after hi/lo, icon stays
-// at the top (an "icon after hi/lo" reorder was tried in an intermediate
-// round and explicitly declined -- "no icon at top is ok"). Final order
-// top to bottom: day, icon, hi, lo, precip, AQI. hi/lo share one size
-// (size 3, was hi=4/lo=3 in round 1 -- asymmetric for no real reason).
-// No "AQI "/degree-symbol prefixes -- both overflow 80px at size >=2
-// (see width table below), so severity color alone carries the AQI
-// meaning and the white-over-dim vertical pair reads as the hi/lo
+// column. Started as one of two layouts (the other was 3 horizontal
+// rows) compared live against the real device; the horizontal version
+// was removed once this one was picked -- see pre-squash-backup history
+// if it's ever wanted again. Iterated through several rounds against the
+// real screen: day label went size2->3->back to 2 (3 read as too large),
+// precip moved under the icon then relocated again to sit after hi/lo,
+// icon stays at the top (an "icon after hi/lo" reorder was tried in an
+// intermediate round and explicitly declined -- "no icon at top is ok").
+// Final order top to bottom: day, icon, hi, lo, precip, AQI. hi/lo share
+// one size (size 3, was hi=4/lo=3 in round 1 -- asymmetric for no real
+// reason). No "AQI "/degree-symbol prefixes -- both overflow 80px at
+// size >=2 (see width table below), so severity color alone carries the
+// AQI meaning and the white-over-dim vertical pair reads as the hi/lo
 // pairing instead of a label.
 //
 // Worst-case width per element (fixed 6*size px/char font), all must
@@ -659,7 +566,8 @@ static void drawForecastPageHorizontal(Arduino_GFX* gfx, const WeatherData& w) {
 // make it visually bigger needs a new baked icon asset at a larger
 // resolution, not a coordinate change, and is deliberately not done
 // here.
-static void drawForecastPageVertical(Arduino_GFX* gfx, const WeatherData& w) {
+static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
+  if (w.fcCount == 0) { drawForecastEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
   // Only draw the divider between two populated columns -- fcCount < 3
   // is rare (daemon sends all 3 or none in practice) but reachable via a
@@ -710,10 +618,9 @@ static void drawForecastPageVertical(Arduino_GFX* gfx, const WeatherData& w) {
       gfx->print(precipBuf);
     }
 
-    // Faint separator in the precip-AQI gap -- same C_PANEL dim line the
-    // horizontal layout already uses between rows, marking the AQI value
-    // as its own thing rather than a continuation of the temp/precip
-    // block above it.
+    // Faint separator in the precip-AQI gap, marking the AQI value as
+    // its own thing rather than a continuation of the temp/precip block
+    // above it.
     gfx->drawFastHLine(colX + 12, 194, 56, C_PANEL);
 
     char aqiBuf[6];
@@ -737,12 +644,6 @@ static void drawForecastPageVertical(Arduino_GFX* gfx, const WeatherData& w) {
   }
 }
 
-static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w, bool vertical) {
-  if (w.fcCount == 0) { drawForecastEmpty(gfx); return; }
-  if (vertical) drawForecastPageVertical(gfx, w);
-  else          drawForecastPageHorizontal(gfx, w);
-}
-
 // ---- DisplayMode: Forecast -----------------------------------------------
 void CalendarForecastMode::begin(const Settings& s) {
   calendarInit(s);
@@ -757,11 +658,12 @@ void CalendarForecastMode::invalidate(const Settings& s) {
 }
 
 void CalendarForecastMode::service(const Settings& s) {
+  (void)s;
   const WeatherData& w = weatherGet();
   if (w.lastOkMs != wxRenderedOk_) { wxRenderedOk_ = w.lastOkMs; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawForecastPage(gfx, w, s.forecastVertical);
+    if (gfx) drawForecastPage(gfx, w);
     needRender_ = false;
   }
 }
