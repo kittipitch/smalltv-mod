@@ -356,27 +356,67 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
   char aqiBuf[16];
   uint16_t aqiColor = C_DIM;
   if (w.hasAqi) {
-    snprintf(aqiBuf, sizeof(aqiBuf), "AQI %d", w.aqi);
-    aqiColor = (w.aqi <= 50)  ? C_AQI_GOOD :
-               (w.aqi <= 100) ? C_AQI_MODERATE :
-               (w.aqi <= 150) ? C_AQI_SENSITIVE :
-               (w.aqi <= 200) ? C_AQI_UNHEALTHY :
-               (w.aqi <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
+    // Clamp: w.aqi comes straight off an unauthenticated-by-default POST
+    // with no upstream range check -- an out-of-range value (e.g. a
+    // negative or 5-digit aqi) would both feed a meaningless color-ladder
+    // bucket and blow "AQI %d" past the width this row (and the
+    // parenthetical appended after it, below) was budgeted for.
+    int aqiV = w.aqi;
+    if (aqiV < 0) aqiV = 0;
+    if (aqiV > 500) aqiV = 500;
+    snprintf(aqiBuf, sizeof(aqiBuf), "AQI %d", aqiV);
+    aqiColor = (aqiV <= 50)  ? C_AQI_GOOD :
+               (aqiV <= 100) ? C_AQI_MODERATE :
+               (aqiV <= 150) ? C_AQI_SENSITIVE :
+               (aqiV <= 200) ? C_AQI_UNHEALTHY :
+               (aqiV <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
   } else {
     strlcpy(aqiBuf, "AQI --", sizeof(aqiBuf));
   }
   drawRow(gfx, 180, 3, aqiColor, aqiBuf);
 
-  // Unit dropped (used to be the µg/m3 suffix) to make room for aqiNow --
-  // a real-time AQI computed daemon-side from THIS hour's PM2.5 alone
-  // (python-aqi, classic EPA breakpoints), unlike the AQI row above which
-  // is Open-Meteo's own 24h-rolling-average us_aqi and can stay elevated
-  // for hours after a real spike has already passed (confirmed live this
-  // session) -- this row is the fast-reacting complement, colored by the
-  // same severity bands as the AQI row so a fresh spike is visible
-  // immediately instead of waiting on the rolling average to catch up.
-  char pm[32] = "PM 2.5 --";
-  uint16_t pmColor = C_DIM;
+  // aqiNow: real-time AQI computed daemon-side from THIS hour's PM2.5 alone
+  // (python-aqi, classic EPA breakpoints) -- the AQI row above is
+  // Open-Meteo's own 24h-rolling-average us_aqi and can stay elevated for
+  // hours after a real spike has already passed (confirmed live this
+  // session). Shown as a smaller parenthetical right after "AQI N" on the
+  // same line, own severity color, so a fresh spike is visible immediately
+  // instead of waiting on the rolling average to catch up -- own line
+  // avoided since the two numbers usually disagree by design and reading
+  // as one contradictory "AQI" would be more confusing, not less. Gated on
+  // hasAqi too, not just hasAqiNow: a live colored "(25)" stapled onto a
+  // dim placeholder "AQI --" would be exactly that same contradiction, in
+  // reverse -- reachable, since aqiNow's computation is independent of
+  // whether Open-Meteo's own us_aqi came back in the same poll.
+  if (w.hasAqi && w.hasAqiNow) {
+    // Same UB guard as every other daemon-pushed field on this page:
+    // aqiNow is already clamped to python-aqi's 0-500 range server-side,
+    // but re-clamp here too since /api/weather can be hit directly.
+    int aqiN = w.aqiNow;
+    if (aqiN < 0) aqiN = 0;
+    if (aqiN > 500) aqiN = 500;
+    char nowBuf[10];
+    snprintf(nowBuf, sizeof(nowBuf), " (%d)", aqiN);
+    uint16_t nowColor = (aqiN <= 50)  ? C_AQI_GOOD :
+                         (aqiN <= 100) ? C_AQI_MODERATE :
+                         (aqiN <= 150) ? C_AQI_SENSITIVE :
+                         (aqiN <= 200) ? C_AQI_UNHEALTHY :
+                         (aqiN <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
+    // Worst case "AQI 100" (7 chars) at size 3 + " (500)" (6 chars) at
+    // size 2 = 126px + 72px = 198px, inside the 226px row budget -- no
+    // gfxFitSize needed, same as the plain AQI row this replaces.
+    int aqiW = gfxTextW(aqiBuf, 3);
+    // Size-2 text is 16px tall vs size-3's 24px; nudge down 4px so the
+    // parenthetical sits vertically centered against "AQI N", not
+    // top-aligned against it (this font draws from the glyph's top-left,
+    // no baseline metric to align on instead).
+    gfx->setTextSize(2);
+    gfx->setTextColor(nowColor);
+    gfx->setCursor(14 + aqiW, 180 + 4);
+    gfx->print(nowBuf);
+  }
+
+  char pm[16] = "PM 2.5 --";
   if (w.hasPm25) {
     // constrain() before lroundf()/formatting: pm25 comes straight from a
     // daemon push with no range validation upstream, same UB risk as tempC
@@ -390,29 +430,9 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w) {
       snprintf(pmVal, sizeof(pmVal), "%d", (int)lroundf(pm25c));
     else
       snprintf(pmVal, sizeof(pmVal), "%.1f", pm25c);
-    if (w.hasAqiNow) {
-      // Same UB guard as every other daemon-pushed field on this page:
-      // aqiNow is already clamped to python-aqi's 0-500 range server-side,
-      // but re-clamp here too since /api/weather can be hit directly.
-      int aqiN = w.aqiNow;
-      if (aqiN < 0) aqiN = 0;
-      if (aqiN > 500) aqiN = 500;
-      snprintf(pm, sizeof(pm), "PM 2.5 %s NOW %d", pmVal, aqiN);
-      pmColor = (aqiN <= 50)  ? C_AQI_GOOD :
-                (aqiN <= 100) ? C_AQI_MODERATE :
-                (aqiN <= 150) ? C_AQI_SENSITIVE :
-                (aqiN <= 200) ? C_AQI_UNHEALTHY :
-                (aqiN <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
-    } else {
-      snprintf(pm, sizeof(pm), "PM 2.5 %s", pmVal);
-    }
+    snprintf(pm, sizeof(pm), "PM 2.5 %s", pmVal);
   }
-  // gfxFitSize (not a fixed size 2) since the combined string's length now
-  // varies with both pm25's and aqiNow's real digit counts -- e.g. worst
-  // case "PM 2.5 100.0 AQI 500" (20 chars) would overflow the 226px budget
-  // at a fixed size 2 (240px); auto-shrinking is a defensive fallback for
-  // that edge case, not the expected everyday rendering.
-  drawRow(gfx, 212, gfxFitSize(pm, 226, 2), pmColor, pm);
+  drawRow(gfx, 212, 2, C_DIM, pm);
 }
 
 // ---- DisplayMode: Agenda -----------------------------------------------
