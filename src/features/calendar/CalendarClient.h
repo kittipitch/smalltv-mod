@@ -20,7 +20,7 @@ const CodexData&      codexGet();
 const AntigravityData& antigravityGet();
 
 // Apply payloads PUSHED to the device.
-bool calendarApply(const String& body);   // {ok,events:[{summary,start,allDay}, ...]}
+bool calendarApply(const String& body);   // {ok,events:[{summary,start,end?,allDay,color?}, ...]}
 bool weatherApply(const String& body);    // {ok,tempC?,precipPct?,weatherCode?,pm25?,aqi?}
 bool zaiApply(const String& body);        // {ok,pct5h?,pctTokens?}
 bool codexApply(const String& body);      // {ok,pct5h?,r5h?,pctWeek?,rWeek?}

@@ -149,6 +149,56 @@ static bool isSameLocalDay(const char* iso, const struct tm& now) {
   return y == now.tm_year + 1900 && mo == now.tm_mon + 1 && d == now.tm_mday;
 }
 
+// Pull Y/M/D out of the first 10 chars ("YYYY-MM-DD") of an ISO8601 string.
+// Same per-field digit math isSameLocalDay() above uses (no full datetime
+// parse -- the date prefix is fixed-position in any compliant timestamp).
+// Returns false if the string is too short; caller then treats the date as
+// unusable and falls back to the single-day rendering path. Assumes digit
+// chars, matching every other date helper in this file.
+static bool parseIsoDate(const char* iso, int& y, int& mo, int& d) {
+  if (strlen(iso) < 10) return false;
+  y  = (iso[0]-'0')*1000 + (iso[1]-'0')*100 + (iso[2]-'0')*10 + (iso[3]-'0');
+  mo = (iso[5]-'0')*10 + (iso[6]-'0');
+  d  = (iso[8]-'0')*10 + (iso[9]-'0');
+  return true;
+}
+
+// Decrement a Y/M/D date by one calendar day. Used to turn an all-day
+// event's EXCLUSIVE Google end date into its real last day (a 1-day all-day
+// event on Aug 6 arrives as start="2026-08-06", end="2026-08-07"). Correctly
+// rolls month/year boundaries and handles Feb's leap-day -- needed so the
+// multi-day range string doesn't claim a phantom extra day. Pure date math,
+// no string I/O.
+static void decCalendarDay(int& y, int& mo, int& d) {
+  static const int DIM[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+  if (d > 1) { d--; return; }
+  // Day 1 rolls back into the previous month's last day.
+  if (mo <= 1) { y--; mo = 12; d = 31; return; }
+  mo--;
+  d = DIM[mo - 1];
+  if (mo == 2) {  // Feb's real length depends on whether (new) y is leap.
+    bool leap = ((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0);
+    if (leap) d = 29;
+  }
+}
+
+// Format a multi-day range "Mon DD-DD" (same month) or "Mon DD-Mon DD"
+// (cross-month) from already-parsed start/end Y/M/D. The caller has ALREADY
+// applied decCalendarDay() to the end for all-day events, so `ed` is the
+// event's true last calendar day. Mirrors extractMonthDay()'s "Mon DD" style
+// so a range reads as a natural extension of the single-day label, not a
+// different format. Worst case "Aug 31-Sep 30" = 12 chars at size 2 = 144px,
+// inside the row's ~200px budget (the time text is dropped on multi-day, see
+// drawAgendaPage(), so the date owns the full row width).
+static void formatDayRange(int sm, int sd, int em, int ed, char* out, size_t n) {
+  if (sm >= 1 && sm <= 12 && em >= 1 && em <= 12 && !(sm == em && sd == ed)) {
+    if (sm == em) snprintf(out, n, "%s %d-%d", MONTH3[sm - 1], sd, ed);
+    else          snprintf(out, n, "%s %d-%s %d", MONTH3[sm - 1], sd, MONTH3[em - 1], ed);
+  } else {
+    strlcpy(out, "", n);  // malformed -> caller falls back to single-day label
+  }
+}
+
 static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
   const uint8_t* mask;
   uint16_t color;
@@ -225,24 +275,58 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c, uint8_t pag
     // glance), falling back to the existing fixed accent otherwise.
     uint16_t eventColor = ev.hasColor ? ev.color : C_ACCENT;
 
-    // Date, left-aligned: "Today" when it matches the device's local date,
-    // else "Mon DD" -- explicit request, was previously just the bare time.
-    char dateBuf[12];
-    if (haveNow && isSameLocalDay(ev.start, now)) strlcpy(dateBuf, "Today", sizeof(dateBuf));
-    else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
+    // Date, left-aligned: "Today" when the event's START matches the device's
+    // local date, else "Mon DD". When the event spans multiple LOCAL calendar
+    // days (start and effective-last-day differ on Y/M/D), the label becomes
+    // a compact range "Mon DD-DD" instead. An event that merely starts today
+    // but runs into tomorrow is NOT shown as "Today" -- that would imply a
+    // single day -- so the explicit range wins over the "Today" shortcut
+    // whenever multiDay is set.
+    //
+    // All-day events ship Google's EXCLUSIVE end date (a 1-day all-day event
+    // on Aug 6 arrives as end="2026-08-07"), so the real last day is one day
+    // earlier -- decCalendarDay() corrects that BEFORE the compare/format, or
+    // every single-day all-day event would render as a bogus "Aug 6-7" span.
+    // Timed events' end is not exclusive -- used as-is. This is the ONLY place
+    // the adjustment is applied (the stored `end` field stays raw, see
+    // CalendarData.h), done once here at render time.
+    char dateBuf[16];
+    bool multiDay = false;
+    int sy = 0, sm = 0, sd = 0, ey = 0, em = 0, ed = 0;
+    if (ev.hasEnd && parseIsoDate(ev.start, sy, sm, sd) && parseIsoDate(ev.end, ey, em, ed)) {
+      if (ev.allDay) decCalendarDay(ey, em, ed);
+      if (!(sy == ey && sm == em && sd == ed)) {
+        char rangeBuf[16];
+        formatDayRange(sm, sd, em, ed, rangeBuf, sizeof(rangeBuf));
+        if (rangeBuf[0]) { multiDay = true; strlcpy(dateBuf, rangeBuf, sizeof(dateBuf)); }
+      }
+    }
+    if (!multiDay) {
+      if (haveNow && isSameLocalDay(ev.start, now)) strlcpy(dateBuf, "Today", sizeof(dateBuf));
+      else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
+    }
     gfx->setTextSize(2);
     gfx->setTextColor(eventColor, C_PANEL);
     gfx->setCursor(x + 12, top + 8);
     gfx->print(dateBuf);
 
-    // Time, right-aligned on the same row. Size-2 glyphs are 12px wide.
+    // Time, right-aligned on the same row. Multi-day events show the START
+    // time same as single-day ones (still useful -- "when does it begin" --
+    // and there's usually room since the range label is short); only
+    // skipped if it would visually collide with the date/range text on the
+    // left, which the width check below catches for both cases alike (worst
+    // case cross-month range "Aug 31-Sep 30" leaves no room, so its time is
+    // correctly dropped, but the common same-month range "Aug 10-11" does).
     char timeBuf[8];
     if (ev.allDay) strlcpy(timeBuf, "All day", sizeof(timeBuf));
     else extractTimeHHMM(ev.start, timeBuf, sizeof(timeBuf));
+    int dateEndX = x + 12 + (int)strlen(dateBuf) * 12;
     int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
-    gfx->setTextColor(eventColor, C_PANEL);
-    gfx->setCursor(timeX, top + 8);
-    gfx->print(timeBuf);
+    if (timeX - dateEndX >= 12) {  // 12px min gap (one glyph width) so range and time never look adjacent/run-together
+      gfx->setTextColor(eventColor, C_PANEL);
+      gfx->setCursor(timeX, top + 8);
+      gfx->print(timeBuf);
+    }
 
     // Card usable width is w-24 (12px margin each side) = 200px; size-2 glyphs
     // are 12px wide, so 16 chars is the hard ceiling before writing past the

@@ -53,7 +53,11 @@ static void stripNonAscii(const char* in, char* out, size_t outCap) {
 static void calendarFilter(JsonDocument& f) {
   f["ok"] = true;
   JsonObject ev = f["events"].add<JsonObject>();
-  ev["summary"] = true; ev["start"] = true; ev["allDay"] = true; ev["color"] = true;
+  // "end" MUST be listed here or ArduinoJson's filter silently drops it
+  // before calendarApply() ever sees it -- the field would look absent even
+  // though the daemon is sending it correctly. Same trap every other key in
+  // this object shares; called out because "end" is newly added.
+  ev["summary"] = true; ev["start"] = true; ev["end"] = true; ev["allDay"] = true; ev["color"] = true;
 }
 
 // Args: 6-char hex string (no '#') -> RGB565. Malformed input (wrong
@@ -81,6 +85,19 @@ bool calendarApply(const String& body) {
     if (!hasSummary || !hasStart) continue;   // skip malformed entries, don't leave a blank frame
     stripNonAscii(ev["summary"].as<const char*>(), g_cal.items[n].summary, sizeof(g_cal.items[n].summary));
     strlcpy(g_cal.items[n].start, ev["start"].as<const char*>(), sizeof(g_cal.items[n].start));
+    // "end" mirrors "start" and is optional (old daemons / single-instant
+    // events send none). Stored raw here -- the all-day EXCLUSIVE-end
+    // minus-one-day fixup is deliberately NOT applied at parse time; it's a
+    // display concern and lives in CalendarMode.cpp, so this buffer always
+    // reflects exactly what the daemon sent (easier to reason about than a
+    // silently-corrected value stored under the name "end").
+    if (ev["end"].is<const char*>()) {
+      strlcpy(g_cal.items[n].end, ev["end"].as<const char*>(), sizeof(g_cal.items[n].end));
+      g_cal.items[n].hasEnd = true;
+    } else {
+      g_cal.items[n].end[0] = 0;
+      g_cal.items[n].hasEnd = false;
+    }
     g_cal.items[n].allDay = ev["allDay"] | false;
     const char* colorStr = ev["color"].is<const char*>() ? ev["color"].as<const char*>() : nullptr;
     if (colorStr && strlen(colorStr) == 6) {

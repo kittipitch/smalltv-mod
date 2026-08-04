@@ -9,6 +9,15 @@
 struct CalendarEventItem {
   char summary[CAL_TITLE_LEN];
   char start[CAL_START_LEN];
+  char end[CAL_START_LEN];  // mirrors "start": full ISO8601 for timed events,
+                            // "YYYY-MM-DD" for all-day. Stored RAW -- the
+                            // all-day EXCLUSIVE-end minus-one-day adjustment
+                            // is a display concern done at render time in
+                            // CalendarMode.cpp, so this field always holds
+                            // exactly what the daemon sent.
+  bool hasEnd;              // false = daemon sent no "end" (old daemon, or a
+                            // single-instant event) -- guarded the same way as
+                            // hasColor, render as a plain same-day event
   bool allDay;
   uint16_t color;      // RGB565, source calendar's real Google color
   bool     hasColor;   // false = daemon sent none (old daemon, or the source
@@ -29,6 +38,8 @@ struct CalendarEvent {
     for (uint8_t i = 0; i < CAL_MAX_EVENTS; i++) {
       items[i].summary[0] = 0;
       items[i].start[0] = 0;
+      items[i].end[0] = 0;
+      items[i].hasEnd = false;
       items[i].allDay = false;
       items[i].color = 0;
       items[i].hasColor = false;
