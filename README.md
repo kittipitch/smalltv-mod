@@ -11,8 +11,10 @@
 > - **z.ai, Codex CLI, and Google Antigravity CLI** quota pages (each with its
 >   own real logo and a two-card layout: quota % + reset/expiry countdown)
 > - An **Agenda + Weather/AQI** mode (Google Calendar events — up to 6, split
->   across two rotating pages, color-coded per source calendar — current
->   weather/rain%/condition, 6-band AQI + PM2.5, city name)
+>   across two rotating pages, color-coded per source calendar, multi-day
+>   events shown as a compact date range ("Aug 10-11") instead of looking
+>   like a same-day event — current weather/rain%/condition, 6-band AQI +
+>   PM2.5, city name)
 > - **Plane radar**, live (not disabled — see below), and it now falls back to
 >   the weather-location setting if its own home lat/lon isn't set, so you
 >   don't have to enter your location twice
