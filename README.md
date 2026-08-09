@@ -68,6 +68,17 @@ Check the board before you build, because the variants flash differently.
 
 The screens in the photos above are each unit's **stock firmware**, not this one, and they differ by model and firmware version (the ultra ships as a weather clock, the original as a ticker, and so on). Use the on-screen look as a first clue to which model you are holding, then confirm with the tell-tale row, because the binary and the install method differ per model. If your board has a **CH340C** chip beside the USB-C port and the main chip reads **ESP8684**, you have the ESP32-C2 model. Full teardown photos and pin maps are in [Hardware and variants](https://giovi321.github.io/smalltv-mod/getting-started/hardware/).
 
+### Vendor rebrands of the same cube
+
+The four above are the models this firmware is known to run on. The same cube is also resold under other vendors' own firmware, and those units are **not** covered by the table — they differ in which OTA route their stock web UI exposes, not usually in the hardware. If your unit's stock UI is titled "Smart Weather Clock" but none of the tell-tales above fit, identify it before flashing anything:
+
+- **Read the version endpoint.** `curl http://<device-ip>/version`. A string like `SD EN V1.1.7` means the vendor "SD PRO" firmware (JUZIPi-tech), not GeekMagic.
+- **Find the real OTA route.** `/update` may 404 while an OTA panel still exists in the UI. Read the page's JavaScript for the actual endpoint and form field name — SD PRO uses `POST /update_ota` with the field named `update`, where the original SmallTV uses `POST /update`.
+- **Confirm the MCU from the vendor's own image, not from the case.** Vendors usually publish their firmware; the first 32 bytes settle it. An entry point of `0x4010****` with `0x3fff****` segments is an ESP8266, so the `smalltv` env applies. An ESP32 or ESP32-C2 image looks different.
+- **Keep the vendor image.** Most vendors do not publish every version they ship, and there is no way to dump the running image over HTTP, so your restore path may be a downgrade. Get it before you overwrite anything.
+
+> **Untested.** SD PRO is documented here as an identification recipe, not as a supported target — no confirmed flash of this firmware onto one yet. Ratios are in its favour (same ESP8266, and [every variant shares the same ST7789 panel](https://giovi321.github.io/smalltv-mod/getting-started/hardware/)), but the pin map is unverified. If you try it, the failure worth planning for is a unit that boots and joins WiFi with a blank or garbled screen — recoverable over the network by reflashing the vendor image or by correcting `src/board_esp8266.h` and rebuilding. Have a UART path available before you start.
+
 ## What it does
 
 - **Stock and crypto ticker.** Price, absolute change, percent change with an up/down arrow, and a sparkline. Up to 8 symbols rotate on a timer. Data comes straight from Yahoo Finance over HTTPS with no backend, from cash.ch for Swiss instruments Yahoo doesn't carry (structured products, AMCs, tracker certificates), or from your own webhook if you want to own the source. Stocks, ETFs, Swiss equities (`NESN.SW`), crypto (`BTC-USD`), and FX (`EURUSD=X`) all work. Add a quantity and cost basis to any ticker and it shows your P/L, with a portfolio summary page in the rotation.

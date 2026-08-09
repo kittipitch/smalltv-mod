@@ -115,3 +115,28 @@ The pins are fixed to the SmallTV wiring and are not editable from the web UI. A
 - **Red and blue swapped**: set `TFT_BGR` to `1` in your board's `src/board_*.h` header, rebuild, and reflash.
 
 For a different board entirely, change the pins in the relevant `src/board_*.h` header.
+
+## Vendor rebrands
+
+The same cube is resold with other vendors' firmware on it. Those units are usually the ESP8266 board underneath, but their stock web UI differs, so identify one before flashing rather than assuming a table row fits.
+
+### Identifying an unknown unit
+
+1. **Version endpoint.** `curl http://<device-ip>/version`. A response like `SD EN V1.1.7` is the "SD PRO" firmware from JUZIPi-tech, not GeekMagic. A 404 here with no version string anywhere in the UI usually means an older vendor build with no OTA at all, which leaves only UART.
+2. **The real OTA route.** Do not conclude "no OTA" from `/update` returning 404 — the route may simply have moved. Read the page's JavaScript and look for the upload call. SD PRO uses `POST /update_ota` with the multipart field named `update`; the original SmallTV uses `POST /update` with `file`; the loader uses `firmware`. A wrong field name is rejected harmlessly.
+3. **MCU, from the vendor's published image.** Vendors typically ship their `.bin` in a public repo. The first 32 bytes are decisive:
+
+   ```bash
+   curl -sL -r 0-31 "<url-to-vendor.bin>" | od -An -tx1
+   # e9 01 02 40 5c f4 10 40 00 f0 10 40 ...
+   #                ^ entry 0x4010f45c, plus 0x3fff**** segments => ESP8266
+   ```
+
+   An entry point in `0x4010****` with `0x3fff****` data segments is an ESP8266, so the `smalltv` env applies. Also check the fourth byte — flash mode and size/frequency nibbles — against what your build produces; a mismatch there is a classic ESP8266 boot loop.
+4. **Keep the vendor image before overwriting.** There is no way to read the running firmware back over HTTP, and vendors often publish only some versions, so your restore may be a downgrade to an older build.
+
+### SD PRO (JUZIPi-tech) — identified, untested
+
+Confirmed ESP8266 with a working OTA panel, so in principle the `smalltv` env installs directly with no loader step. **No confirmed flash yet**, and the pin map is unverified. The panel is the same 1.54" 240×240 ST7789 as every other variant, and the ESP8266 board drives it over hardware SPI — clock and data are fixed by the chip, leaving only `DC`, `RST`, `CS` and the backlight as wiring choices.
+
+If those differ, the symptom is a device that boots and joins WiFi but shows nothing useful. That case is recoverable **over the network**: reflash the vendor image from the web UI, or correct `src/board_esp8266.h` and rebuild. Only a unit that fails to boot or fails to join WiFi needs UART, so have that path available before starting.
