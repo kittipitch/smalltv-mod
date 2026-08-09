@@ -68,6 +68,21 @@ Check the board before you build, because the variants flash differently.
 
 The screens in the photos above are each unit's **stock firmware**, not this one, and they differ by model and firmware version (the ultra ships as a weather clock, the original as a ticker, and so on). Use the on-screen look as a first clue to which model you are holding, then confirm with the tell-tale row, because the binary and the install method differ per model. If your board has a **CH340C** chip beside the USB-C port and the main chip reads **ESP8684**, you have the ESP32-C2 model. Full teardown photos and pin maps are in [Hardware and variants](https://giovi321.github.io/smalltv-mod/getting-started/hardware/).
 
+### ⚠ "Pro" means two different devices
+
+Two unrelated products are sold as "Pro", and they do not share a chip. Picking the wrong one means flashing an ESP32 image onto an ESP8266 or vice versa.
+
+| | GeekMagic **SmallTV Pro** | vendor **SD PRO** (JUZIPi-tech) |
+|---|---|---|
+| Chip | classic **ESP32**, 8 MB flash | **ESP8266**, 4 MB |
+| Build env | `smalltv_esp32_8mb` | `smalltv` |
+| Tell-tale | touch button on top | stock reports `SD EN V1.x` at `/version` |
+| Stock OTA route | `/update` | `/update_ota`, field `update` |
+
+Confirm the chip from the vendor's own image rather than from the word on the box — see below. A GeekMagic SmallTV Pro image carries an ESP32 header; an SD PRO one contains the literal string `Firmware ONLY supports ESP8266!!!`.
+
+Note this fork currently builds four targets and does not yet include the `smalltv_esp32_8mb` (GeekMagic SmallTV Pro) env that upstream added. If you have that device, build from upstream.
+
 ### Vendor rebrands of the same cube
 
 The four above are the models this firmware is known to run on. The same cube is also resold under other vendors' own firmware, and those units are **not** covered by the table — they differ in which OTA route their stock web UI exposes, not usually in the hardware. If your unit's stock UI is titled "Smart Weather Clock" but none of the tell-tales above fit, identify it before flashing anything:
