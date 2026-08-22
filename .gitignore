@@ -45,3 +45,6 @@ dependencies.lock
 # Local WiFi credentials for scripts/join_wifi.sh -- never commit real values,
 # only .env.example.
 .env
+
+# Built release artefacts (published as Release assets, not tracked)
+dist/

@@ -86,6 +86,20 @@ static void handleStatus() {
   JsonObject o = doc.to<JsonObject>();
   o["fw"] = FW_NAME;
   o["version"] = FW_VERSION;
+  o["board"] = FW_BOARD;          // esp8266 / sdpro / esp32-c2 / esp32
+  // Which features this particular image carries. A slim build (e.g. the SD PRO
+  // one) compiles several out, and without this the only way to find out is to
+  // poke the endpoints and see what answers.
+  {
+    String f;
+    if (WITH_USAGE)    f += "usage,";
+    if (WITH_CALENDAR) f += "calendar,";
+    if (WITH_TICKER)   f += "ticker,";
+    if (WITH_RADAR)    f += "radar,";
+    if (WITH_TLS)      f += "tls,";
+    if (f.endsWith(",")) f.remove(f.length() - 1);
+    o["features"] = f;
+  }
   o["repo"] = REPO_URL;
   if (g_updateMsg.length()) o["updateMsg"] = g_updateMsg;
   o["mode"] = (netMode() == NET_AP) ? "ap" : "sta";
@@ -208,6 +222,18 @@ static void handleFactory() {
 // the WiFi passwords — same trust domain as typing them into this page.
 static void handleExport() {
   if (!checkAuth()) { sendUnauthorized(); return; }
+  // checkAuth() passes everything when no secret key is set, which is the
+  // default. For every other endpoint that is merely permissive; here it would
+  // hand the WiFi passwords to anyone on the LAN -- exactly the hole the stock
+  // firmware has at its own /config, and the reason these units get reflashed.
+  // Refuse rather than inherit it: an export is a rare admin action, so
+  // requiring a key first costs nothing and closes the default-open door.
+  if (S->secretKey.length() == 0) {
+    server.send(403, "application/json",
+                "{\"ok\":false,\"error\":\"set a secret key before exporting: "
+                "this file contains your WiFi passwords\"}");
+    return;
+  }
   File f = LittleFS.open("/config.json", "r");
   if (!f) { server.send(404, "text/plain", "no config saved yet"); return; }
   server.sendHeader("Content-Disposition", "attachment; filename=smalltv-config.json");

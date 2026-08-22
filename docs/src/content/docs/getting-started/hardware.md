@@ -14,12 +14,47 @@ Look at the board through the case vents, or open it (four clips, no glue).
 - **SmallTV (ESP8266)**: an ESP8266 module, no separate USB-serial chip. Flashes over the air.
 - **SmallTV (ESP32-C2)**: a bare **ESP8684** chip (that is the ESP32-C2) plus a **CH340C** USB-serial chip next to the USB-C port. Flashes over USB-C.
 - **NM-TV-154 (ESP32)**: the PCB reads **NM-TV-Miner** and carries an **ESP32-WROOM-32E** module. Sold as an NMMiner BTC lottery miner, not as a weather clock. Flashes over USB.
+- **SD PRO (JUZIPi clone, ESP8266)**: an ESP-12F on a carrier marked with a date code and `V1.1`, no USB-serial chip, stock firmware reporting `SD EN V1.x.x`. Looks like a SmallTV, is not one. **Its stock updater bricks the device if given an oversized image while replying `HTTP 200 OK`** — read the warning in [Flashing](/smalltv-mod/getting-started/flashing/) before touching it.
 
 The two chips on the ESP32-C2 board are the giveaway. The main SoC is marked `ESP8684`, and the small 16-pin chip by the USB-C port is the `CH340C`.
 
 ![The ESP8684 (ESP32-C2) main chip on the ESP32-C2 board](/smalltv-mod/assets/board-c2-esp8684.jpg)
 
 ![The CH340C USB-serial chip next to the USB-C port](/smalltv-mod/assets/board-c2-ch340c.jpg)
+
+## SD PRO (JUZIPi clone, ESP8266)
+
+Sold on AliExpress as a "SD PRO" smart clock by JUZIPi-tech, with its own
+firmware line and its own repo at
+[`JUZIPi-tech/SD_PRO`](https://github.com/JUZIPi-tech/SD_PRO). It is **not** a
+GeekMagic product and it is **not** the GeekMagic "SmallTV Pro" (which is an
+ESP32 with a different pin map entirely — two unrelated products share the word
+"Pro").
+
+| | |
+|---|---|
+| MCU | ESP-12F (ESP8266), 4 MB flash |
+| Display | 1.54" 240×240 IPS ST7789, hardware SPI |
+| Panel CS | **tied to GND** — build with `-D SDPRO_CS_GND` so GPIO15 is left alone |
+| Flash layout | 4M2M (`eagle.flash.4m2m.ld`) |
+| USB-C | **power only** — no USB-serial chip, so a failed flash needs the UART header |
+| Stock firmware | `SD EN V1.x.x`, published only as V1.0.4 / V1.0.6 (V1.1.7 ships on units but is not downloadable anywhere) |
+| Environment | `smalltv_sdpro_slim` |
+
+Two differences from the Ultra that this firmware handles for you:
+
+- **The panel renders much less saturated** and has none of the Ultra's blue
+  cast, so the build defaults to `toneSat=200`, `toneB=100`. Without that the
+  UI looks washed-out blue and the mascot reads as white.
+- **The image must be slim.** `WITH_TICKER=0 WITH_RADAR=0 WITH_TLS=0` brings it
+  to ~579 KB, because the full ~718 KB image does not fit this device at any
+  hop. That also means no GitHub self-update — updates go through the loader.
+
+Its UART pads are not where the original SmallTV's are: there is no labelled
+six-pad row. Ground and GPIO0 are on a three-pad group marked `G V O` on the
+back of the board, and TXD0/RXD0 are the two leftmost castellations on the
+module's bottom edge (the edge facing the USB-C connector, counted from the side
+away from the antenna).
 
 ## SmallTV (ESP8266)
 

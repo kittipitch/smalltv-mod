@@ -253,6 +253,38 @@ void appInvalidate() {
   for (size_t i = 0; i < kModeCount; i++) kModes[i]->invalidate(g_settings);
 }
 
+// ---------------------------------------------------------------------------
+// Display-init guard. Survives a reset in RTC memory (not cleared by a warm
+// boot, wiped by a power cycle — which is the behaviour we want: pulling the
+// plug gives the panel a fresh chance).
+// ---------------------------------------------------------------------------
+static bool g_gfxSkipped = false;
+
+#if defined(ESP8266)
+static const uint32_t kGfxGuardMagic = 0x47465831;  // "GFX1"
+static const uint32_t kGfxGuardSlot  = 0;           // 4-byte block index
+
+static bool gfxGuardTripped() {
+  uint32_t v = 0;
+  if (!ESP.rtcUserMemoryRead(kGfxGuardSlot, &v, sizeof(v))) return false;
+  return v == kGfxGuardMagic;
+}
+static void gfxGuardArm() {
+  uint32_t v = kGfxGuardMagic;
+  ESP.rtcUserMemoryWrite(kGfxGuardSlot, &v, sizeof(v));
+}
+static void gfxGuardClear() {
+  uint32_t v = 0;
+  ESP.rtcUserMemoryWrite(kGfxGuardSlot, &v, sizeof(v));
+}
+#else
+// Other targets flash over USB, so an unreachable device is a nuisance rather
+// than a case-opening. Keep the boot path identical to before.
+static bool gfxGuardTripped() { return false; }
+static void gfxGuardArm() {}
+static void gfxGuardClear() {}
+#endif
+
 static void bootProgress(const char* msg) {
   gfxBoot("SmallTV", msg);
 }
@@ -287,9 +319,31 @@ void setup() {
   loadSettings(g_settings);
   rebuildCarouselOrder(g_settings);
 
-  Serial.println("[boot] display");
-  gfxBegin(g_settings);
-  gfxBoot(g_safeMode ? "Crashed" : "SmallTV", FW_VERSION);
+  // Display init runs before the network, so a fault in here costs the whole
+  // device: no screen AND no way in, on hardware whose UART header needs the
+  // case opened. The guard below breaks that: we mark RTC memory immediately
+  // before touching the panel and clear it immediately after. A boot that
+  // finds the mark still set knows the previous attempt never returned —
+  // crash, hang, or strap-pin fault — and skips the display entirely, coming
+  // up headless but with WiFi and the web portal live. Every gfx* call is
+  // null-guarded, so the rest of the firmware treats a missing display as a
+  // no-op. Dark but OTA-reachable beats unreachable.
+  //
+  // Deliberately narrower than g_safeMode: an ordinary crash elsewhere still
+  // gets its on-screen reset reason, which is the only diagnostic these units
+  // have. Only a fault *inside display init* costs the screen, and only for
+  // one boot — the mark is cleared on the way through, so the next boot tries
+  // the panel again.
+  if (gfxGuardTripped()) {
+    Serial.println("[boot] display SKIPPED — previous boot faulted during display init");
+    g_gfxSkipped = true;
+  } else {
+    Serial.println("[boot] display");
+    gfxGuardArm();
+    gfxBegin(g_settings);
+    gfxGuardClear();
+    gfxBoot(g_safeMode ? "Crashed" : "SmallTV", FW_VERSION);
+  }
 
   Serial.println("[boot] net");
   netBegin(g_settings, bootProgress);

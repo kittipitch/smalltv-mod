@@ -26,6 +26,27 @@ static long verNum(const char* v) {
 
 OtaLatest otaCheckLatest(const Settings& s) {
   OtaLatest r;
+#ifdef SDPRO_CS_GND
+  // SD PRO: self-update is compiled out, not merely pointed at a name that
+  // happens not to resolve. The generic ESP8266 asset is built 4M1M with
+  // TFT_CS 15, and driving GPIO15 on this board is the boot-strap mechanism
+  // that bricked unit #1 — so "no asset published yet" is not a safety
+  // property: the day anyone publishes that asset name, every SD PRO in the
+  // field would take it on the next click. Returning here makes every caller
+  // (both WebPortal handlers and otaBootUpdate) fail closed before any
+  // Update.begin() can run. UPDATE_ASSET in config.h stays as defence in
+  // depth. (advisor pre-flash audit, 2026-08-22.)
+  (void)s;
+  r.error = F("self-update disabled on this board (SD PRO)");
+  return r;
+#endif
+#if !WITH_TLS
+  // Built without TLS: GitHub is HTTPS-only, so there is nothing to check and
+  // no BearSSL to check it with. Fail closed before any client is constructed.
+  (void)s;
+  r.error = F("self-update unavailable: built without TLS");
+  return r;
+#else
   if (ESP.getFreeHeap() < 20000) { r.error = F("low heap"); return r; }
 
   String url = F("https://");
@@ -115,6 +136,7 @@ OtaLatest otaCheckLatest(const Settings& s) {
     if (attempt < kAttempts) delay(500);           // brief backoff before the next try
   }
   return r;   // r.error holds the last (retryable) error after all attempts
+#endif  // WITH_TLS
 }
 
 String otaUpdateFromGitHub(const Settings& s) {
@@ -188,6 +210,11 @@ String otaTakeBootResult() {
 
 void otaBootUpdate(const Settings& s) {
   LittleFS.remove(OTA_REQ_PATH);            // consume first: one attempt per request
+#if !WITH_TLS
+  (void)s;
+  otaBootResult(F("built without TLS -- update over serial"));
+  return;
+#else
   if (WiFi.status() != WL_CONNECTED) { otaBootResult(F("no WiFi at boot")); return; }
 
   OtaLatest r = otaCheckLatest(s);          // re-resolve the asset URL fresh
@@ -222,6 +249,7 @@ void otaBootUpdate(const Settings& s) {
   else if (ret != HTTP_UPDATE_OK)
     otaBootResult("download failed: " + ESPhttpUpdate.getLastErrorString());
   // HTTP_UPDATE_OK: rebootOnUpdate restarts into the new image
+#endif  // WITH_TLS
 }
 #else
 bool   otaBootRequested() { return false; }
