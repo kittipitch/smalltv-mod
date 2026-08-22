@@ -75,7 +75,7 @@ Two unrelated products are sold as "Pro", and they do not share a chip. Picking 
 | | GeekMagic **SmallTV Pro** | vendor **SD PRO** (JUZIPi-tech) |
 |---|---|---|
 | Chip | classic **ESP32**, 8 MB flash | **ESP8266**, 4 MB |
-| Build env | `smalltv_esp32_8mb` | `smalltv` |
+| Build env | `smalltv_esp32_8mb` | **`smalltv_sdpro_slim`** |
 | Tell-tale | touch button on top | stock reports `SD EN V1.x` at `/version` |
 | Stock OTA route | `/update` | `/update_ota`, field `update` |
 
@@ -92,7 +92,24 @@ The four above are the models this firmware is known to run on. The same cube is
 - **Confirm the MCU from the vendor's own image, not from the case.** Vendors usually publish their firmware; the first 32 bytes settle it. An entry point of `0x4010****` with `0x3fff****` segments is an ESP8266, so the `smalltv` env applies. An ESP32 or ESP32-C2 image looks different.
 - **Keep the vendor image.** Most vendors do not publish every version they ship, and there is no way to dump the running image over HTTP, so your restore path may be a downgrade. Get it before you overwrite anything.
 
-> **Untested.** SD PRO is documented here as an identification recipe, not as a supported target — no confirmed flash of this firmware onto one yet. Ratios are in its favour (same ESP8266, and [every variant shares the same ST7789 panel](https://giovi321.github.io/smalltv-mod/getting-started/hardware/)), but the pin map is unverified. If you try it, the failure worth planning for is a unit that boots and joins WiFi with a blank or garbled screen — recoverable over the network by reflashing the vendor image or by correcting `src/board_esp8266.h` and rebuilding. Have a UART path available before you start.
+> **Now tested, and there is one way to destroy the device — read this first.**
+> SD PRO is a supported target: build `smalltv_sdpro_slim` (4M2M layout,
+> `-D SDPRO_CS_GND` so GPIO15 is left alone, and the ticker/radar/TLS compiled
+> out to fit). What is *not* safe is its stock updater. **It performs no
+> free-space check: hand it an image bigger than the room it has and it replies
+> `HTTP 200 OK`, writes past the end, and the unit never boots again** — dark
+> screen, no WiFi, no AP, unaffected by a power cycle. Two units were lost that
+> way. The `OK` only means the upload arrived; it never means it fit. Because
+> this board has **no USB-serial chip** (USB-C is power only), there is no
+> recovery over the network afterwards — only the internal UART pads.
+>
+> So install in two hops, never the full image directly:
+> `smalltv-mod-loader.bin` (315,920 B) to `POST /update_ota` field `update`,
+> then `smalltv-mod-firmware-sdpro.bin` (~579 KB) to the loader's
+> `POST /update` field `firmware`. Between the two the screen is dark and the
+> device leaves the network — that is the loader working, not a brick; it
+> answers `200` on `/update` and `404` on `/`. Full walkthrough in
+> [Flashing](https://giovi321.github.io/smalltv-mod/getting-started/flashing/).
 
 ## What it does
 
