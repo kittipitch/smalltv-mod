@@ -81,7 +81,7 @@ Two unrelated products are sold as "Pro", and they do not share a chip. Picking 
 
 Confirm the chip from the vendor's own image rather than from the word on the box — see below. A GeekMagic SmallTV Pro image carries an ESP32 header; an SD PRO one contains the literal string `Firmware ONLY supports ESP8266!!!`.
 
-Note this fork currently builds four targets and does not yet include the `smalltv_esp32_8mb` (GeekMagic SmallTV Pro) env that upstream added. If you have that device, build from upstream.
+Note this fork builds five physical targets (ESP8266, SmallTV-ultra, ESP32-C2, NM-TV-154, and SD PRO) and does not yet include the `smalltv_esp32_8mb` (GeekMagic SmallTV Pro) env that upstream added. If you have that device, build from upstream.
 
 ### Vendor rebrands of the same cube
 
