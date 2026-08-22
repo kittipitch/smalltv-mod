@@ -44,7 +44,14 @@ void clockReapply(const Settings& s) {
   // fragment the largest contiguous block below what the cash.ch TLS handshake
   // needs (blanking those tickers). So arm on the first enable, re-arm on a
   // timezone change, and never start it while night mode is off.
+  // ...but that whole rationale is about BearSSL. A build with WITH_TLS=0 has no
+  // handshake to starve (no ticker, no GitHub self-update), so withholding the
+  // clock there buys nothing and costs the agenda its event times: the SD PRO
+  // came up with synced=false indefinitely while the Ultra, which happens to run
+  // night mode, was fine. Arm it unconditionally when there is no TLS.
+#if WITH_TLS
   if (!s.clock.nightEnabled) return;
+#endif
   if (!s_ntpStarted || s.clock.tzPosix != s_armedTz) clockBegin(s);
 }
 

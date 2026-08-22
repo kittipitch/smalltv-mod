@@ -9,7 +9,18 @@
 #define TFT_MOSI   13   // D7  (HW SPI data,  fixed)
 #define TFT_DC      0   // D3  (data/command) — also a boot-strap pin
 #define TFT_RST     2   // D4  (reset)        — also a boot-strap pin / onboard LED
+// Chip select. GPIO15 on the original SmallTV, but community teardowns of the
+// vendor rebrands (and the ESP32-C2 board) report the panel's CS tied straight
+// to GND, with GPIO15 unused. Driving GPIO15 there is not merely pointless: it
+// is a boot-strap pin, and a board without the usual external pulldown can be
+// left sampling GPIO15 high at reset, which selects SDIO boot and the chip
+// never runs the sketch — no display, no WiFi, unfixed by a power cycle.
+// Build with -D SDPRO_CS_GND to pass GFX_NOT_DEFINED instead (see Gfx.cpp).
+#ifdef SDPRO_CS_GND
+#define TFT_CS     -1   // panel CS tied to GND; leave GPIO15 alone
+#else
 #define TFT_CS     15   // D8  (chip select)  — also a boot-strap pin
+#endif
 #define TFT_BL      5   // D1  (backlight, PWM capable)
 
 // Panel colour order: this unit's ST7789 is wired RGB (0 = leave MADCTL RGB bit).

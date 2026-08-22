@@ -48,3 +48,6 @@ dependencies.lock
 
 # local tooling, not part of the firmware
 .venv-esptool/
+
+# Built release artefacts (published as Release assets, not tracked)
+dist/

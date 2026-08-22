@@ -311,8 +311,19 @@ void Settings::setDefaults() {
   rotation = 0;
 
   toneR = toneG = 100;
+#ifdef SDPRO_CS_GND
+  // The SD PRO rebrand's panel is a different part from the Ultra's: it renders
+  // markedly LESS saturated, which washes warm tones out toward white (the
+  // mascot's #CE7D6B read as plain white on first boot) and leaves the whole UI
+  // looking pale blue. It also has none of the Ultra's blue cast, so the 95
+  // below is wrong here. Values found live on unit .25 via the display sliders
+  // and confirmed on the physical screen, 2026-08-22.
+  toneB = 100;
+  toneSat = 200;
+#else
   toneB = 95;   // slight default blue reduction — user confirmed this cures the panel's blue cast
   toneSat = 100;
+#endif
 
   ticker.setDefaults();
   usage.setDefaults();
