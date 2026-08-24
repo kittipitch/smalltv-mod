@@ -5,7 +5,7 @@ description: How to install smalltv-mod on each board, back up the stock firmwar
 
 Flash the method that matches your board. The ESP8266 installs over the air from its stock web UI. The ESP32-C2 and the NM-TV-154 install over the USB cable with esptool. Back up the stock image first on any board so you can always go back.
 
-Get the firmware image from the [Actions tab](https://github.com/giovi321/smalltv-mod/actions) (latest `build` run) or the [Releases page](https://github.com/giovi321/smalltv-mod/releases), or [build it yourself](/smalltv-mod/reference/building/).
+Get the firmware image from the [Actions tab](https://github.com/kittipitch/smalltv-mod/actions) (latest `build` run) or the [Releases page](https://github.com/kittipitch/smalltv-mod/releases), or [build it yourself](/smalltv-mod/reference/building/).
 
 ## First: work out which board you have
 
@@ -25,7 +25,7 @@ curl -s http://$IP/config   | head -c 200      # SD PRO answers with JSON here
 | What you see | Board | Image to use |
 |---|---|---|
 | Version like `SD EN V1.x.x`; `/config` returns JSON with `gifnum`/`weatherkey`; UI links to `JUZIPi-tech/SD_PRO` | **SD PRO clone** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware-sdpro.bin` — see [SD PRO](#sd-pro-juzipi-clone-esp8266--read-this-before-you-upload-anything) |
-| Version like `Ultra-V9.0.xx`; stock updater refuses the full image with `Not Enough Space` | **SmallTV-ultra** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware.bin` |
+| Version like `Ultra-V9.0.xx`; stock updater refuses the full image with `Not Enough Space` | **SmallTV-ultra** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware-slim.bin` |
 | Plain SmallTV stock UI, updater accepts the full image | **SmallTV** (ESP8266) | `smalltv-mod-firmware.bin` |
 | Appears as a USB serial port when plugged in (onboard CH340C) | **ESP32-C2 / ESP8684** | `smalltv-mod-firmware-c2.bin` over USB |
 | Marked `NM-TV-154` | **classic ESP32** | `smalltv-mod-firmware-esp32.bin` over USB |
@@ -90,17 +90,17 @@ That single image carries everything the ESP8266 needs, so there is no separate 
 
 The SmallTV-ultra is the same ESP-12F (ESP8266) as the original SmallTV: same 4 MB flash, the same 1.54" 240×240 ST7789 panel, and the same pin map. Only its stock firmware differs. The "Ultra" firmware (for example Ultra-V9.0.50) reserves most of the flash for image and GIF storage, which leaves its OTA updater a small app slot. Uploading `smalltv-mod-firmware.bin` at `/update` fails with `Update error: ERROR[4]: Not Enough Space`, even though the flash has plenty of free user space, because the full image does not fit that small slot.
 
-The fix is a two-step install through a tiny loader, no soldering. The loader is a ~308 KB image that does fit the stock slot. Once running it uses this firmware's own 4m1m flash layout, whose app region is large, so the full image fits on the second hop.
+The fix is a two-step install through a tiny loader, no soldering. The loader is a ~308 KB image that does fit the stock slot. Once running it uses this firmware's own 4m1m flash layout, whose app region is larger — large enough for the slim image on the second hop, though not for the full one.
 
-1. Get `smalltv-mod-loader.bin` from the [Releases page](https://github.com/giovi321/smalltv-mod/releases).
+1. Get `smalltv-mod-loader.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases).
 2. Browse to `http://<device-ip>/update` and upload `smalltv-mod-loader.bin`. It fits the stock slot. The device reboots into the loader.
 3. The loader opens an open WiFi access point named `SmallTV-Loader`. Join it and browse to `http://192.168.4.1/update`.
-4. Upload `smalltv-mod-firmware.bin` there. It fits because the loader uses this firmware's flash layout, which leaves about 700 KB free for OTA against the roughly 651 KB image. The device reboots into the full smalltv-mod.
+4. Upload **`smalltv-mod-firmware-slim.bin`** there — not the full image. The loader's layout leaves about 700 KB free for OTA; the full image (ticker + radar + TLS) is 723,632 B, 6,832 B too big for that slot, while the slim build is 579,616 B and fits with roughly 137 KB to spare. The device reboots into smalltv-mod.
 5. It comes up in the usual `SmallTV-Setup` captive portal for WiFi. From here it is a normal ESP8266 smalltv-mod device.
 
 After this first install, normal OTA works from the Update tab, because this firmware's layout has room for two sketch copies. You only need the loader once.
 
-If the loader ever will not come back up, flash over the serial header instead. The board is a plain ESP-12F, so the [UART recovery](#uart-header-for-recovery) steps above apply directly: `esptool.py --port COM5 write_flash 0x0 smalltv-mod-firmware.bin`.
+If the loader ever will not come back up, flash over the serial header instead. The board is a plain ESP-12F, so the [UART recovery](#uart-header-for-recovery) steps above apply directly: `esptool.py --port COM5 write_flash 0x0 smalltv-mod-firmware.bin`. Over UART the OTA slot limit does not apply, so the full image is fine there.
 
 ## SD PRO (JUZIPi clone, ESP8266) — read this before you upload anything
 
@@ -207,7 +207,7 @@ Keep `stock-backup.bin` somewhere safe. Writing it back with `write_flash 0x0 st
 
 ### Write this firmware
 
-Download `smalltv-mod-firmware-c2.factory.bin` from the [Releases page](https://github.com/giovi321/smalltv-mod/releases): a single merged image with the bootloader, partition table, and app (a local build produces the same file as `firmware.factory.bin`). Write it at offset 0:
+Download `smalltv-mod-firmware-c2.factory.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases): a single merged image with the bootloader, partition table, and app (a local build produces the same file as `firmware.factory.bin`). Write it at offset 0:
 
 ```bash
 python -m esptool --chip esp32c2 --port COM3 --baud 921600 write_flash 0x0 smalltv-mod-firmware-c2.factory.bin
@@ -221,7 +221,7 @@ Use the system esptool, not the one bundled with PlatformIO. The bundled version
 
 ## NM-TV-154 (classic ESP32)
 
-Same procedure as the ESP32-C2, with `--chip esp32` and `smalltv-mod-firmware-esp32.factory.bin` from the [Releases page](https://github.com/giovi321/smalltv-mod/releases) (or build it with `pio run -e smalltv_esp32`).
+Same procedure as the ESP32-C2, with `--chip esp32` and `smalltv-mod-firmware-esp32.factory.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases) (or build it with `pio run -e smalltv_esp32`).
 
 ### Back up the stock image first
 
@@ -246,7 +246,7 @@ With a source checkout, `pio run -e smalltv_esp32 -t upload` does the same thing
 Every board then updates from the browser: open the web UI's **Update** tab and either let the device pull the newest GitHub release itself (each board fetches its own image) or upload a firmware file manually. The manual upload takes the plain app image (`smalltv-mod-firmware*.bin`), not the `.factory.bin`.
 
 :::caution[ESP8266 on firmware 2.6.1 or older: update manually once]
-The GitHub self-update was broken on the ESP8266 (original SmallTV and SmallTV-ultra) in every firmware up to and including 2.6.1: the release check misparsed GitHub's occasionally chunked responses, and the download needs a 16 KB TLS buffer that does not fit next to the running firmware, so it always failed with `download failed: HTTP error: connection failed`. A broken updater cannot update itself. Update these devices **once by hand**: download `smalltv-mod-firmware.bin` from the [Releases page](https://github.com/giovi321/smalltv-mod/releases) and upload it in the web UI's **Update** tab. From 2.7.0 on, self-update works on the ESP8266 too.
+The GitHub self-update was broken on the ESP8266 (original SmallTV and SmallTV-ultra) in every firmware up to and including 2.6.1: the release check misparsed GitHub's occasionally chunked responses, and the download needs a 16 KB TLS buffer that does not fit next to the running firmware, so it always failed with `download failed: HTTP error: connection failed`. A broken updater cannot update itself. Update these devices **once by hand**: download `smalltv-mod-firmware.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases) and upload it in the web UI's **Update** tab. From 2.7.0 on, self-update works on the ESP8266 too.
 :::
 
 The ESP32 boards download and flash in place. The ESP8266 (from 2.7.0) uses an update-at-boot flow instead, because the download's 16 KB TLS buffer only fits before the firmware's features start: the device queues the update, reboots, shows `updating...` while it downloads, then reboots again into the new version. Expect two reboots and a couple of minutes; if the download fails, the device boots normally and the Update tab shows why.

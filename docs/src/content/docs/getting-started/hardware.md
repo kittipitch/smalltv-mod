@@ -170,8 +170,17 @@ The same cube is resold with other vendors' firmware on it. Those units are usua
    An entry point in `0x4010****` with `0x3fff****` data segments is an ESP8266, so the `smalltv` env applies. Also check the fourth byte — flash mode and size/frequency nibbles — against what your build produces; a mismatch there is a classic ESP8266 boot loop.
 4. **Keep the vendor image before overwriting.** There is no way to read the running firmware back over HTTP, and vendors often publish only some versions, so your restore may be a downgrade to an older build.
 
-### SD PRO (JUZIPi-tech) — identified, untested
+### SD PRO (JUZIPi-tech) — tested
 
-Confirmed ESP8266 with a working OTA panel, so in principle the `smalltv` env installs directly with no loader step. **No confirmed flash yet**, and the pin map is unverified. The panel is the same 1.54" 240×240 ST7789 as every other variant, and the ESP8266 board drives it over hardware SPI — clock and data are fixed by the chip, leaving only `DC`, `RST`, `CS` and the backlight as wiring choices.
+Now a supported target with its own section above: see
+[SD PRO (JUZIPi clone, ESP8266)](#sd-pro-juzipi-clone-esp8266) for the verified
+pin map, panel tone defaults, and UART pad locations.
 
-If those differ, the symptom is a device that boots and joins WiFi but shows nothing useful. That case is recoverable **over the network**: reflash the vendor image from the web UI, or correct `src/board_esp8266.h` and rebuild. Only a unit that fails to boot or fails to join WiFi needs UART, so have that path available before starting.
+Two corrections to what this section used to say, both learned on hardware.
+The `smalltv` env does **not** install directly — the stock updater performs no
+free-space check, answers `HTTP 200 OK`, and writes past the end of its slot;
+two units were bricked that way. Build `smalltv_sdpro_slim` and install it
+through the loader, per [Flashing](/smalltv-mod/getting-started/flashing/).
+And a bad flash here is **not** recoverable over the network: the USB-C port is
+power only, so recovery means the internal UART header. Have that path
+available before you start.

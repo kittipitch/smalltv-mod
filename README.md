@@ -47,7 +47,7 @@
 
 The GeekMagic SmallTV is a cheap desk gadget: a little cube with a 1.54" colour screen, an ESP inside, and a USB-C port. This firmware throws away the stock apps and turns it into things you actually watch: a **stock and crypto ticker** with prices, change, and a sparkline; a **Claude usage meter** with an animated mascot and your 5-hour and 7-day usage bars, plus matching quota pages for **z.ai, Codex CLI, and Google Antigravity CLI**; a **live plane radar** centred on your location, pulled from a free public feed; and an **agenda + weather/AQI** view fed from Google Calendar and a weather API. See [What it does](#what-it-does) for the full list. One image carries everything you enable; you switch between them (or rotate a carousel) in a built-in web UI, and you update over WiFi.
 
-This firmware builds for four boards from one codebase. The original SmallTV runs an **ESP8266**; the **SmallTV-ultra** is the same ESP-12F hardware and screen, but its stock "Ultra" firmware and flash partitions block a normal OTA of this image, so it takes a two-step loader install (see [Flashing](#flashing)); a second version sold under the same "smart weather clock" look uses an **ESP32-C2 (ESP8684)** instead. A third build targets the **NMMiner NM-TV-154** (PCB marked "NM-TV-Miner"), a classic-ESP32 BTC lottery miner in the same cube with the same screen, confirmed working by a community tester in [issue #1](https://github.com/giovi321/smalltv-mod/issues/1). Pick yours below.
+This firmware builds for five boards from one codebase. The original SmallTV runs an **ESP8266**; the **SmallTV-ultra** is the same ESP-12F hardware and screen, but its stock "Ultra" firmware and flash partitions block a normal OTA of this image, so it takes a two-step loader install (see [Flashing](#flashing)); a second version sold under the same "smart weather clock" look uses an **ESP32-C2 (ESP8684)** instead. A third build targets the **NMMiner NM-TV-154** (PCB marked "NM-TV-Miner"), a classic-ESP32 BTC lottery miner in the same cube with the same screen, confirmed working by a community tester in [issue #1](https://github.com/giovi321/smalltv-mod/issues/1). The remaining target is the vendor **SD PRO** clone (JUZIPi-tech, ESP8266), which needs its own slim image — see ["Pro" means two different devices](#-pro-means-two-different-devices). Pick yours below.
 
 <p align="center">
   <img src="docs/public/assets/screen.svg" alt="The SmallTV running its three modes: stock ticker, Claude usage, and plane radar" width="900" />
@@ -85,7 +85,7 @@ Note this fork builds five physical targets (ESP8266, SmallTV-ultra, ESP32-C2, N
 
 ### Vendor rebrands of the same cube
 
-The four above are the models this firmware is known to run on. The same cube is also resold under other vendors' own firmware, and those units are **not** covered by the table — they differ in which OTA route their stock web UI exposes, not usually in the hardware. If your unit's stock UI is titled "Smart Weather Clock" but none of the tell-tales above fit, identify it before flashing anything:
+The four in the table above, plus the SD PRO covered below it, are the models this firmware is known to run on. The same cube is also resold under other vendors' own firmware, and those units are **not** covered by the table — they differ in which OTA route their stock web UI exposes, not usually in the hardware. If your unit's stock UI is titled "Smart Weather Clock" but none of the tell-tales above fit, identify it before flashing anything:
 
 - **Read the version endpoint.** `curl http://<device-ip>/version`. A string like `SD EN V1.1.7` means the vendor "SD PRO" firmware (JUZIPi-tech), not GeekMagic.
 - **Find the real OTA route.** `/update` may 404 while an OTA panel still exists in the UI. Read the page's JavaScript for the actual endpoint and form field name — SD PRO uses `POST /update_ota` with the field named `update`, where the original SmallTV uses `POST /update`.
@@ -123,7 +123,7 @@ The four above are the models this firmware is known to run on. The same cube is
 
 ## Get the firmware
 
-You do not need a toolchain. GitHub Actions builds the images for all four boards.
+You do not need a toolchain. GitHub Actions builds the images for all five boards.
 
 - Every push: the **Actions** tab, latest `build` run, download the firmware artifact.
 - Tagged releases (`vX.Y.Z`): attached to the [Releases](../../releases) page.
