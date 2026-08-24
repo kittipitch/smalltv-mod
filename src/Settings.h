@@ -99,6 +99,14 @@ struct CalendarSettings {
                             // each poll via /api/config -- see clawdmeter-daemon's
                             // read_device_calendar_ids(). Empty = daemon falls
                             // back to its own --calendar-id flag/auto-detect.
+  String   colorIds;       // comma-separated Google palette colorId (1-24, see
+                            // CalendarMode.cpp's kGCalPalette) per entry in `ids`,
+                            // index-aligned -- e.g. ids="a@x.com,b@y.com" +
+                            // colorIds="3,,7" means a@x.com is forced to palette
+                            // color 3, b@y.com has no override (empty slot -- use
+                            // whatever real color the daemon resolved, or the
+                            // default accent). Local/device-only: never written
+                            // back to Google, purely what this device displays.
 
   void setDefaults();
   void toJson(JsonObject o) const;

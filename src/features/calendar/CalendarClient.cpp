@@ -61,6 +61,7 @@ static void calendarFilter(JsonDocument& f) {
   // though the daemon is sending it correctly. Same trap every other key in
   // this object shares; called out because "end" is newly added.
   ev["summary"] = true; ev["start"] = true; ev["end"] = true; ev["allDay"] = true; ev["color"] = true;
+  ev["calendarId"] = true;
 }
 
 // Args: 6-char hex string (no '#') -> RGB565. Malformed input (wrong
@@ -109,6 +110,11 @@ bool calendarApply(const String& body) {
     } else {
       g_cal.items[n].color = 0;
       g_cal.items[n].hasColor = false;
+    }
+    if (ev["calendarId"].is<const char*>()) {
+      strlcpy(g_cal.items[n].calId, ev["calendarId"].as<const char*>(), sizeof(g_cal.items[n].calId));
+    } else {
+      g_cal.items[n].calId[0] = 0;
     }
     n++;
   }

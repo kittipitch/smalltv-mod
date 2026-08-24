@@ -275,8 +275,9 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   <div class="card"><h2>Agenda (Google Calendar)</h2>
    <p class="muted" style="margin:0">Shows your next few upcoming events. Events are pushed by <a href="https://github.com/kittipitch/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar</code>, which handles Google sign-in on your PC/server (run <code>--calendar-auth</code> once there, or use a service account — see the daemon's README). This device never sees your Google credentials, only the resulting event titles/times. If you've set a Daemon source IP (Update tab), pushes from any other address are ignored — make sure it matches the machine running the daemon.</p>
    <label style="margin-top:10px;display:block">Calendar ID(s)</label>
-   <input id="calIds" type="text" autocomplete="off" placeholder="you@gmail.com, otherid@group.calendar.google.com">
-   <small class="hint">Comma-separated. The daemon reads this straight from the device on every poll, so sharing a new calendar with your service account and pasting its ID here takes effect without restarting the daemon — no <code>--calendar-id</code> flag or restart needed. Leave blank to fall back to the daemon's own <code>--calendar-id</code>/auto-detect. Google's Calendar API has no way for a service account to discover a shared calendar on its own, so this field (or the CLI flag) is the only way to tell it which one(s) to read.</small>
+   <div id="calIdsList"></div>
+   <button type="button" class="btn sec" style="margin-top:8px" onclick="addCalId()">+ Add calendar ID</button>
+   <small class="hint">One per line. The daemon reads this straight from the device on every poll, so sharing a new calendar with your service account and adding its ID here takes effect without restarting the daemon — no <code>--calendar-id</code> flag or restart needed. Leave empty to fall back to the daemon's own <code>--calendar-id</code>/auto-detect. Google's Calendar API has no way for a service account to discover a shared calendar on its own, so this field (or the CLI flag) is the only way to tell it which one(s) to read.</small>
   </div>
   <div class="card"><h2>Weather location</h2>
    <div class="row">
@@ -380,6 +381,118 @@ function resolveTz(lat,lon){
    if(tzd)tzd.textContent=d.timezone;
   }).catch(function(){});   // best-effort -- last-known/stored tz stays shown
 }
+// Google's real 24-color CALENDAR palette (same values CalendarMode.cpp's
+// kGCalPalette hardcodes on the device -- captured live via an
+// authenticated GET https://www.googleapis.com/calendar/v3/colors, since
+// that endpoint 403s an unregistered/unauthenticated caller). id 0 = "Auto"
+// (no override -- use whatever real color the daemon resolved, or the
+// device's default accent).
+var GCAL_PALETTE=[
+ {id:0,hex:'',name:'Auto'},
+ {id:1,hex:'ac725e',name:'Cocoa'},{id:2,hex:'d06b64',name:'Flamingo'},
+ {id:3,hex:'f83a22',name:'Tomato'},{id:4,hex:'fa573c',name:'Tangerine'},
+ {id:5,hex:'ff7537',name:'Pumpkin'},{id:6,hex:'ffad46',name:'Mango'},
+ {id:7,hex:'42d692',name:'Eucalyptus'},{id:8,hex:'16a765',name:'Basil'},
+ {id:9,hex:'7bd148',name:'Pistachio'},{id:10,hex:'b3dc6c',name:'Avocado'},
+ {id:11,hex:'fbe983',name:'Citron'},{id:12,hex:'fad165',name:'Banana'},
+ {id:13,hex:'92e1c0',name:'Sage'},{id:14,hex:'9fe1e7',name:'Peacock'},
+ {id:15,hex:'9fc6e7',name:'Cobalt'},{id:16,hex:'4986e7',name:'Blueberry'},
+ {id:17,hex:'9a9cff',name:'Lavender'},{id:18,hex:'b99aff',name:'Wisteria'},
+ {id:19,hex:'c2c2c2',name:'Graphite'},{id:20,hex:'cabdbf',name:'Birch'},
+ {id:21,hex:'cca6ac',name:'Radicchio'},{id:22,hex:'f691b2',name:'Cherry Blossom'},
+ {id:23,hex:'cd74e6',name:'Grape'},{id:24,hex:'a47ae2',name:'Amethyst'}
+];
+
+// Calendar ID(s): one text row per id, "+" to add, "x" to remove each --
+// per explicit feedback ("it shud be one per line and plus sign to add
+// more"), not the original single comma-separated <input>. Each row also
+// gets a color override <select> (device-local only -- never written back
+// to Google, per explicit design decision) drawn from Google's own real
+// 24-color palette above, so the swatch names/values match what you'd see
+// picking a calendar's color in Google Calendar itself. ids/colorIds are
+// two parallel comma-joined strings, index-aligned by which rows actually
+// have a non-blank id (see calIdRowsData()) -- calendar.ids/calendar.colorIds.
+// checkerboard = "Auto" -- no real color to show, distinct from every real swatch
+var GCAL_AUTO_BG='repeating-linear-gradient(45deg,#333,#333 4px,#222 4px,#222 8px)';
+function swatchStyle(c){return c.hex?('background:#'+c.hex):('background:'+GCAL_AUTO_BG)}
+function addCalIdRow(val,colorId){
+ var box=$('calIdsList'); if(!box)return;
+ var row=document.createElement('div');
+ // Deliberately NOT class="row" -- that class's `.row>*{flex:1}` gives
+ // every direct child equal width, which stretched the (x) button to half
+ // the row and cropped the input's text ("button too wide.. calendar name
+ // got cropped", caught live). flex:0 0 auto pins the button/swatch to
+ // their content size instead, same fix CAR_MODES' carousel-row arrows
+ // already use for a similar multi-widget row. position:relative anchors
+ // the color-picker popup below the swatch button.
+ row.style.cssText='display:flex;gap:8px;margin-top:6px;align-items:center;position:relative';
+ var cid=(colorId!=null?String(colorId):'0');
+ var cur=GCAL_PALETTE.filter(function(c){return String(c.id)===cid})[0]||GCAL_PALETTE[0];
+ // A real <select> was tried first -- native <option> background-color
+ // styling doesn't render in the popup list on several browsers (caught
+ // live: "color name but not the color? who would know what to pic?"),
+ // so this is a plain colored <button> (guaranteed to render everywhere)
+ // that opens a custom swatch-grid popup on click, same idea a native
+ // color picker uses, just built from real Google palette colors.
+ row.innerHTML='<input type="text" class="calIdInput" placeholder="you@gmail.com or otherid@group.calendar.google.com" style="flex:1;min-width:0" value="'+esc(val||'')+'">'+
+  '<input type="hidden" class="calIdColorVal" value="'+cid+'">'+
+  '<button type="button" class="calIdSwatchBtn" title="'+esc(cur.name)+'" onclick="toggleColorPicker(this)" style="flex:0 0 auto;width:30px;height:30px;border-radius:6px;border:1px solid #444;cursor:pointer;'+swatchStyle(cur)+'"></button>'+
+  '<button type="button" class="btn sec" style="flex:0 0 auto;padding:4px 10px" onclick="this.parentElement.remove()">&times;</button>';
+ box.appendChild(row);
+}
+// 24 real colors + Auto = 25 -- fits a clean 5x5 grid, no leftover partial row.
+function toggleColorPicker(btn){
+ document.querySelectorAll('.calIdColorPopup').forEach(function(p){p.remove()});
+ var row=btn.closest('div');
+ var pop=document.createElement('div');
+ pop.className='calIdColorPopup';
+ pop.style.cssText='position:absolute;z-index:50;top:36px;right:34px;background:#1a1a1a;border:1px solid #444;border-radius:8px;padding:8px;display:grid;grid-template-columns:repeat(5,26px);gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.5)';
+ GCAL_PALETTE.forEach(function(c){
+  var sw=document.createElement('div');
+  sw.title=c.name;
+  sw.style.cssText='width:26px;height:26px;border-radius:5px;cursor:pointer;border:1px solid #555;'+swatchStyle(c);
+  sw.onclick=function(ev){
+   ev.stopPropagation();
+   row.querySelector('.calIdColorVal').value=c.id;
+   btn.style.cssText=btn.style.cssText.replace(/background:[^;]+/,'')+swatchStyle(c);
+   btn.title=c.name;
+   pop.remove();
+  };
+  pop.appendChild(sw);
+ });
+ row.appendChild(pop);
+ // close on outside click -- one-shot listener, added after this click finishes
+ setTimeout(function(){
+  document.addEventListener('click', function closeIt(ev){
+   if(!pop.contains(ev.target) && ev.target!==btn){pop.remove(); document.removeEventListener('click', closeIt)}
+  });
+ }, 0);
+}
+function renderCalIds(ids,colorIds){
+ var box=$('calIdsList'); if(!box)return;
+ box.innerHTML='';
+ if(!ids||!ids.length){addCalIdRow('',0);return}
+ ids.forEach(function(id,i){addCalIdRow(id,(colorIds&&colorIds[i])?colorIds[i]:0)});
+}
+function addCalId(){
+ if(document.querySelectorAll('#calIdsList .calIdInput').length>=10){toast('Max 10');return}
+ addCalIdRow('',0);
+}
+function calIdRowsData(){
+ var ids=[],colors=[];
+ document.querySelectorAll('#calIdsList > div').forEach(function(row){
+  var idInput=row.querySelector('.calIdInput');
+  var val=idInput?idInput.value.trim():'';
+  if(!val)return;   // skip blank rows entirely -- keeps ids/colors index-paired
+  ids.push(val);
+  var colorInput=row.querySelector('.calIdColorVal');
+  var cv=colorInput?colorInput.value:'0';
+  colors.push(cv&&cv!=='0'?cv:'');
+ });
+ return {ids:ids,colors:colors};
+}
+function getCalIds(){return calIdRowsData().ids.join(',')}
+function getCalColorIds(){return calIdRowsData().colors.join(',')}
 function calRefreshLocLabel(lat,lon){
  var lbl=$('calLocLabel'); if(!lbl)return;
  if(!lat&&!lon){lbl.textContent='';return}
@@ -588,7 +701,9 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  renderAps(r.airports||[]);
  // calendar slice
  var cal=c.calendar||{};
- sv('calLat',cal.lat); sv('calLon',cal.lon); sv('calIds',cal.ids);
+ sv('calLat',cal.lat); sv('calLon',cal.lon);
+ renderCalIds((cal.ids||'').split(',').map(function(s){return s.trim()}).filter(Boolean),
+              (cal.colorIds||'').split(','));
  calRefreshLocLabel(cal.lat||0, cal.lon||0);
  resolveTz(cal.lat||0, cal.lon||0);
  $('calLat').onchange=$('calLon').onchange=function(){resolveTz(parseFloat(gv('calLat'))||0, parseFloat(gv('calLon'))||0)};
@@ -694,7 +809,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, ids:gv('calIds')};
+  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, ids:getCalIds(), colorIds:getCalColorIds()};
  }
  return o;
 }

@@ -5,6 +5,12 @@
 #define CAL_TITLE_LEN 48   // truncated for display well before this; room for the raw push
 #define CAL_START_LEN 24   // ISO8601 datetime ("2026-07-27T10:00:00+01:00") or date-only
 #define CAL_MAX_EVENTS 6   // agenda page shows 3 at a time, cycling through 2 pages when >3
+#define CAL_ID_LEN 96      // a generated secondary calendar id is a 64-char hex hash plus
+                            // "@group.calendar.google.com" (~91 chars); a primary calendar
+                            // id is just an email address, well under this. Truncated
+                            // (not rejected) if a real id somehow exceeds it -- see
+                            // CalendarClient.cpp's parse -- since a truncated id just fails
+                            // to match any configured override, it doesn't corrupt anything.
 
 struct CalendarEventItem {
   char summary[CAL_TITLE_LEN];
@@ -23,6 +29,11 @@ struct CalendarEventItem {
   bool     hasColor;   // false = daemon sent none (old daemon, or the source
                         // calendar has no color set) -- render with the
                         // existing default accent color, not a bogus black
+  char calId[CAL_ID_LEN];  // source calendar's own id, e.g. "you@gmail.com" --
+                            // lets CalendarMode.cpp apply a device-local color
+                            // override (Settings::CalendarSettings) independent
+                            // of whatever color (if any) the daemon resolved
+                            // above. Empty = daemon didn't send one (old daemon).
 };
 
 // Pushed by clawdmeter-daemon's --calendar feature (POST /api/calendar). The
@@ -43,6 +54,7 @@ struct CalendarEvent {
       items[i].allDay = false;
       items[i].color = 0;
       items[i].hasColor = false;
+      items[i].calId[0] = 0;
     }
     count = 0;
     valid = false;

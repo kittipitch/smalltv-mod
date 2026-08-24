@@ -24,6 +24,80 @@ CalendarForecastMode g_calendarForecastMode;
                             // as a caution/warning color, not the dark theme's normal restraint.
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
 
+// Google's real 24-color CALENDAR palette (colorId 1-24), captured live via
+// an authenticated GET https://www.googleapis.com/calendar/v3/colors --
+// that endpoint requires a real OAuth token even just to read it (confirmed
+// live, 403 unregistered-caller otherwise), so these are captured values,
+// not something the device calls at runtime. Index 0 unused (Google's
+// colorIds are 1-based). Converted to RGB565 with the same formula
+// CalendarClient.cpp's hexToRGB565() uses.
+static const uint16_t kGCalPalette[25] = {
+  0x0000, //  0  unused
+  0xAB8B, //  1  #ac725e
+  0xD34C, //  2  #d06b64
+  0xF9C4, //  3  #f83a22
+  0xFAA7, //  4  #fa573c
+  0xFBA6, //  5  #ff7537
+  0xFD68, //  6  #ffad46
+  0x46B2, //  7  #42d692
+  0x152C, //  8  #16a765
+  0x7E89, //  9  #7bd148
+  0xB6ED, // 10  #b3dc6c
+  0xFF50, // 11  #fbe983
+  0xFE8C, // 12  #fad165
+  0x9718, // 13  #92e1c0
+  0x9F1C, // 14  #9fe1e7
+  0x9E3C, // 15  #9fc6e7
+  0x4C3C, // 16  #4986e7
+  0x9CFF, // 17  #9a9cff
+  0xBCDF, // 18  #b99aff
+  0xC618, // 19  #c2c2c2
+  0xCDF7, // 20  #cabdbf
+  0xCD35, // 21  #cca6ac
+  0xF496, // 22  #f691b2
+  0xCBBC, // 23  #cd74e6
+  0xA3DC, // 24  #a47ae2
+};
+
+// Device-local color override, looked up from Settings::calendar.ids/
+// colorIds (comma-separated, index-aligned -- see Settings.h). Purely a
+// display choice this device makes; never written back to Google. Returns
+// false (no override) if calId is empty, no ids/colorIds are configured, or
+// the matching slot is blank/out of range.
+static bool calOverrideColor(const Settings& s, const char* calId, uint16_t* outColor) {
+  if (!calId || !calId[0]) return false;
+  if (s.calendar.ids.length() == 0 || s.calendar.colorIds.length() == 0) return false;
+  int idIdx = 0, idStart = 0;
+  const String& ids = s.calendar.ids;
+  for (int i = 0; i <= ids.length(); i++) {
+    if (i == ids.length() || ids[i] == ',') {
+      String piece = ids.substring(idStart, i);
+      piece.trim();
+      if (piece == calId) {
+        // Found the matching index -- now pull the same-numbered slot from
+        // colorIds (also comma-separated; a blank/missing slot means auto).
+        int cIdx = 0, cStart = 0;
+        const String& cols = s.calendar.colorIds;
+        for (int j = 0; j <= cols.length(); j++) {
+          if (j == cols.length() || cols[j] == ',') {
+            if (cIdx == idIdx) {
+              String cpiece = cols.substring(cStart, j);
+              cpiece.trim();
+              int colorId = cpiece.toInt();
+              if (colorId >= 1 && colorId <= 24) { *outColor = kGCalPalette[colorId]; return true; }
+              return false;   // blank/invalid slot -- no override
+            }
+            cIdx++; cStart = j + 1;
+          }
+        }
+        return false;   // colorIds has fewer entries than ids -- no override for this one
+      }
+      idIdx++; idStart = i + 1;
+    }
+  }
+  return false;
+}
+
 // Muted 6-band US AQI colors (desaturated to match this palette's dark theme,
 // not the harsh saturated colors AirNow-style widgets use).
 #define C_AQI_GOOD             0x7C6B   // #788c5d sage green    (0-50)
@@ -234,7 +308,7 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
 // guaranteed) and was replaced with a real second mode instead.
 #define EVENTS_PER_PAGE 3
 
-static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c, uint8_t page) {
+static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEvent& c, uint8_t page) {
   gfx->fillScreen(C_BLACK);
   const int x = 8, w = 224;
   bool connected = c.valid;
@@ -272,8 +346,14 @@ static void drawAgendaPage(Arduino_GFX* gfx, const CalendarEvent& c, uint8_t pag
     // Date/time text tints to the source Google Calendar's own color when
     // the daemon sent one (multiple calendars merged into one agenda --
     // this is how you tell which calendar an event came from at a
-    // glance), falling back to the existing fixed accent otherwise.
+    // glance), falling back to the existing fixed accent otherwise. A
+    // device-local override (Settings::calendar.ids/colorIds, set in the
+    // web UI) wins over both when configured for this event's calendar --
+    // purely a display choice this device makes, never written back to
+    // Google.
     uint16_t eventColor = ev.hasColor ? ev.color : C_ACCENT;
+    uint16_t overrideColor;
+    if (calOverrideColor(s, ev.calId, &overrideColor)) eventColor = overrideColor;
 
     // Date, left-aligned: "Today" when the event's START matches the device's
     // local date, else "Mon DD". When the event spans multiple LOCAL calendar
@@ -546,12 +626,11 @@ void CalendarAgendaMode::invalidate(const Settings& s) {
 }
 
 void CalendarAgendaMode::service(const Settings& s) {
-  (void)s;
   const CalendarEvent& c = calendarGet();
   if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawAgendaPage(gfx, c, 0);
+    if (gfx) drawAgendaPage(gfx, s, c, 0);
     needRender_ = false;
   }
 }
@@ -570,12 +649,11 @@ void CalendarAgendaMode2::invalidate(const Settings& s) {
 }
 
 void CalendarAgendaMode2::service(const Settings& s) {
-  (void)s;
   const CalendarEvent& c = calendarGet();
   if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawAgendaPage(gfx, c, 1);
+    if (gfx) drawAgendaPage(gfx, s, c, 1);
     needRender_ = false;
   }
 }

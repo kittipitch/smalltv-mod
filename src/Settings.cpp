@@ -270,6 +270,7 @@ void CalendarSettings::setDefaults() {
   lon = DEFAULT_CAL_LON;
   weatherPollSec = DEFAULT_WEATHER_POLL_SEC;
   ids = "";
+  colorIds = "";
 }
 
 void CalendarSettings::toJson(JsonObject o) const {
@@ -277,6 +278,7 @@ void CalendarSettings::toJson(JsonObject o) const {
   o["lon"] = lon;
   o["weatherPollSec"] = weatherPollSec;
   o["ids"] = ids;
+  o["colorIds"] = colorIds;
 }
 
 void CalendarSettings::fromJson(JsonObjectConst o) {
@@ -284,6 +286,7 @@ void CalendarSettings::fromJson(JsonObjectConst o) {
   if (o["lon"].is<float>() || o["lon"].is<int>()) lon = o["lon"].as<float>();
   if (o["weatherPollSec"].is<int>()) weatherPollSec = max(60, (int)o["weatherPollSec"]);
   if (o["ids"].is<const char*>()) ids = o["ids"].as<String>();
+  if (o["colorIds"].is<const char*>()) colorIds = o["colorIds"].as<String>();
 }
 
 // ===========================================================================
