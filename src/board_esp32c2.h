@@ -24,3 +24,12 @@
 // No ambient-light sensor populated on this board -> auto-brightness compiled out.
 #define HAS_LDR     0
 #define ADC_MAX  4095   // ESP32-C2 ADC is 12-bit (unused while HAS_LDR == 0)
+
+// Board capability macros -- see board_esp8266.h for the full rationale.
+// Self-update is enabled here; tone defaults match what this board silently
+// inherited before these macros existed (unchanged value, now named
+// explicitly instead of an accidental fallthrough).
+#define BOARD_SELF_UPDATE      1
+#define BOARD_NO_UPDATE_REASON "self-update disabled"
+#define BOARD_TONE_B    95
+#define BOARD_TONE_SAT 100

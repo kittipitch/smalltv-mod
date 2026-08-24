@@ -110,13 +110,14 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="zai">Z.AI quota</option>
     <option value="codex">Codex quota</option>
     <option value="antigravity">Antigravity quota</option>
+    <option value="openrouter">OpenRouter quota</option>
     <option value="carousel">Carousel (rotate modes)</option>
    </select>
    <div id="carouselRow">
     <label>Switch mode every (s)</label><input id="carouselSec" type="number" min="5" max="3600">
     <div id="carouselList"></div>
    </div>
-   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval) -- all three stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder.</small>
+   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all four stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -141,7 +142,8 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   </div>
   <div class="card"><h2>Clock &amp; night mode</h2>
    <label>Timezone</label>
-   <select id="tz"></select>
+   <div id="tzDisplay" class="muted" style="padding:8px 0">-</div>
+   <small class="hint">Derived automatically from the location set in <a href="javascript:void(0)" onclick="document.querySelector('nav button[data-t=calendar]').click()">Agenda &amp; weather</a> -- no manual picker, so it can't drift out of sync with the weather/AQI location.</small>
    <div class="muted" id="clockNow" style="margin:8px 0">Clock: -</div>
    <div class="chk"><input id="nightEnabled" type="checkbox"><label>Dim or blank the screen on a nightly schedule</label></div>
    <div class="row">
@@ -289,9 +291,9 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   <div class="card"><h2>Daemon source IP</h2>
    <label>Only accept pushes from</label>
    <input id="daemonIp" type="text" autocomplete="off" placeholder="(any — leave blank)">
-   <small class="hint">Optional. When set, the daemon-push endpoints (usage/agenda/weather/z.ai/Codex/Antigravity) only accept data from this IP &mdash; everything else on this page stays open to anyone on the LAN. This is <b>not security</b> (plaintext HTTP, no auth at all) &mdash; it just stops a daemon accidentally pointed at the wrong device from overwriting what's on screen. No password needed to change it.</small>
+   <small class="hint">Optional. When set, the daemon-push endpoints (usage/agenda/weather/z.ai/Codex/Antigravity/OpenRouter) only accept data from this IP &mdash; everything else on this page stays open to anyone on the LAN. This is <b>not security</b> (plaintext HTTP, no auth at all) &mdash; it just stops a daemon accidentally pointed at the wrong device from overwriting what's on screen. No password needed to change it.</small>
   </div>
-  <div class="card"><h2>Update from GitHub</h2>
+  <div class="card" id="ghUpdateCard"><h2>Update from GitHub</h2>
    <div class="muted">Installed: <b id="fwVer">-</b></div>
    <div style="margin-top:10px">
     <button class="btn sec" onclick="checkUpdate()" id="chkBtn">Check for latest</button>
@@ -329,6 +331,12 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
 <script>
 var C={};
+// Auto-resolved from calLat/calLon via resolveTz() -- see that function.
+// No manual timezone picker any more (dropped per explicit feedback: "make
+// this not selectable and display the tz based on lat long instead" -- the
+// old <select> could silently drift out of sync with the Agenda & weather
+// tab's own location, this can't).
+var _resolvedTz='', _resolvedTzPosix='';
 function $(id){return document.getElementById(id)}
 // null-safe field helpers: a lean build removes some feature tabs entirely
 function sv(id,v){var e=$(id);if(e)e.value=(v!=null?v:'')}
@@ -349,7 +357,25 @@ function calUseMyLocation(){
   sv('calLon',d.longitude.toFixed(4));
   toast('Location set (approx, from IP) — click Save to apply');
   var lbl=$('calLocLabel'); if(lbl)lbl.textContent='Currently: '+[d.city,d.country].filter(Boolean).join(', ')+' ('+d.latitude.toFixed(4)+', '+d.longitude.toFixed(4)+')';
+  resolveTz(d.latitude,d.longitude);
  }).catch(function(){toast('Location lookup failed — check internet connection')});
+}
+// Resolves the IANA timezone for a lat/lon via Open-Meteo's own
+// timezone=auto (same provider the daemon's --weather already fetches from,
+// no new third-party dependency) -- a bare forecast call with no weather
+// variable requested still returns {timezone,...}, confirmed live. Looked up
+// through TZMAP for the POSIX rule the device actually stores/uses, same as
+// the old manual picker did.
+function resolveTz(lat,lon){
+ var tzd=$('tzDisplay');
+ if(!lat&&!lon){if(tzd)tzd.textContent='(set a location in Agenda & weather)';return}
+ fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&timezone=auto')
+  .then(function(r){return r.json()}).then(function(d){
+   if(!d.timezone)return;
+   _resolvedTz=d.timezone;
+   _resolvedTzPosix=(d.timezone in TZMAP)?TZMAP[d.timezone]:'UTC0';
+   if(tzd)tzd.textContent=d.timezone;
+  }).catch(function(){});   // best-effort -- last-known/stored tz stays shown
 }
 function calRefreshLocLabel(lat,lon){
  var lbl=$('calLocLabel'); if(!lbl)return;
@@ -404,11 +430,8 @@ var TZMAP={
  'Australia/Perth':'AWST-8','Australia/Sydney':'AEST-10AEDT,M10.1.0,M4.1.0/3',
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
-function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
- keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
-
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','forecast','zai','codex','antigravity']};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity']};
+var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','forecast','zai','codex','antigravity','openrouter']};
+var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity','carouselOpenrouter']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -427,6 +450,7 @@ var CAR_MODES=[
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
  {id:'codex',chk:'carouselCodex',label:'Codex quota'},
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
+ {id:'openrouter',chk:'carouselOpenrouter',label:'OpenRouter quota'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'},
@@ -493,6 +517,21 @@ function modeChanged(){if(!$('mode'))return;
  $('carouselRow').style.display=$('mode').value==='carousel'?'block':'none';}
 function loadConfig(){return j('/api/config').then(function(c){C=c;
  var f=c.features||{}; ['ticker','usage','radar','calendar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
+ // CAR_MODES/carOrder are static id lists with no feature-awareness of
+ // their own -- renderCarouselList() rebuilds rows straight from CAR_MODES
+ // on every call, so a compiled-out feature's row came right back even
+ // after hideFeat()'s one-shot removal above (caught live: "ticker and
+ // plane radar is still in this carousel selector"). Filter the SOURCE
+ // array instead -- parseCarOrder()/renderCarouselList() already skip any
+ // id no longer in CAR_MODES via their own `if(!m)return` guards.
+ var CAR_FEAT={stocks:'ticker',radar:'radar'};
+ for(var ci=CAR_MODES.length-1;ci>=0;ci--){var mf=CAR_FEAT[CAR_MODES[ci].id]; if(mf&&f[mf]===false)CAR_MODES.splice(ci,1);}
+ // GitHub self-update needs TLS for both the version check and the flash
+ // itself -- on a build with WITH_TLS=0 (every slim env currently deployed)
+ // the button can never do anything but fail, so hide the card outright
+ // rather than show a control that always errors. Manual upload (OTA) below
+ // it is plain HTTP and stays available.
+ if(f.tls===false){var ghc=$('ghUpdateCard'); if(ghc)ghc.remove();}
  var t=c.ticker||{}, u=c.usage||{};
  // shared
  ['apSsid','apPass','hostname','daemonIp'].forEach(function(k){$(k).value=c[k]!=null?c[k]:''});
@@ -506,9 +545,13 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  var chipName={esp8266:'ESP8266',esp32c2:'ESP32-C2',esp32:'ESP32'}[c.chip]||'';
  var chE=$('chip'); if(chE&&chipName){chE.textContent=chipName;chE.style.display='inline-block';}
  // clock slice
- fillTz(); var ck=c.clock||{};
- if(ck.tz && !(ck.tz in TZMAP)){var _ts=$('tz'); if(_ts){var _o=document.createElement('option');_o.value=ck.tz;_o.textContent=ck.tz;_ts.appendChild(_o);}}
- sv('tz',ck.tz||''); sc('nightEnabled',!!ck.nightEnabled);
+ // Seed from the device's last-stored tz so the display isn't blank before
+ // resolveTz()'s own fetch (called below, once calLat/calLon are known)
+ // lands -- that call overwrites this with the live lat/lon-derived value.
+ var ck=c.clock||{};
+ _resolvedTz=ck.tz||''; _resolvedTzPosix=ck.tzPosix||'UTC0';
+ var _tzd=$('tzDisplay'); if(_tzd)_tzd.textContent=ck.tz||'(set a location in Agenda & weather)';
+ sc('nightEnabled',!!ck.nightEnabled);
  sv('nightStart',ck.nightStart||'22:00'); sv('nightEnd',ck.nightEnd||'07:00');
  sv('nightLevel',ck.nightLevel!=null?ck.nightLevel:0); $('nlVal')&&($('nlVal').textContent=(ck.nightLevel!=null?ck.nightLevel:0));
  $('mode').value=c.mode||'stocks'; modeChanged();
@@ -516,7 +559,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false);
  // ticker slice
  T_TEXT.forEach(function(k){sv(k,t[k])});
  T_NUM.forEach(function(k){sv(k,t[k])});
@@ -544,6 +587,8 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  var cal=c.calendar||{};
  sv('calLat',cal.lat); sv('calLon',cal.lon);
  calRefreshLocLabel(cal.lat||0, cal.lon||0);
+ resolveTz(cal.lat||0, cal.lon||0);
+ $('calLat').onchange=$('calLon').onchange=function(){resolveTz(parseFloat(gv('calLat'))||0, parseFloat(gv('calLon'))||0)};
  var ap=$('apPass'); if(ap)ap.placeholder=c.apPassSet?'(unchanged)':'(open)';
 })}
 
@@ -598,7 +643,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),
@@ -623,11 +668,12 @@ function collect(){
  // usage slice
  if($('usage')){
   o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0, barGrowRight:gc('barGrowRight')};}
- // clock slice
- if($('tz')){var _tzn=gv('tz'); var _tzp=(_tzn in TZMAP)?TZMAP[_tzn]:((C.clock&&C.clock.tz===_tzn&&C.clock.tzPosix)?C.clock.tzPosix:'UTC0');
-  o.clock={tz:_tzn,tzPosix:_tzp,
+ // clock slice -- tz/tzPosix come from resolveTz()'s own state now, not a
+ // form field (the old `if($('tz'))` guard here would always be false since
+ // the select is gone, silently dropping night-mode saves entirely).
+ o.clock={tz:_resolvedTz,tzPosix:_resolvedTzPosix,
   nightEnabled:gc('nightEnabled'),nightStart:gv('nightStart')||'22:00',
-  nightEnd:gv('nightEnd')||'07:00',nightLevel:parseInt(gv('nightLevel'))||0};}
+  nightEnd:gv('nightEnd')||'07:00',nightLevel:parseInt(gv('nightLevel'))||0};
  // radar slice
  if($('radar')){
   var r={lat:parseFloat(gv('radarLat'))||0, lon:parseFloat(gv('radarLon'))||0,

@@ -12,7 +12,7 @@
 // Firmware identity
 // ---------------------------------------------------------------------------
 #define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "2.8.2"
+#define FW_VERSION  "2.8.3"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
 //
@@ -112,6 +112,7 @@
 #define MODE_ANTIGRAVITY 11  // Antigravity CLI's (agy) model quota, same shape as MODE_ZAI
 #define MODE_CAL_FORECAST 12 // 3-day weather+AQI forecast, own carousel entry next to weather
                               // when there aren't more than 3 events (see carouselHas() in main.cpp)
+#define MODE_OPENROUTER 13  // OpenRouter API $ spend, daemon-pushed, same shape as MODE_ANTIGRAVITY
 #define DEFAULT_MODE MODE_STOCKS
 #define DEFAULT_CAROUSEL_SEC 60      // per-mode dwell in carousel
 

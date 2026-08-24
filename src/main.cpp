@@ -33,7 +33,8 @@
 #include "ZaiMode.h"
 #include "CodexMode.h"
 #include "AntigravityMode.h"
-#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet() for carouselHas()'s data-presence gate
+#include "OpenRouterMode.h"
+#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet()/openrouterGet() for carouselHas()'s data-presence gate
 #endif
 
 // ---- mode registry --------------------------------------------------------
@@ -50,6 +51,7 @@ static DisplayMode* kModes[] = {
   &g_zaiMode,
   &g_codexMode,
   &g_antigravityMode,
+  &g_openrouterMode,
 #endif
 #if WITH_RADAR
   &g_radarMode,
@@ -157,6 +159,7 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // carousel until the daemon has agy authenticated and has actually
     // pushed data at least once.
     case MODE_ANTIGRAVITY: return s.carouselAntigravity && antigravityGet().valid;
+    case MODE_OPENROUTER: return s.carouselOpenrouter && openrouterGet().valid;
 #endif
     default:          return true;
   }

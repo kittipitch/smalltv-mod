@@ -137,7 +137,7 @@ struct Settings {
   String hostname;      // mDNS name => http://<hostname>.local
 
   // --- Optional source-IP filter for the daemon push endpoints (usage/
-  // calendar/weather/zai/codex/antigravity) only. NOT a security boundary --
+  // calendar/weather/zai/codex/antigravity/openrouter) only. NOT a security boundary --
   // plaintext HTTP, no auth -- just catches a daemon accidentally pointed at
   // the wrong device. Empty (default) = accept a push from anywhere.
   String daemonIp;
@@ -147,7 +147,7 @@ struct Settings {
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselTicker, carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselForecast, carouselZai, carouselCodex, carouselAntigravity;
+  bool carouselTicker, carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselForecast, carouselZai, carouselCodex, carouselAntigravity, carouselOpenrouter;
   // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather,ticker"),
   // user-defined rotation order via the web UI's up/down arrows. Empty =
   // use the compiled-in kModes[] order (default, backward compatible).

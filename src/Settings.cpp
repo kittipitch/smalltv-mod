@@ -301,7 +301,7 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselAntigravity = true;
+  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselAntigravity = carouselOpenrouter = true;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -311,19 +311,12 @@ void Settings::setDefaults() {
   rotation = 0;
 
   toneR = toneG = 100;
-#ifdef SDPRO_CS_GND
-  // The SD PRO rebrand's panel is a different part from the Ultra's: it renders
-  // markedly LESS saturated, which washes warm tones out toward white (the
-  // mascot's #CE7D6B read as plain white on first boot) and leaves the whole UI
-  // looking pale blue. It also has none of the Ultra's blue cast, so the 95
-  // below is wrong here. Values found live on unit .25 via the display sliders
-  // and confirmed on the physical screen, 2026-08-22.
-  toneB = 100;
-  toneSat = 200;
-#else
-  toneB = 95;   // slight default blue reduction — user confirmed this cures the panel's blue cast
-  toneSat = 100;
-#endif
+  // Per-board defaults -- see board_esp8266.h/board_esp32.h/board_esp32c2.h's
+  // BOARD_TONE_B/BOARD_TONE_SAT for the panel-specific reasoning (SD PRO's
+  // washed-out-saturation panel needs the opposite correction from the
+  // Ultra's blue cast).
+  toneB = BOARD_TONE_B;
+  toneSat = BOARD_TONE_SAT;
 
   ticker.setDefaults();
   usage.setDefaults();
@@ -405,6 +398,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_ZAI)      ? "zai"
                             : (s.mode == MODE_CODEX)    ? "codex"
                             : (s.mode == MODE_ANTIGRAVITY) ? "antigravity"
+                            : (s.mode == MODE_OPENROUTER) ? "openrouter"
                             : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
   root["carouselSec"]       = s.carouselSec;
   root["carouselTicker"]    = s.carouselTicker;
@@ -417,6 +411,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselZai"]       = s.carouselZai;
   root["carouselCodex"]     = s.carouselCodex;
   root["carouselAntigravity"] = s.carouselAntigravity;
+  root["carouselOpenrouter"] = s.carouselOpenrouter;
   root["carouselOrder"]     = s.carouselOrder;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
@@ -495,6 +490,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("zai")      ? MODE_ZAI
            : m.equalsIgnoreCase("codex")    ? MODE_CODEX
            : m.equalsIgnoreCase("antigravity") ? MODE_ANTIGRAVITY
+           : m.equalsIgnoreCase("openrouter") ? MODE_OPENROUTER
            : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL : MODE_STOCKS;
   }
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
@@ -508,6 +504,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
   if (root["carouselAntigravity"].is<bool>()) s.carouselAntigravity = root["carouselAntigravity"];
+  if (root["carouselOpenrouter"].is<bool>()) s.carouselOpenrouter = root["carouselOpenrouter"];
   if (root["carouselOrder"].is<const char*>()) s.carouselOrder = root["carouselOrder"].as<String>();
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);

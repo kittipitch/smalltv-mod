@@ -33,6 +33,23 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
+      # SDPRO_CS_GND is a raw hardware fact (panel CS tied to GND on this
+      # board) and must only ever be tested in board_esp8266.h/config.h --
+      # everywhere else tests a named BOARD_* capability macro instead (see
+      # board_esp8266.h's own comment for why: OtaUpdate.cpp once had two
+      # separate #ifdef SDPRO_CS_GND blocks for two unrelated reasons that
+      # sat next to each other looking like the same cruft). This catches a
+      # future PR reintroducing a raw SDPRO_CS_GND check anywhere else.
+      - name: Guard against scattered SDPRO_CS_GND checks
+        run: |
+          hits=$(grep -rnE '#\s*if(n?def)?[^/]*\bSDPRO_CS_GND\b|\bdefined\(\s*SDPRO_CS_GND\s*\)' src/ \
+            --exclude=board_esp8266.h --exclude=config.h || true)
+          if [ -n "$hits" ]; then
+            echo "SDPRO_CS_GND must only be tested in board_esp8266.h/config.h -- found elsewhere:"
+            echo "$hits"
+            exit 1
+          fi
+
       - name: Build firmware (all targets)
         run: pio run -e smalltv -e smalltv_slim -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader -e smalltv_sdpro_slim
 

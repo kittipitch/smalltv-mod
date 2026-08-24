@@ -31,7 +31,8 @@ static void scheduleReboot(uint32_t inMs) {
 }
 
 // Source-IP filter for the daemon's data-push endpoints only (/api/usage,
-// /api/calendar, /api/weather, /api/zai, /api/codex, /api/antigravity).
+// /api/calendar, /api/weather, /api/zai, /api/codex, /api/antigravity,
+// /api/openrouter).
 // NOT a security boundary (plaintext HTTP, no auth) — just catches a daemon
 // accidentally pointed at the wrong device. Empty stored IP (the default)
 // means accept a push from anywhere.
@@ -68,6 +69,7 @@ static void handleGetConfig() {
   feat["usage"]  = (bool)WITH_USAGE;
   feat["radar"]  = (bool)WITH_RADAR;
   feat["calendar"] = (bool)WITH_CALENDAR;
+  feat["tls"]      = (bool)WITH_TLS;
   // Which chip this build runs on (the UI warns about per-chip limitations).
 #if defined(SMALLTV_ESP32C2)
   root["chip"] = "esp32c2";
@@ -346,6 +348,18 @@ static void handleAntigravityPush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+static void handleOpenrouterPush() {
+  if (!checkDaemonIp()) { sendWrongSource(); return; }
+  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
+#if WITH_CALENDAR
+  bool ok = openrouterApply(server.arg("plain"));
+#else
+  bool ok = false;
+#endif
+  server.send(ok ? 200 : 400, "application/json",
+              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
 // ---- OTA ------------------------------------------------------------------
 static void handleUpdateDone() {
   bool ok = !Update.hasError();
@@ -409,6 +423,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/zai", HTTP_POST, handleZaiPush);               // daemon pushes z.ai quota here
   server.on("/api/codex", HTTP_POST, handleCodexPush);           // daemon pushes Codex quota here
   server.on("/api/antigravity", HTTP_POST, handleAntigravityPush); // daemon pushes Antigravity quota here
+  server.on("/api/openrouter", HTTP_POST, handleOpenrouterPush); // daemon pushes OpenRouter spend here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 
   // Common captive-portal probe endpoints

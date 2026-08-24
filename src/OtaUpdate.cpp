@@ -26,18 +26,24 @@ static long verNum(const char* v) {
 
 OtaLatest otaCheckLatest(const Settings& s) {
   OtaLatest r;
-#ifdef SDPRO_CS_GND
-  // SD PRO: self-update is compiled out, not merely pointed at a name that
-  // happens not to resolve. The generic ESP8266 asset is built 4M1M with
-  // TFT_CS 15, and driving GPIO15 on this board is the boot-strap mechanism
-  // that bricked unit #1 — so "no asset published yet" is not a safety
-  // property: the day anyone publishes that asset name, every SD PRO in the
-  // field would take it on the next click. Returning here makes every caller
-  // (both WebPortal handlers and otaBootUpdate) fail closed before any
-  // Update.begin() can run. UPDATE_ASSET in config.h stays as defence in
-  // depth. (advisor pre-flash audit, 2026-08-22.)
+#if !BOARD_SELF_UPDATE
+  // Gated on the per-board BOARD_SELF_UPDATE capability macro (see
+  // board_esp8266.h/board_esp32.h/board_esp32c2.h), not a raw board-macro
+  // check here -- this used to be two separate board-gated blocks in this
+  // exact function, added on different dates for two DIFFERENT reasons
+  // (SD PRO: permanent, the generic ESP8266 asset is 4M1M/TFT_CS-15 and
+  // driving GPIO15 on this board is the boot-strap mechanism that bricked
+  // unit #1. Ultra: temporary, this fork has no matching-schema release
+  // published yet, see BOARD_NO_UPDATE_REASON's definition for the full
+  // story). Sitting right next to each other made them look like the same
+  // historical cruft, which is exactly the shape a future cleanup could
+  // delete both at once by mistake. The two reasons now live side by side
+  // in board_esp8266.h instead, where changing one can't hide the other.
+  // Returning here makes every caller (both WebPortal handlers and
+  // otaBootUpdate) fail closed before any Update.begin() can run.
+  // UPDATE_ASSET in config.h stays as defence in depth for SD PRO.
   (void)s;
-  r.error = F("self-update disabled on this board (SD PRO)");
+  r.error = F(BOARD_NO_UPDATE_REASON);
   return r;
 #endif
 #if !WITH_TLS

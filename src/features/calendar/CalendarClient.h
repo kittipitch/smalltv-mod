@@ -18,6 +18,7 @@ const WeatherData&   weatherGet();
 const ZaiData&        zaiGet();
 const CodexData&      codexGet();
 const AntigravityData& antigravityGet();
+const OpenRouterData& openrouterGet();
 
 // Apply payloads PUSHED to the device.
 bool calendarApply(const String& body);   // {ok,events:[{summary,start,end?,allDay,color?}, ...]}
@@ -25,3 +26,4 @@ bool weatherApply(const String& body);    // {ok,tempC?,precipPct?,weatherCode?,
 bool zaiApply(const String& body);        // {ok,pct5h?,pctTokens?}
 bool codexApply(const String& body);      // {ok,pct5h?,r5h?,pctWeek?,rWeek?}
 bool antigravityApply(const String& body); // {ok,pctPro?,labelPro?,rPro?,pctFlash?,labelFlash?,rFlash?}
+bool openrouterApply(const String& body); // {ok,usd_daily?,usd_weekly?,usd_total?,free_tier?}
