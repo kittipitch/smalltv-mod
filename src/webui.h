@@ -273,7 +273,10 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <!-- CALENDAR (feature: Next event + Weather/AQI, both daemon-pushed) -->
  <section id="calendar" class="tab">
   <div class="card"><h2>Agenda (Google Calendar)</h2>
-   <p class="muted" style="margin:0">Shows your next few upcoming events. Nothing to configure here &mdash; events are pushed by <a href="https://github.com/kittipitch/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar --calendar-id &lt;id&gt;</code>, which handles Google sign-in on your PC/server (run <code>--calendar-auth</code> once there). This device never sees your Google credentials, only the resulting event titles/times. If you've set a Daemon source IP (Update tab), pushes from any other address are ignored — make sure it matches the machine running the daemon. See the daemon's README for setup.</p>
+   <p class="muted" style="margin:0">Shows your next few upcoming events. Events are pushed by <a href="https://github.com/kittipitch/clawdmeter-daemon" target="_blank">clawdmeter-daemon</a>'s <code>--calendar</code>, which handles Google sign-in on your PC/server (run <code>--calendar-auth</code> once there, or use a service account — see the daemon's README). This device never sees your Google credentials, only the resulting event titles/times. If you've set a Daemon source IP (Update tab), pushes from any other address are ignored — make sure it matches the machine running the daemon.</p>
+   <label style="margin-top:10px;display:block">Calendar ID(s)</label>
+   <input id="calIds" type="text" autocomplete="off" placeholder="you@gmail.com, otherid@group.calendar.google.com">
+   <small class="hint">Comma-separated. The daemon reads this straight from the device on every poll, so sharing a new calendar with your service account and pasting its ID here takes effect without restarting the daemon — no <code>--calendar-id</code> flag or restart needed. Leave blank to fall back to the daemon's own <code>--calendar-id</code>/auto-detect. Google's Calendar API has no way for a service account to discover a shared calendar on its own, so this field (or the CLI flag) is the only way to tell it which one(s) to read.</small>
   </div>
   <div class="card"><h2>Weather location</h2>
    <div class="row">
@@ -585,7 +588,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  renderAps(r.airports||[]);
  // calendar slice
  var cal=c.calendar||{};
- sv('calLat',cal.lat); sv('calLon',cal.lon);
+ sv('calLat',cal.lat); sv('calLon',cal.lon); sv('calIds',cal.ids);
  calRefreshLocLabel(cal.lat||0, cal.lon||0);
  resolveTz(cal.lat||0, cal.lon||0);
  $('calLat').onchange=$('calLon').onchange=function(){resolveTz(parseFloat(gv('calLat'))||0, parseFloat(gv('calLon'))||0)};
@@ -691,7 +694,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0};
+  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, ids:gv('calIds')};
  }
  return o;
 }

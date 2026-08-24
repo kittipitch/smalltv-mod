@@ -95,6 +95,10 @@ struct CalendarSettings {
   float    lat;            // weather/AQ location (0,0 = not set yet)
   float    lon;
   uint16_t weatherPollSec; // device-direct Open-Meteo refresh period
+  String   ids;            // comma-separated Google Calendar ID(s), daemon-read
+                            // each poll via /api/config -- see clawdmeter-daemon's
+                            // read_device_calendar_ids(). Empty = daemon falls
+                            // back to its own --calendar-id flag/auto-detect.
 
   void setDefaults();
   void toJson(JsonObject o) const;

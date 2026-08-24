@@ -269,18 +269,21 @@ void CalendarSettings::setDefaults() {
   lat = DEFAULT_CAL_LAT;
   lon = DEFAULT_CAL_LON;
   weatherPollSec = DEFAULT_WEATHER_POLL_SEC;
+  ids = "";
 }
 
 void CalendarSettings::toJson(JsonObject o) const {
   o["lat"] = lat;
   o["lon"] = lon;
   o["weatherPollSec"] = weatherPollSec;
+  o["ids"] = ids;
 }
 
 void CalendarSettings::fromJson(JsonObjectConst o) {
   if (o["lat"].is<float>() || o["lat"].is<int>()) lat = o["lat"].as<float>();
   if (o["lon"].is<float>() || o["lon"].is<int>()) lon = o["lon"].as<float>();
   if (o["weatherPollSec"].is<int>()) weatherPollSec = max(60, (int)o["weatherPollSec"]);
+  if (o["ids"].is<const char*>()) ids = o["ids"].as<String>();
 }
 
 // ===========================================================================

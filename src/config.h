@@ -12,7 +12,7 @@
 // Firmware identity
 // ---------------------------------------------------------------------------
 #define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "2.8.3"
+#define FW_VERSION  "2.8.4"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
 //
