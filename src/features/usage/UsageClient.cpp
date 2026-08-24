@@ -72,8 +72,16 @@ static bool fetchUsage(const Settings& s) {
 
   std::unique_ptr<NetClient> client;
   if (https) {
+#if !WITH_TLS
+    // Built without TLS (see WITH_TLS in config.h). Say so rather than failing
+    // silently -- an https:// pull URL is a config mistake on such a build, and
+    // the daemon's normal push path does not need it.
+    Serial.println(F("[usage] https pull URL, but this build has no TLS -- use http:// or push"));
+    return false;
+#else
     if (ESP.getFreeHeap() < 20000) return false;   // too little heap for TLS (incl. the 9 KB thunk); skip, don't crash
     client.reset(platformMakeSecureClient(2048));   // LAN / self-hosted endpoint
+#endif
   } else {
     client.reset(new WiFiClient());
   }

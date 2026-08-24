@@ -112,6 +112,7 @@ static inline PlatformReset platformResetInfo() {
     snprintf(r.epc,  sizeof(r.epc),  "0x%08x", (unsigned)ri->epc1);
     snprintf(r.addr, sizeof(r.addr), "0x%08x", (unsigned)ri->excvaddr);
   }
+
   return r;
 }
 

@@ -53,3 +53,4 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+# Touched to register docs.yml for workflow_dispatch (orphan force-pushes don't seem to register path-filtered workflows)

@@ -7,6 +7,40 @@ Flash the method that matches your board. The ESP8266 installs over the air from
 
 Get the firmware image from the [Actions tab](https://github.com/giovi321/smalltv-mod/actions) (latest `build` run) or the [Releases page](https://github.com/giovi321/smalltv-mod/releases), or [build it yourself](/smalltv-mod/reference/building/).
 
+## First: work out which board you have
+
+Several of these devices look identical from the outside and take **different
+images**. Getting this wrong is not a harmless mistake on one of them — the
+SD PRO clone accepts an image that is too large for it and bricks itself while
+replying `HTTP 200 OK`. Identify the board **before** you upload anything.
+
+The stock firmware tells you, and you can ask it over the network:
+
+```bash
+IP=<device-ip>
+curl -s http://$IP/         | grep -oiE 'V[0-9]+\.[0-9]+\.[0-9]+|SD_PRO|ultra'
+curl -s http://$IP/config   | head -c 200      # SD PRO answers with JSON here
+```
+
+| What you see | Board | Image to use |
+|---|---|---|
+| Version like `SD EN V1.x.x`; `/config` returns JSON with `gifnum`/`weatherkey`; UI links to `JUZIPi-tech/SD_PRO` | **SD PRO clone** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware-sdpro.bin` — see [SD PRO](#sd-pro-juzipi-clone-esp8266--read-this-before-you-upload-anything) |
+| Version like `Ultra-V9.0.xx`; stock updater refuses the full image with `Not Enough Space` | **SmallTV-ultra** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware.bin` |
+| Plain SmallTV stock UI, updater accepts the full image | **SmallTV** (ESP8266) | `smalltv-mod-firmware.bin` |
+| Appears as a USB serial port when plugged in (onboard CH340C) | **ESP32-C2 / ESP8684** | `smalltv-mod-firmware-c2.bin` over USB |
+| Marked `NM-TV-154` | **classic ESP32** | `smalltv-mod-firmware-esp32.bin` over USB |
+
+Two more physical checks that need no network:
+
+- **Does the USB-C port enumerate as a serial device?** The ESP32-C2 and the
+  NM-TV-154 do. The **SD PRO does not** — its USB-C is power only, it has no
+  USB-serial chip, and that is why a failed flash there needs the internal UART
+  header rather than a cable.
+- **MAC prefix is a hint, not a rule.** The SD PROs seen here use `f0:24:f9`
+  and the Ultra `08:f9:e0`, but that prefix belongs to whoever made the module,
+  not to the product, so a later batch could break the pattern. Use the version
+  string instead.
+
 ## SmallTV (ESP8266)
 
 ### Over the air, from the stock web UI
@@ -67,6 +101,97 @@ The fix is a two-step install through a tiny loader, no soldering. The loader is
 After this first install, normal OTA works from the Update tab, because this firmware's layout has room for two sketch copies. You only need the loader once.
 
 If the loader ever will not come back up, flash over the serial header instead. The board is a plain ESP-12F, so the [UART recovery](#uart-header-for-recovery) steps above apply directly: `esptool.py --port COM5 write_flash 0x0 smalltv-mod-firmware.bin`.
+
+## SD PRO (JUZIPi clone, ESP8266) — read this before you upload anything
+
+The "SD PRO" sold by JUZIPi-tech is **not** a GeekMagic product. It is an
+ESP-12F look-alike whose stock firmware reports `SD EN V1.x.x` and whose vendor
+repo is [`JUZIPi-tech/SD_PRO`](https://github.com/JUZIPi-tech/SD_PRO). It runs
+this firmware happily — but its stock updater will destroy the device if you
+hand it the full image, and it will do so while replying `HTTP 200 OK`.
+
+:::danger[Never upload the full firmware to a stock SD PRO]
+Its updater performs **no free-space check**. Give it an image larger than the
+room it has and it answers `OK`, writes past the end, and the device never boots
+again: dark screen, no WiFi, no access point, unaffected by a power cycle. Two
+units were lost this way before the cause was understood. The `OK` means only
+that the upload was received — never that it fit.
+
+There is no recovery over the network afterwards. The board has **no USB-serial
+chip** (its USB-C is power only), so the only way back in is the internal UART
+header — see [Recovery](/smalltv-mod/reference/recovery/).
+:::
+
+The safe path is two hops, and every size below is checked against the space
+actually available at that step:
+
+| step | image | size | goes to | field |
+|---|---|---|---|---|
+| 1 | `smalltv-mod-loader.bin` | 315,920 B | stock `/update_ota` | `update` |
+| 2 | `smalltv-mod-firmware-sdpro.bin` | ~579 KB | loader `/update` | `firmware` |
+
+The loader is smaller than the vendor's own firmware image (488,304 B), which
+that updater installs correctly — that is why step 1 is safe.
+
+### Step 1 — the loader
+
+```bash
+IP=<device-ip>
+curl -s -m 180 -F "update=@smalltv-mod-loader.bin" \
+  http://$IP/update_ota -w "\nHTTP:%{http_code}\n"
+```
+
+**The screen goes dark and the device disappears from your network. That is
+success, not a brick.** The loader contains no display code at all, and it
+either rejoins WiFi (if built with credentials) or opens an open access point
+called `SmallTV-Loader` at `192.168.4.1`.
+
+Confirm it is alive before continuing — the loader has a distinctive
+fingerprint, because it implements only one route:
+
+```bash
+curl -o /dev/null -w "%{http_code}\n" http://$IP/update   # 200 — the upload form
+curl -o /dev/null -w "%{http_code}\n" http://$IP/         # 404 — stock served a page here
+```
+
+`200` on `/update` and `404` on `/` means the loader is running.
+
+### Step 2 — the firmware
+
+Note the field name changes to `firmware`; the loader uses Arduino's standard
+update server, not the vendor's endpoint.
+
+```bash
+curl -s -m 300 -F "firmware=@smalltv-mod-firmware-sdpro.bin" \
+  http://$IP/update -w "\nHTTP:%{http_code}\n"
+```
+
+A successful write replies `Update Success! Rebooting...`. Unlike the vendor's
+bare `OK`, that page is emitted only after the image has been verified. The
+device reboots, the screen lights up, and it comes up in the usual
+`SmallTV-Setup` portal.
+
+### Why the SD PRO build is a slim one
+
+`smalltv_sdpro_slim` compiles out the ticker, the plane radar and TLS
+(`WITH_TICKER=0 WITH_RADAR=0 WITH_TLS=0`), which takes the image from ~718 KB to
+~579 KB. This is not a preference — **the full image does not fit this device at
+any hop**, and TLS alone accounts for ~107 KB that a push-fed device never uses.
+
+Consequences worth knowing:
+
+- **No GitHub self-update.** It is compiled out, and the update path would not
+  fit anyway. Updates are the same two hops: firmware → loader → new firmware.
+- **`https://` pull URLs are unavailable.** The daemon's normal push works
+  fine; an `https://` usage URL will log that the build has no TLS and decline.
+
+### Panel calibration
+
+This rebrand's panel is a different part from the Ultra's: it renders markedly
+less saturated and has none of the Ultra's blue cast. The build defaults to
+`toneSat=200`, `toneB=100` for that reason. Without it the mascot's muted
+terracotta reads as plain white and the whole UI looks washed-out blue. Both are
+adjustable live under the display settings if your panel differs.
 
 ## SmallTV (ESP32-C2 / ESP8684)
 

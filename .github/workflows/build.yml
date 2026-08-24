@@ -34,7 +34,7 @@ jobs:
         run: pip install --upgrade platformio
 
       - name: Build firmware (all targets)
-        run: pio run -e smalltv -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader
+        run: pio run -e smalltv -e smalltv_slim -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader -e smalltv_sdpro_slim
 
       # One app image per target (web-UI OTA + GitHub self-update), the merged
       # factory images for first-time USB flashing of the ESP32 boards, and the
@@ -48,6 +48,8 @@ jobs:
           cp .pio/build/smalltv_esp32/firmware.bin         dist/smalltv-mod-firmware-esp32.bin
           cp .pio/build/smalltv_esp32/firmware.factory.bin dist/smalltv-mod-firmware-esp32.factory.bin
           cp .pio/build/smalltv_loader/firmware.bin        dist/smalltv-mod-loader.bin
+          cp .pio/build/smalltv_slim/firmware.bin          dist/smalltv-mod-firmware-slim.bin
+          cp .pio/build/smalltv_sdpro_slim/firmware.bin    dist/smalltv-mod-firmware-sdpro.bin
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

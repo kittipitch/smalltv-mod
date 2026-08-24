@@ -32,10 +32,32 @@
 #define REPO_OWNER    "giovi321"
 #define REPO_NAME     "smalltv-mod"
 // Release asset the GitHub self-updater pulls — one app image per target.
+// Which physical board this image was built for. Reported by /api/status so a
+// fleet can be told apart after flashing -- every target otherwise reports the
+// same fw/version, and the SD PRO clone and the Ultra are easy to confuse (the
+// MAC OUI has differed so far, but that is the module maker's prefix, not a
+// product id, so it is a hint rather than a rule).
+#if defined(SMALLTV_ESP32C2)
+  #define FW_BOARD "esp32-c2"
+#elif defined(SMALLTV_ESP32)
+  #define FW_BOARD "esp32"
+#elif defined(SDPRO_CS_GND)
+  #define FW_BOARD "sdpro"
+#else
+  #define FW_BOARD "esp8266"
+#endif
+
 #if defined(SMALLTV_ESP32C2)
   #define UPDATE_ASSET "smalltv-mod-firmware-c2.bin"
 #elif defined(SMALLTV_ESP32)
   #define UPDATE_ASSET "smalltv-mod-firmware-esp32.bin"
+#elif defined(SDPRO_CS_GND)
+  // No published asset exists for the SD PRO build. A nonexistent name makes
+  // the self-updater report "no update available" instead of silently
+  // flashing the generic ESP8266 image (4M1M layout, TFT_CS 15) -- which on
+  // this board would reintroduce the GPIO15 boot-strap brick mechanism.
+  // (codex pre-flash audit finding, 2026-08-22.)
+  #define UPDATE_ASSET "smalltv-mod-firmware-sdpro.bin"
 #else
   #define UPDATE_ASSET "smalltv-mod-firmware.bin"
 #endif
@@ -110,6 +132,15 @@
 #endif
 #ifndef WITH_CALENDAR
 #define WITH_CALENDAR 1
+#endif
+
+// TLS. BearSSL costs ~73 KB of flash, and on a device the daemon PUSHES to it
+// buys nothing: the only remaining caller is a usage PULL from an https:// URL,
+// and GitHub self-update (already compiled out on the SD PRO). Set -D WITH_TLS=0
+// on a target whose flash budget is tight -- an https:// pull URL then fails
+// cleanly with a logged reason instead of linking a stack it never runs.
+#ifndef WITH_TLS
+#define WITH_TLS 1
 #endif
 
 // Claude usage mode: once data stops arriving for this long (PC asleep, daemon
