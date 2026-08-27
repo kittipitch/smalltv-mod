@@ -17,11 +17,16 @@ static uint16_t probeMfln(const char* host) {
 }
 #endif
 
-// "a.b.c" -> a*10000 + b*100 + c, for a simple newer-than comparison.
+// "a.b.c-kittN" -> a*1000000 + b*10000 + c*100 + N, for a simple newer-than
+// comparison. Our own tags never bump a.b.c (always "1.0.0"), only the
+// "-kittN" release counter -- without parsing that suffix every one of our
+// tags collapses to the same number and "newer" is permanently false.
 static long verNum(const char* v) {
-  int a = 0, b = 0, c = 0;
+  int a = 0, b = 0, c = 0, n = 0;
   sscanf(v, "%d.%d.%d", &a, &b, &c);
-  return (long)a * 10000 + (long)b * 100 + c;
+  const char* k = strstr(v, "kitt");
+  if (k) n = atoi(k + 4);
+  return (long)a * 1000000 + (long)b * 10000 + (long)c * 100 + n;
 }
 
 OtaLatest otaCheckLatest(const Settings& s) {

@@ -62,7 +62,7 @@ Check the board before you build, because the variants flash differently.
 |---|---|---|---|---|
 | Photo | <img src="docs/public/assets/product-8266.png" alt="The SmallTV (ESP8266)" width="240"> | <img src="docs/public/assets/product-ultra.png" alt="The SmallTV-ultra" width="240"> | <img src="docs/public/assets/product-c2.png" alt="The SmallTV (ESP32-C2)" width="240"> | <img src="docs/public/assets/product-esp32.png" alt="The NM-TV-154 (ESP32)" width="240"> |
 | MCU | ESP-12F (ESP8266), 4 MB flash | same ESP-12F (ESP8266), 4 MB flash | ESP32-C2 / ESP8684, 4 MB flash | ESP32-WROOM-32E, 4 MB flash |
-| Build env | `smalltv` | `smalltv_slim` for OTA install (`smalltv` fits fine over USB) | `smalltv_c2` | `smalltv_esp32` |
+| Build env | `smalltv` | `smalltv` | `smalltv_c2` | `smalltv_esp32` |
 | Display | 1.54" 240×240 IPS ST7789 | same panel | same panel, RGB order | same panel |
 | Flashing | OTA from the stock web UI, or UART header | two-step [loader](#flashing) then OTA, or UART | USB-C via the onboard CH340C (esptool) | USB via esptool |
 | Tell-tale | ESP8266 module, no USB-serial chip | stock firmware branded "Ultra", OTA of this image fails with "Not Enough Space" | CH340C chip next to the USB-C port | PCB reads "NM-TV-Miner" |
@@ -76,7 +76,7 @@ Two unrelated products are sold as "Pro", and they do not share a chip. Picking 
 | | GeekMagic **SmallTV Pro** | vendor **SD PRO** (JUZIPi-tech) |
 |---|---|---|
 | Chip | classic **ESP32**, 8 MB flash | **ESP8266**, 4 MB |
-| Build env | `smalltv_esp32_8mb` | **`smalltv_sdpro_slim`** |
+| Build env | `smalltv_esp32_8mb` | **`smalltv_sdpro`** |
 | Tell-tale | touch button on top | stock reports `SD EN V1.x` at `/version` |
 | Stock OTA route | `/update` | `/update_ota`, field `update` |
 
@@ -94,25 +94,37 @@ The four above are the models this firmware is known to run on. The same cube is
 - **Keep the vendor image.** Most vendors do not publish every version they ship, and there is no way to dump the running image over HTTP, so your restore path may be a downgrade. Get it before you overwrite anything.
 
 > **Now tested, and there is one way to destroy the device — read this first.**
-> SD PRO is a supported target: build `smalltv_sdpro_slim` (4M2M layout,
-> `-D SDPRO_CS_GND` so GPIO15 is left alone, and the ticker/radar/TLS compiled
-> out to fit). What is *not* safe is its stock updater. **It performs no
-> free-space check: hand it an image bigger than the room it has and it replies
-> `HTTP 200 OK`, writes past the end, and the unit never boots again** — dark
-> screen, no WiFi, no AP, unaffected by a power cycle. Two units were lost that
-> way. The `OK` only means the upload arrived; it never means it fit. Because
-> this board has **no USB-serial chip** (USB-C is power only), there is no
-> recovery over the network afterwards — only the internal UART pads.
+> SD PRO is a supported target: build `smalltv_sdpro` (4M2M layout,
+> `-D SDPRO_CS_GND` so GPIO15 is left alone; ticker/radar compiled out on
+> every target, TLS kept in so self-update actually works). What is *not*
+> safe is its stock updater. **It performs no free-space check: hand it an
+> image bigger than the room it has and it replies `HTTP 200 OK`, writes
+> past the end, and the unit never boots again** — dark screen, no WiFi, no
+> AP, unaffected by a power cycle. Two units were lost that way. The `OK`
+> only means the upload arrived; it never means it fit. Because this board
+> has **no USB-serial chip** (USB-C is power only), there is no recovery
+> over the network afterwards — only the internal UART pads.
 >
-> So install in two hops, never the full image directly:
+> So install in two hops, never straight through the stock updater:
 > `smalltv-mod-loader.bin` (315,920 B) to `POST /update_ota` field `update`,
-> then `smalltv-mod-firmware-sdpro.bin` (~579 KB) to the loader's
-> `POST /update` field `firmware`. Between the two the screen is dark and the
-> device leaves the network — that is the loader working, not a brick; it
-> answers `200` on `/update` and `404` on `/`. Full walkthrough in
+> then `smalltv-mod-firmware-sdpro.bin` (~693 KB, fits the loader's own
+> ~717 KB OTA slot) to the loader's `POST /update` field `firmware`. Between
+> the two the screen is dark and the device leaves the network — that is
+> the loader working, not a brick; it answers `200` on `/update` and `404`
+> on `/`. Full walkthrough in
 > [Flashing](https://kittipitch.github.io/smalltv-mod/getting-started/flashing/).
 
 ## What it does
+
+> The stock ticker and plane radar below are compiled OUT of every prebuilt
+> image on the [Releases](../../releases) page and every `pio run` env in
+> this repo (`-D WITH_TICKER=0 -D WITH_RADAR=0`, plus their folders excluded
+> from the build) — this fork's own deployment is a dedicated Claude-usage
+> meter, not a general-purpose gadget, so there is exactly one build per
+> device and it doesn't carry them. The code still exists and both features
+> still work; re-enable them yourself by editing `platformio.ini` (drop the
+> two `-D WITH_*=0` flags and the matching `build_src_filter` exclusions,
+> `features/ticker/` and `features/radar/`) if you want a build that does.
 
 - **Stock and crypto ticker.** Price, absolute change, percent change with an up/down arrow, and a sparkline. Up to 8 symbols rotate on a timer. Data comes straight from Yahoo Finance over HTTPS with no backend, from cash.ch for Swiss instruments Yahoo doesn't carry (structured products, AMCs, tracker certificates), or from your own webhook if you want to own the source. Stocks, ETFs, Swiss equities (`NESN.SW`), crypto (`BTC-USD`), and FX (`EURUSD=X`) all work. Add a quantity and cost basis to any ticker and it shows your P/L, with a portfolio summary page in the rotation.
 - **Claude usage meter.** An animated pixel mascot plus your 5-hour and 7-day usage as big percentages with fill bars and reset countdowns. It is fed over WiFi by the [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) on your PC. When the data stops, the mascot plays an idle animation until it comes back. Running several devices, the daemon discovers them over mDNS and pushes to all of them.
@@ -137,7 +149,7 @@ The right method depends on your board. The steps below are the short version; t
 
 **SmallTV (ESP8266).** The stock firmware exposes an OTA updater, so you can install this without opening the device. Find its IP, browse to `http://<device-ip>/update`, and upload `smalltv-mod-firmware.bin`. Back up the stock image first if you might want it back.
 
-**SmallTV-ultra.** Same ESP8266 hardware, but the stock "Ultra" firmware reserves most of the flash for image storage, so its OTA slot is too small for a full image and rejects it with `Not Enough Space`. Install in two steps, no soldering: flash `smalltv-mod-loader.bin` at `http://<device-ip>/update` (it fits the small slot), join the open `SmallTV-Loader` AP it opens at `192.168.4.1`, then upload **`smalltv-mod-firmware-slim.bin`** at `http://192.168.4.1/update`. Use the slim build here, not `smalltv-mod-firmware.bin` — the full image (ticker + radar + TLS) is 723,632 B, which is 6,832 B too big even for the loader's own OTA slot on this layout; the slim build (579,616 B, ticker/radar/TLS compiled out) fits with 137 KB to spare. UART is the fallback (`esptool write_flash 0x0 smalltv-mod-firmware-slim.bin`, or `smalltv-mod-firmware.bin` if flashing directly over USB where the OTA slot limit doesn't apply).
+**SmallTV-ultra.** Same ESP8266 hardware, but the stock "Ultra" firmware reserves most of the flash for image storage, so its OTA slot is too small for the vendor's own updater. Install in two steps, no soldering: flash `smalltv-mod-loader.bin` at `http://<device-ip>/update` (it fits the small slot), join the open `SmallTV-Loader` AP it opens at `192.168.4.1`, then upload **`smalltv-mod-firmware.bin`** at `http://192.168.4.1/update`. There is just the one build now (ticker/radar out, TLS in) — it's 699,429 B, which fits the loader's own ~717 KB OTA slot with room to spare. UART is the fallback for both hops: `esptool write_flash 0x0 smalltv-mod-firmware.bin`.
 
 **SmallTV (ESP32-C2).** Flash over the USB-C cable with esptool, which talks to the onboard CH340C. Auto-reset works, so no button is needed. Back up the stock image first, then write `smalltv-mod-firmware-c2.factory.bin` from the [Releases](../../releases) page:
 
@@ -198,18 +210,16 @@ Full docs live at **[kittipitch.github.io/smalltv-mod](https://kittipitch.github
 Requires [PlatformIO](https://platformio.org/). Pick the env for your board:
 
 ```bash
-pio run -e smalltv                 # ESP8266 (original SmallTV, USB or OTA)
-pio run -e smalltv_slim            # ESP8266, ticker+radar+TLS out -- needed for
-                                    #   an OTA install on the Ultra (see Flashing)
+pio run -e smalltv                 # ESP8266 (original SmallTV or Ultra, USB or OTA)
 pio run -e smalltv_loader          # tiny OTA trampoline, any ESP8266 target
-pio run -e smalltv_sdpro_slim      # SD PRO clone -- always use this, not smalltv
+pio run -e smalltv_sdpro           # SD PRO clone -- always use this, not smalltv
 pio run -e smalltv_c2              # ESP32-C2
 pio run -e smalltv_esp32           # NM-TV-154 (classic ESP32)
 pio run -e smalltv_c2 -t upload    # build + flash the C2 over USB-C
 pio device monitor -e smalltv_c2   # serial logs @ 115200
 ```
 
-All targets share one codebase. Chip and board differences live in `src/Platform.h` and the per-board pin headers (`src/board_esp8266.h`, `src/board_esp32c2.h`, `src/board_esp32.h`); the feature modes and the web UI are identical across all of them. `smalltv_slim`/`smalltv_sdpro_slim` compile out the ticker, plane radar, and TLS (`-D WITH_TICKER=0 -D WITH_RADAR=0 -D WITH_TLS=0`) purely to fit an OTA slot — they are not a different feature set by choice. See [Building from source](https://kittipitch.github.io/smalltv-mod/reference/building/) for the project layout and the ESP32 toolchain notes.
+All targets share one codebase. Chip and board differences live in `src/Platform.h` and the per-board pin headers (`src/board_esp8266.h`, `src/board_esp32c2.h`, `src/board_esp32.h`); the feature modes and the web UI are identical across all of them. Every env compiles out the ticker and plane radar (`-D WITH_TICKER=0 -D WITH_RADAR=0`, plus their folders excluded from the build) — this fork's own deployment is a dedicated Claude-usage meter, one build per device, not a general-purpose gadget; edit `platformio.ini` yourself if you want them back. TLS stays in (it's what makes the GitHub self-updater work); pass `-D WITH_TLS=0` on top for a build that drops it too. See [Building from source](https://kittipitch.github.io/smalltv-mod/reference/building/) for the project layout and the ESP32 toolchain notes.
 
 The PC-side usage daemon lives in its own repo: [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon).
 

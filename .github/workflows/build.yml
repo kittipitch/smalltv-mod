@@ -50,8 +50,11 @@ jobs:
             exit 1
           fi
 
+      # smalltv/smalltv_sdpro are each ONE build per device (ticker/radar
+      # out, TLS in) -- the separate "_slim" (TLS-off) envs were retired
+      # ("we dont want to maintain more than one version per device").
       - name: Build firmware (all targets)
-        run: pio run -e smalltv -e smalltv_slim -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader -e smalltv_sdpro_slim
+        run: pio run -e smalltv -e smalltv_sdpro -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader
 
       # One app image per target (web-UI OTA + GitHub self-update), the merged
       # factory images for first-time USB flashing of the ESP32 boards, and the
@@ -60,13 +63,12 @@ jobs:
         run: |
           mkdir -p dist
           cp .pio/build/smalltv/firmware.bin               dist/smalltv-mod-firmware.bin
+          cp .pio/build/smalltv_sdpro/firmware.bin         dist/smalltv-mod-firmware-sdpro.bin
           cp .pio/build/smalltv_c2/firmware.bin            dist/smalltv-mod-firmware-c2.bin
           cp .pio/build/smalltv_c2/firmware.factory.bin    dist/smalltv-mod-firmware-c2.factory.bin
           cp .pio/build/smalltv_esp32/firmware.bin         dist/smalltv-mod-firmware-esp32.bin
           cp .pio/build/smalltv_esp32/firmware.factory.bin dist/smalltv-mod-firmware-esp32.factory.bin
           cp .pio/build/smalltv_loader/firmware.bin        dist/smalltv-mod-loader.bin
-          cp .pio/build/smalltv_slim/firmware.bin          dist/smalltv-mod-firmware-slim.bin
-          cp .pio/build/smalltv_sdpro_slim/firmware.bin    dist/smalltv-mod-firmware-sdpro.bin
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

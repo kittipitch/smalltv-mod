@@ -25,7 +25,7 @@ curl -s http://$IP/config   | head -c 200      # SD PRO answers with JSON here
 | What you see | Board | Image to use |
 |---|---|---|
 | Version like `SD EN V1.x.x`; `/config` returns JSON with `gifnum`/`weatherkey`; UI links to `JUZIPi-tech/SD_PRO` | **SD PRO clone** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware-sdpro.bin` — see [SD PRO](#sd-pro-juzipi-clone-esp8266--read-this-before-you-upload-anything) |
-| Version like `Ultra-V9.0.xx`; stock updater refuses the full image with `Not Enough Space` | **SmallTV-ultra** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware-slim.bin` |
+| Version like `Ultra-V9.0.xx`; stock updater refuses the full image with `Not Enough Space` | **SmallTV-ultra** (ESP8266) | `smalltv-mod-loader.bin`, then `smalltv-mod-firmware.bin` |
 | Plain SmallTV stock UI, updater accepts the full image | **SmallTV** (ESP8266) | `smalltv-mod-firmware.bin` |
 | Appears as a USB serial port when plugged in (onboard CH340C) | **ESP32-C2 / ESP8684** | `smalltv-mod-firmware-c2.bin` over USB |
 | Marked `NM-TV-154` | **classic ESP32** | `smalltv-mod-firmware-esp32.bin` over USB |
@@ -90,12 +90,12 @@ That single image carries everything the ESP8266 needs, so there is no separate 
 
 The SmallTV-ultra is the same ESP-12F (ESP8266) as the original SmallTV: same 4 MB flash, the same 1.54" 240×240 ST7789 panel, and the same pin map. Only its stock firmware differs. The "Ultra" firmware (for example Ultra-V9.0.50) reserves most of the flash for image and GIF storage, which leaves its OTA updater a small app slot. Uploading `smalltv-mod-firmware.bin` at `/update` fails with `Update error: ERROR[4]: Not Enough Space`, even though the flash has plenty of free user space, because the full image does not fit that small slot.
 
-The fix is a two-step install through a tiny loader, no soldering. The loader is a ~308 KB image that does fit the stock slot. Once running it uses this firmware's own 4m1m flash layout, whose app region is larger — large enough for the slim image on the second hop, though not for the full one.
+The fix is a two-step install through a tiny loader, no soldering. The loader is a ~308 KB image that does fit the stock slot. Once running it uses this firmware's own 4m1m flash layout, whose app region is larger — large enough for the real firmware on the second hop.
 
 1. Get `smalltv-mod-loader.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases).
 2. Browse to `http://<device-ip>/update` and upload `smalltv-mod-loader.bin`. It fits the stock slot. The device reboots into the loader.
 3. The loader opens an open WiFi access point named `SmallTV-Loader`. Join it and browse to `http://192.168.4.1/update`.
-4. Upload **`smalltv-mod-firmware-slim.bin`** there — not the full image. The loader's layout leaves about 700 KB free for OTA; the full image (ticker + radar + TLS) is 723,632 B, 6,832 B too big for that slot, while the slim build is 579,616 B and fits with roughly 137 KB to spare. The device reboots into smalltv-mod.
+4. Upload **`smalltv-mod-firmware.bin`** there. The loader's layout leaves about 717 KB free for OTA; this firmware is 699,429 B (ticker/radar compiled out on every build, TLS kept in) and fits with room to spare. The device reboots into smalltv-mod.
 5. It comes up in the usual `SmallTV-Setup` captive portal for WiFi. From here it is a normal ESP8266 smalltv-mod device.
 
 After this first install, normal OTA works from the Update tab, because this firmware's layout has room for two sketch copies. You only need the loader once.
@@ -128,7 +128,7 @@ actually available at that step:
 | step | image | size | goes to | field |
 |---|---|---|---|---|
 | 1 | `smalltv-mod-loader.bin` | 315,920 B | stock `/update_ota` | `update` |
-| 2 | `smalltv-mod-firmware-sdpro.bin` | ~579 KB | loader `/update` | `firmware` |
+| 2 | `smalltv-mod-firmware-sdpro.bin` | ~693 KB | loader `/update` | `firmware` |
 
 The loader is smaller than the vendor's own firmware image (488,304 B), which
 that updater installs correctly — that is why step 1 is safe.
@@ -171,12 +171,17 @@ bare `OK`, that page is emitted only after the image has been verified. The
 device reboots, the screen lights up, and it comes up in the usual
 `SmallTV-Setup` portal.
 
-### Why the SD PRO build is a slim one
+### Why this fits (and the ticker/radar are gone)
 
-`smalltv_sdpro_slim` compiles out the ticker, the plane radar and TLS
-(`WITH_TICKER=0 WITH_RADAR=0 WITH_TLS=0`), which takes the image from ~718 KB to
-~579 KB. This is not a preference — **the full image does not fit this device at
-any hop**, and TLS alone accounts for ~107 KB that a push-fed device never uses.
+`smalltv_sdpro` compiles out the ticker and the plane radar
+(`WITH_TICKER=0 WITH_RADAR=0`) on every board this project builds, not just
+this one — this fork's deployment is a dedicated Claude-usage meter, one
+build per device, not a general-purpose gadget. That alone took the image
+from ~730 KB down to ~693 KB, which is what makes the single remaining
+build fit the loader's OTA slot with TLS still in (TLS accounts for ~107 KB;
+dropping ticker/radar bought back more than that back). Keeping TLS means
+the GitHub self-updater actually works on this board now, unlike the old
+slim-only variant.
 
 Consequences worth knowing:
 

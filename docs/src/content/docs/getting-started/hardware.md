@@ -39,16 +39,17 @@ ESP32 with a different pin map entirely — two unrelated products share the wor
 | Flash layout | 4M2M (`eagle.flash.4m2m.ld`) |
 | USB-C | **power only** — no USB-serial chip, so a failed flash needs the UART header |
 | Stock firmware | `SD EN V1.x.x`, published only as V1.0.4 / V1.0.6 (V1.1.7 ships on units but is not downloadable anywhere) |
-| Environment | `smalltv_sdpro_slim` |
+| Environment | `smalltv_sdpro` |
 
 Two differences from the Ultra that this firmware handles for you:
 
 - **The panel renders much less saturated** and has none of the Ultra's blue
   cast, so the build defaults to `toneSat=200`, `toneB=100`. Without that the
   UI looks washed-out blue and the mascot reads as white.
-- **The image must be slim.** `WITH_TICKER=0 WITH_RADAR=0 WITH_TLS=0` brings it
-  to ~579 KB, because the full ~718 KB image does not fit this device at any
-  hop. That also means no GitHub self-update — updates go through the loader.
+- **The image is one build, not two.** `WITH_TICKER=0 WITH_RADAR=0` (every
+  target compiles these out now, not just this board) brings it to ~693 KB,
+  fitting the loader's own OTA slot with room to spare — no separate slim
+  variant needed, and TLS stays in, so GitHub self-update works normally.
 
 Its UART pads are not where the original SmallTV's are: there is no labelled
 six-pad row. Ground and GPIO0 are on a three-pad group marked `G V O` on the
@@ -179,7 +180,7 @@ pin map, panel tone defaults, and UART pad locations.
 Two corrections to what this section used to say, both learned on hardware.
 The `smalltv` env does **not** install directly — the stock updater performs no
 free-space check, answers `HTTP 200 OK`, and writes past the end of its slot;
-two units were bricked that way. Build `smalltv_sdpro_slim` and install it
+two units were bricked that way. Build `smalltv_sdpro` and install it
 through the loader, per [Flashing](/smalltv-mod/getting-started/flashing/).
 And a bad flash here is **not** recoverable over the network: the USB-C port is
 power only, so recovery means the internal UART header. Have that path
