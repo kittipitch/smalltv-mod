@@ -52,13 +52,24 @@ static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
-  // Both branches must produce the same-length string (see UsageMode.cpp's
-  // drawMeter() comment on the "%3d%%" fixed-width invariant) -- a runtime
-  // ternary picking the *format string* would also silently disable
-  // -Wformat-truncation, since GCC can't check a non-literal format.
+  // Only 2 digits + "%" reserved (not 3) -- per live feedback ("we can
+  // have show nothing instead of 100%% when it's full so we only reserve
+  // 2 digits and %% sign for it" / "the full bar in red tells all"): at
+  // 100%% the value prints blank instead of "100%%", since a fully red
+  // bar already says everything a number would. That caps the real
+  // digit count at 2 (0-99), so the fixed-width reservation only needs
+  // to cover "99%%" -- freeing 30px (one char cell at size5) for
+  // whatever else shares this card, e.g. drawCodexResetSuffix below.
+  // All 3 branches must produce the same-length (3-char) string (see
+  // UsageMode.cpp's drawMeter() comment on the fixed-width invariant) --
+  // a runtime ternary picking the *format string* would also silently
+  // disable -Wformat-truncation, since GCC can't check a non-literal
+  // format.
   char pc[8];
-  if (has) snprintf(pc, sizeof(pc), "%3d%%", constrain(pct, 0, 100));
-  else     strlcpy(pc, "  --", sizeof(pc));
+  int pv = constrain(pct, 0, 100);
+  if (!has)        strlcpy(pc, " --", sizeof(pc));
+  else if (pv >= 100) strlcpy(pc, "   ", sizeof(pc));
+  else             snprintf(pc, sizeof(pc), "%2d%%", pv);
   uint8_t sz = gfxFitSize(pc, 150, 5);
   int pcw = gfxTextW(pc, sz);
   gfx->setTextSize(sz);
@@ -111,60 +122,81 @@ static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
 // space enoght under 7d on the bottom card"). Drawn at top+34, size2
 // (16px tall), clearing the gap on both sides with room to spare.
 //
-// Format: "(N)" when N credits are available but the soonest expiry is
-// unknown, "(N - Dd)" when it is -- e.g. "(1 - 23d)" means 1 free reset
-// available, the soonest one expiring in ~23 days. Blank (padded, not
-// omitted -- see below) when there are none. Days = round(minutes/1440),
-// clamped at 0 so a just-expired/stale value never prints negative.
+// Format: "N" when N credits are available but the soonest expiry is
+// unknown, "N Dd" when it is -- e.g. "1 02d" means 1 free reset
+// available, the soonest one expiring in ~2 days. Days always zero-
+// padded to 2 digits ("02d", not "2d") per live feedback ("make days two
+// digit by default") -- keeps the digit column from shifting week to
+// week as the count changes width. Blank when there are none. Days =
+// round(minutes/1440), clamped at 0 so a just-expired/stale value never
+// prints negative. No brackets/label -- both were tried and dropped
+// ("the color is weird [ is white and ] is red" was the bracket
+// version's own bug; "or just 1 2d" was the final call over it).
 //
-// Colored by urgency same idea as UsageMode.cpp's/pctColor()'s bands but
-// keyed on days-until-expiry instead of %-used: plenty of runway (>=14d)
-// is green, a couple weeks out (3-13d) is yellow, about to lapse (<3d) is
-// red. A credit with no known expiry is shown green (available, no
-// urgency signal yet) rather than left uncolored.
+// Only the "Dd" segment is colored by urgency -- the "N " count prefix
+// stays C_DIM -- per live feedback ("2d (the nearest expiry date) can be
+// colored"), so the eye reads the count as neutral fact and the day
+// count as the thing worth a glance. 4 bands, same shape as pctColor()'s
+// own green/yellow/accent(orange)/red scale (mirrored here since fewer
+// days = more urgent, the opposite direction from a %-used bar): plenty
+// of runway (>=14d) is green, 7-13d yellow, 3-6d orange, <3d red. A
+// credit with no known expiry prints just "N" in green (available, no
+// urgency signal to show yet).
 static uint16_t creditColor(int days) {
   if (days < 3)  return C_RED;
+  if (days < 7)  return C_ACCENT;
   if (days < 14) return C_YELLOW;
   return C_UGREEN;
 }
 
 // Always drawn (not gated on `full`) so a data-only push (the common
 // case) still updates it -- same reasoning as drawCodexMeter's value row.
-// Fixed-width padded to 12 chars regardless of content so a transition
-// from a long "(N - Dd)" down to nothing (or a shorter form) can't leave
-// stale pixels behind, matching this file's "Resets in %-7s" convention.
+// Clears its own fixed-width budget with an explicit fillRect first
+// (rather than a padded opaque string, this file's usual "%-Ns" trick)
+// since printing two differently-colored segments back to back can't
+// share one opaque background print.
 //
-// textSize 1, not 2 -- an Opus/Fable QC pass caught a real collision: the
-// same card's big "%" value (drawCodexMeter, size5, right-aligned) has
-// its cursor at x = 8+224-gfxTextW(pc,5)-14 = 98 (pc is always exactly 4
-// chars, "%3d%%"/"  --", so this is constant), with ink extending down to
-// roughly this row's y. At size2 a 14-char opaque pad (168px from x=22)
-// crosses x=98 and wipes the bottom of the value's digits on every
-// render. At size1 (6px/char) a 12-char pad ends at x=22+72=94, clearing
-// x=98 with margin -- credits/days are also clamped to 2 digits (not 3)
-// so even an unpadded worst case ("(99 - 99d)", 11 chars = 66px) stays
-// well inside that margin.
+// textSize 2, matching the "7d"/"5h" label. The card's own big "%" value
+// (drawCodexMeter, size5, right-aligned, now only 3 chars wide -- see its
+// own comment on the 100%%-is-blank change) has its cursor at
+// x = 8+224-gfxTextW(pc,5)-14 = 128. This form's 2-digit-both-sides worst
+// case, "99 99d", is 6 chars = 72px from x=22, ending at x=94, clear of
+// x=128 with plenty of margin.
 static void drawCodexResetSuffix(Arduino_GFX* gfx, int top, bool hasCredits,
                                   int credits, bool hasExpire, int expireMins) {
-  char content[16] = "";
-  uint16_t color = C_DIM;
-  if (hasCredits && credits > 0) {
-    if (hasExpire) {
-      int days = (int)((expireMins / 1440.0f) + 0.5f);
-      if (days < 0) days = 0;
-      snprintf(content, sizeof(content), "(%d - %dd)", constrain(credits, 0, 99), min(days, 99));
-      color = creditColor(days);
-    } else {
-      snprintf(content, sizeof(content), "(%d)", constrain(credits, 0, 99));
-      color = C_UGREEN;
-    }
+  const int x = 8 + 14, y = top + 34, w = 8 * 12, h = 16;
+  gfx->fillRect(x, y, w, h, C_PANEL);
+  if (!(hasCredits && credits > 0)) return;
+
+  gfx->setTextSize(2);
+  if (hasExpire) {
+    int days = (int)((expireMins / 1440.0f) + 0.5f);
+    if (days < 0) days = 0;
+    char prefix[8], suffix[6];
+    snprintf(prefix, sizeof(prefix), "%d ", constrain(credits, 0, 99));
+    snprintf(suffix, sizeof(suffix), "%02dd", min(days, 99));
+    gfx->setTextColor(C_DIM, C_PANEL);
+    gfx->setCursor(x, y);
+    gfx->print(prefix);
+    // Day figure as a filled badge (urgency color as the BLOCK, white
+    // text on top) instead of colored text on the plain panel -- per
+    // live feedback ("revert the color bg/fg (do block like we did w/
+    // red clock at top right)"), same small-rounded-rect-chip look
+    // drawCodexClockOverlay's digit cards use.
+    int sx = x + gfxTextW(prefix, 2);
+    int sw = gfxTextW(suffix, 2);
+    uint16_t badge = creditColor(days);
+    gfx->fillRoundRect(sx - 2, y - 1, sw + 4, h - 2, 3, badge);
+    gfx->setTextColor(C_WHITE, badge);
+    gfx->setCursor(sx, y);
+    gfx->print(suffix);
+  } else {
+    char v[8];
+    snprintf(v, sizeof(v), "%d", constrain(credits, 0, 99));
+    gfx->setTextColor(C_UGREEN, C_PANEL);
+    gfx->setCursor(x, y);
+    gfx->print(v);
   }
-  char line[16];
-  snprintf(line, sizeof(line), "%-12s", content);
-  gfx->setTextSize(1);
-  gfx->setTextColor(color, C_PANEL);
-  gfx->setCursor(8 + 14, top + 34);
-  gfx->print(line);
 }
 
 static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool growRight) {
