@@ -18,6 +18,7 @@ Keep a `stock-backup.bin` from before your first flash and you can always return
 - HTTPS works on the ESP8266 but is RAM-tight. Prefer plain HTTP on your LAN for a webhook if you see instability. The ESP32 boards have more headroom.
 - The GitHub self-update works on every board from 2.7.0. The ESP32 boards download in place; the ESP8266 updates at boot (two reboots — see [Flashing](/smalltv-mod/getting-started/flashing/#after-the-first-flash)). ESP8266 devices still on 2.6.1 or older have a broken updater and need one manual upload in the Update tab to get current.
 - Fonts are the built-in bitmap font, scaled, chosen for reliability and the retro look. No external font files are needed.
+- **Brightness slider backwards (higher % = dimmer)?** Your saved settings have `backlightInverted` set wrong for your panel — this survives every OTA flash, since flashing never touches saved settings, only a Factory Reset does. Fix: `curl -X POST http://<device>/api/config -H "Content-Type: application/json" -d '{"backlightInverted":true}'` (or `false` if that's already `true` and still backwards). If you use the web UI to do this instead, refresh the page first — it POSTs your entire settings back on Save, silently reverting any field changed elsewhere since the page loaded.
 
 ## Credits and references
 
