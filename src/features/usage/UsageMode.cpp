@@ -187,11 +187,16 @@ static void drawMascot(const uint8_t* cells, const uint16_t* palette, bool resta
   // (idle breathe/blink, dance sway/bounce) are hand-drawn symmetric about
   // grid column/row 10, but a 20-cell grid has no true-center cell at 9.5 --
   // so they visibly sit half a cell right+low. Nudging the draw origin back
-  // half a cell recenters those (explicit tradeoff, chosen deliberately):
-  // it puts the one already-centered set (work_coding) 6px off the other
-  // way, worse proportionally since that pose nearly fills the grid.
-  const int x0 = (TFT_WIDTH  - MASCOT_GRID * CP) / 2 - CP / 2;
-  const int y0 = (TFT_HEIGHT - MASCOT_GRID * CP) / 2 - CP / 2;
+  // half a cell recenters those. "work coding" is drawn already-centered on
+  // its own grid though, so the same nudge pushed IT 6px off the other way
+  // -- confirmed live ("the one we see the most are lopsided", the normal-
+  // pace mood being the commonly-seen one -- "we adjusted the minimal mood
+  // mascot remember? adjust the rest too"). Per-animation, not global: skip
+  // the nudge only for "work coding", apply it to every other set.
+  bool skipNudge = strcmp(mascotName(), "work coding") == 0;
+  const int nudge = skipNudge ? 0 : CP / 2;
+  const int x0 = (TFT_WIDTH  - MASCOT_GRID * CP) / 2 - nudge;
+  const int y0 = (TFT_HEIGHT - MASCOT_GRID * CP) / 2 - nudge;
 
   // Full redraw on (re)entry or whenever the palette changes (animation switch);
   // otherwise only repaint the cells that changed since the last frame.

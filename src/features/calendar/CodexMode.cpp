@@ -123,25 +123,28 @@ static void drawCodexMeter(Arduino_GFX* gfx, int top, const char* label,
 // (16px tall), clearing the gap on both sides with room to spare.
 //
 // Format: "N" when N credits are available but the soonest expiry is
-// unknown, "N Dd" when it is -- e.g. "1 02d" means 1 free reset
-// available, the soonest one expiring in ~2 days. Days always zero-
-// padded to 2 digits ("02d", not "2d") per live feedback ("make days two
-// digit by default") -- keeps the digit column from shifting week to
-// week as the count changes width. Blank when there are none. Days =
-// round(minutes/1440), clamped at 0 so a just-expired/stale value never
-// prints negative. No brackets/label -- both were tried and dropped
-// ("the color is weird [ is white and ] is red" was the bracket
-// version's own bug; "or just 1 2d" was the final call over it).
+// unknown, "N·Dd" when it is (a hand-drawn middle dot, not a font glyph
+// -- see drawCodexResetSuffix) -- e.g. "1·2d" means 1 free reset
+// available, the soonest one expiring in ~2 days. A zero-padded 2-digit
+// form ("02d") was tried and dropped ("drop the leading 0"). Blank when
+// there are none. Days = round(minutes/1440), clamped at 0 so a just-
+// expired/stale value never prints negative. No brackets/label -- both
+// were tried and dropped ("the color is weird [ is white and ] is red"
+// was the bracket version's own bug; "or just 1 2d" was the final call
+// over it).
 //
-// Only the "Dd" segment is colored by urgency -- the "N " count prefix
-// stays C_DIM -- per live feedback ("2d (the nearest expiry date) can be
-// colored"), so the eye reads the count as neutral fact and the day
-// count as the thing worth a glance. 4 bands, same shape as pctColor()'s
-// own green/yellow/accent(orange)/red scale (mirrored here since fewer
-// days = more urgent, the opposite direction from a %-used bar): plenty
-// of runway (>=14d) is green, 7-13d yellow, 3-6d orange, <3d red. A
-// credit with no known expiry prints just "N" in green (available, no
-// urgency signal to show yet).
+// Plain colored text on the panel background, not filled badge blocks --
+// a badge-block version ("do block like we did w/ red clock at top
+// right") was tried and reverted ("revert to subtle 1 and 02d like
+// before (dont do block) it's ugly"). Only the "Dd" segment is colored
+// by urgency -- the "N " count prefix stays C_DIM -- per live feedback
+// ("2d (the nearest expiry date) can be colored"), so the eye reads the
+// count as neutral fact and the day count as the thing worth a glance.
+// 4 bands, same shape as pctColor()'s own green/yellow/accent(orange)/
+// red scale (mirrored here since fewer days = more urgent, the opposite
+// direction from a %-used bar): plenty of runway (>=14d) is green,
+// 7-13d yellow, 3-6d orange, <3d red. A credit with no known expiry
+// prints just "N" in green (available, no urgency signal to show yet).
 static uint16_t creditColor(int days) {
   if (days < 3)  return C_RED;
   if (days < 7)  return C_ACCENT;
@@ -172,22 +175,33 @@ static void drawCodexResetSuffix(Arduino_GFX* gfx, int top, bool hasCredits,
   if (hasExpire) {
     int days = (int)((expireMins / 1440.0f) + 0.5f);
     if (days < 0) days = 0;
-    char prefix[8], suffix[6];
-    snprintf(prefix, sizeof(prefix), "%d ", constrain(credits, 0, 99));
-    snprintf(suffix, sizeof(suffix), "%02dd", min(days, 99));
+    char cnt[6], suffix[6];
+    snprintf(cnt, sizeof(cnt), "%d", constrain(credits, 0, 99));
+    snprintf(suffix, sizeof(suffix), "%dd", min(days, 99));
     gfx->setTextColor(C_DIM, C_PANEL);
     gfx->setCursor(x, y);
-    gfx->print(prefix);
-    // Day figure as a filled badge (urgency color as the BLOCK, white
-    // text on top) instead of colored text on the plain panel -- per
-    // live feedback ("revert the color bg/fg (do block like we did w/
-    // red clock at top right)"), same small-rounded-rect-chip look
-    // drawCodexClockOverlay's digit cards use.
-    int sx = x + gfxTextW(prefix, 2);
-    int sw = gfxTextW(suffix, 2);
-    uint16_t badge = creditColor(days);
-    gfx->fillRoundRect(sx - 2, y - 1, sw + 4, h - 2, 3, badge);
-    gfx->setTextColor(C_WHITE, badge);
+    gfx->print(cnt);
+    // A real middle dot, hand-drawn -- this display's built-in bitmap
+    // font is the classic CP437 glyph table, where the byte for U+00B7
+    // draws a box-drawing character, not a dot, and even a real "."
+    // glyph sits on the baseline, not mid-height ("no it's the middle
+    // dot not dot on the floor .. if u cant do it simulate w/ drawing").
+    // A hand-drawn filled square is the simulation, centered on both
+    // axes ("the floating dot shud be bw 1 2 right in the middle
+    // (horizontally and vertically middle)"). Checked against
+    // Arduino_GFX's own classic-glcdfont drawChar(): the font's 8-row
+    // cell only inks rows 0-6 (row 7 is the spacer reserved for
+    // descenders), so at textsize 2 ink spans y..y+14 -- true vertical
+    // center is y+7, not y+h/2 (h=16, the row's own fillRect height, a
+    // taller box than the glyph's actual ink). The same 5-column cell
+    // (of 6 reported by gfxTextW) leaves a ~2px blank spacer built into
+    // each side already, so a small explicit 2px gap on top of that is
+    // enough to read as centered, not the earlier 3px.
+    const int DOT = 3;
+    int dotX = x + gfxTextW(cnt, 2) + 2;
+    gfx->fillRect(dotX, y + 7 - DOT / 2, DOT, DOT, C_DIM);
+    int sx = dotX + DOT + 2;
+    gfx->setTextColor(creditColor(days), C_PANEL);
     gfx->setCursor(sx, y);
     gfx->print(suffix);
   } else {
