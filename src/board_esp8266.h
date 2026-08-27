@@ -53,23 +53,25 @@
 //
 // BOARD_SELF_UPDATE: whether a real, board-matching GitHub release asset
 // exists to safely pull via the web UI's self-updater.
-//   SD PRO: PERMANENTLY 0. No asset for this board will ever exist upstream
-//   -- SD PRO is this fork's own board, giovi321 doesn't build for it. The
-//   generic ESP8266 asset is 4M1M/TFT_CS-15, and driving GPIO15 there is the
-//   exact boot-strap brick that killed unit #1 (see TFT_CS above). Do not
-//   flip this to 1 for any reason short of publishing a real SD PRO asset.
-//   Ultra: 0 FOR NOW ONLY, not for the same reason. This fork simply has no
-//   published (non-draft) release with a matching Settings/config.json
-//   schema yet -- upstream's own asset resolves fine but is a different
-//   codebase (see OtaUpdate.cpp's otaCheckLatest()). Flip this to 1 once
-//   this fork ships a real matching-schema release. Flipping it does NOT
+//   SD PRO: PERMANENTLY 0, for a hardware reason, independent of any repo or
+//   asset naming. The generic ESP8266 asset is 4M1M/TFT_CS-15, and driving
+//   GPIO15 on this board is the exact boot-strap brick that killed unit #1
+//   (see TFT_CS above). This is true regardless of which repo self-update
+//   points at or whether a same-named asset exists there -- do not flip
+//   this to 1 for any reason.
+//   Ultra: was 0 "for now only" -- this fork had no published release with
+//   a matching Settings/config.json schema. That's resolved: self-update
+//   now points at the fork (UPDATE_REPO_OWNER in config.h), not upstream,
+//   and the fork's own releases publish a real, schema-matching
+//   smalltv-mod-firmware.bin (confirmed live against
+//   kittipitch/smalltv-mod's v1.0.0-kitt20 release). Flipping this does NOT
 //   make SD PRO's case (above) safe -- that one stays 0 regardless.
 #ifdef SDPRO_CS_GND
 #define BOARD_SELF_UPDATE      0
 #define BOARD_NO_UPDATE_REASON "self-update disabled on this board (SD PRO)"
 #else
-#define BOARD_SELF_UPDATE      0
-#define BOARD_NO_UPDATE_REASON "self-update disabled: fork has no matching release yet"
+#define BOARD_SELF_UPDATE      1
+#define BOARD_NO_UPDATE_REASON "self-update disabled"
 #endif
 
 // Default warmth/saturation sliders (Settings::toneB/toneSat). The SD PRO's

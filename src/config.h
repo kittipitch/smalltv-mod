@@ -21,16 +21,33 @@
 // webui.h's onstatus() handler) -- points students at this fork, where
 // kittipitch/smalltv-mod's own tagged releases now live.
 //
-// REPO_OWNER/REPO_NAME are functional: OtaUpdate.cpp's self-update check
-// and StockClient.cpp's ticker "GitHub static quotes" fetch both hit
-// these directly via the GitHub API/raw content, not REPO_URL. Kept
-// pointing at giovi321 deliberately -- this fork has no GitHub Actions
-// quotes-publishing workflow and self-update here would otherwise need
-// its own maintained release cadence to be useful. Changing REPO_URL
-// alone does not repoint either of those.
+// REPO_OWNER/REPO_NAME feed StockClient.cpp's ticker "GitHub static quotes"
+// fetch (via GH_QUOTES_BASE below) -- kept pointing at giovi321 since this
+// fork has no GitHub Actions quotes-publishing workflow of its own; there is
+// no `data/quotes` branch to read here. Changing REPO_URL alone does not
+// repoint this.
+//
+// UPDATE_REPO_OWNER/UPDATE_REPO_NAME are separate and feed OtaUpdate.cpp's
+// self-update check -- these DO point at the fork now. They used to be the
+// same as REPO_OWNER/REPO_NAME (pointed at giovi321) on the theory that
+// "this fork has no matching-schema release yet" -- that stopped being true
+// once build.yml's release-attach step started publishing real per-board
+// assets here (confirmed live: `gh api repos/kittipitch/smalltv-mod/
+// releases/latest` lists smalltv-mod-firmware.bin, -sdpro.bin, -c2.bin,
+// -esp32.bin, matching every UPDATE_ASSET name below). Leaving self-update
+// pointed at upstream while it silently matched upstream's OWN
+// smalltv-mod-firmware.bin was a real bug, not a safety feature -- it meant
+// a stray BOARD_SELF_UPDATE=1 on a TLS-capable (non-slim) Ultra build would
+// have downloaded and flashed VANILLA UPSTREAM firmware, silently wiping
+// every fork feature (Codex/OpenRouter/z.ai/etc). Found live: "there are at
+// lease two devices we have and if they fetch the wrong bit they will
+// brick" / "make sure the fetch the correct bin from our mod and not from
+// the upstream if click".
 #define REPO_URL      "https://github.com/kittipitch/smalltv-mod"
 #define REPO_OWNER    "giovi321"
 #define REPO_NAME     "smalltv-mod"
+#define UPDATE_REPO_OWNER "kittipitch"
+#define UPDATE_REPO_NAME  "smalltv-mod"
 // Release asset the GitHub self-updater pulls — one app image per target.
 // Which physical board this image was built for. Reported by /api/status so a
 // fleet can be told apart after flashing -- every target otherwise reports the
@@ -52,11 +69,19 @@
 #elif defined(SMALLTV_ESP32)
   #define UPDATE_ASSET "smalltv-mod-firmware-esp32.bin"
 #elif defined(SDPRO_CS_GND)
-  // No published asset exists for the SD PRO build. A nonexistent name makes
-  // the self-updater report "no update available" instead of silently
-  // flashing the generic ESP8266 image (4M1M layout, TFT_CS 15) -- which on
-  // this board would reintroduce the GPIO15 boot-strap brick mechanism.
-  // (codex pre-flash audit finding, 2026-08-22.)
+  // This name USED TO be deliberately unpublished-anywhere (a nonexistent
+  // upstream asset name, making the self-updater fail closed with "no
+  // update available"). That stopped being a real safety net the moment
+  // self-update was repointed at the fork (see UPDATE_REPO_OWNER above) --
+  // kittipitch/smalltv-mod's own releases DO publish this exact name now.
+  // The actual, still-enforced protection for this board is
+  // BOARD_SELF_UPDATE=0 in board_esp8266.h (a hardware-safety gate,
+  // permanent, independent of any repo/asset naming): flashing the generic
+  // ESP8266 image (4M1M layout, TFT_CS 15) onto this board would
+  // reintroduce the GPIO15 boot-strap brick mechanism that bricked unit #1
+  // (codex pre-flash audit finding, 2026-08-22). Do not re-enable
+  // BOARD_SELF_UPDATE for SD PRO on the assumption that this asset name is
+  // itself a safety measure -- it no longer is.
   #define UPDATE_ASSET "smalltv-mod-firmware-sdpro.bin"
 #else
   #define UPDATE_ASSET "smalltv-mod-firmware.bin"

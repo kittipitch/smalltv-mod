@@ -30,18 +30,19 @@ OtaLatest otaCheckLatest(const Settings& s) {
   // Gated on the per-board BOARD_SELF_UPDATE capability macro (see
   // board_esp8266.h/board_esp32.h/board_esp32c2.h), not a raw board-macro
   // check here -- this used to be two separate board-gated blocks in this
-  // exact function, added on different dates for two DIFFERENT reasons
-  // (SD PRO: permanent, the generic ESP8266 asset is 4M1M/TFT_CS-15 and
-  // driving GPIO15 on this board is the boot-strap mechanism that bricked
-  // unit #1. Ultra: temporary, this fork has no matching-schema release
-  // published yet, see BOARD_NO_UPDATE_REASON's definition for the full
-  // story). Sitting right next to each other made them look like the same
-  // historical cruft, which is exactly the shape a future cleanup could
-  // delete both at once by mistake. The two reasons now live side by side
-  // in board_esp8266.h instead, where changing one can't hide the other.
-  // Returning here makes every caller (both WebPortal handlers and
-  // otaBootUpdate) fail closed before any Update.begin() can run.
-  // UPDATE_ASSET in config.h stays as defence in depth for SD PRO.
+  // exact function, added on different dates for two DIFFERENT reasons (SD
+  // PRO: permanent hardware reason, the generic ESP8266 asset is
+  // 4M1M/TFT_CS-15 and driving GPIO15 on this board is the boot-strap
+  // mechanism that bricked unit #1. Ultra: USED TO be temporary -- "this
+  // fork has no matching-schema release published yet" -- that's resolved
+  // now that self-update points at the fork's own releases (see
+  // UPDATE_REPO_OWNER in config.h), so Ultra's BOARD_SELF_UPDATE is 1).
+  // SD PRO's reason is permanent and independent of repo/asset naming --
+  // see board_esp8266.h's own comment; UPDATE_ASSET's SD PRO name is NOT a
+  // safety net (the fork's releases do publish a matching asset now), the
+  // BOARD_SELF_UPDATE=0 gate here is what's actually enforced. Returning
+  // here makes every caller (both WebPortal handlers and otaBootUpdate)
+  // fail closed before any Update.begin() can run.
   (void)s;
   r.error = F(BOARD_NO_UPDATE_REASON);
   return r;
@@ -55,12 +56,16 @@ OtaLatest otaCheckLatest(const Settings& s) {
 #else
   if (ESP.getFreeHeap() < 20000) { r.error = F("low heap"); return r; }
 
+  // UPDATE_REPO_OWNER/UPDATE_REPO_NAME, not REPO_OWNER/REPO_NAME -- the
+  // latter stays pointed at upstream giovi321 for StockClient.cpp's ticker
+  // quotes feed only. Self-update fetches from the fork, which now publishes
+  // real matching-named release assets (see config.h's comment on this).
   String url = F("https://");
   url += F(GH_API_HOST);
   url += F("/repos/");
-  url += F(REPO_OWNER);
+  url += F(UPDATE_REPO_OWNER);
   url += "/";
-  url += F(REPO_NAME);
+  url += F(UPDATE_REPO_NAME);
   url += F("/releases/latest");
 
   // GitHub over TLS on this chip occasionally stalls a stream read (truncated
