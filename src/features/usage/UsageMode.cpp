@@ -268,11 +268,21 @@ void UsageMode::drawClockOverlay() {
 }
 
 void UsageMode::invalidate(const Settings& s) {
+  (void)s;
   needRender_ = true;
   needFullRender_ = true;
   showingMascot_ = false;
   usageRenderedOk_ = 0xFFFFFFFF;
-  usageInit(s);
+  // Deliberately NOT usageInit() here: that clears the cached reading, and on
+  // a push-mode device (usageUrl empty -- the daemon POSTs to /api/usage)
+  // there is no device-side fetch to replace it. Every settings save then
+  // dropped this page to the full-screen mascot until the next daemon push
+  // landed, which for an unrelated POST -- e.g. a home-automation script
+  // pushing {"brightness":N} -- is a visible regression for no benefit.
+  // Same reasoning CalendarMode::invalidate() already documents. Pull mode
+  // loses nothing: usageForceRefresh() re-polls on the next service tick,
+  // which is all it ever wanted from usageInit(), and usageService()
+  // self-inits if begin() somehow hasn't run.
   usageForceRefresh();
 }
 

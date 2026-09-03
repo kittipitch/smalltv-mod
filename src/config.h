@@ -12,7 +12,7 @@
 // Firmware identity
 // ---------------------------------------------------------------------------
 #define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "1.0.0-kitt20"
+#define FW_VERSION  "1.0.0-kitt21"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
 //
