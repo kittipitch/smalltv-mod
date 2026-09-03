@@ -95,7 +95,7 @@ The fix is a two-step install through a tiny loader, no soldering. The loader is
 1. Get `smalltv-mod-loader.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases).
 2. Browse to `http://<device-ip>/update` and upload `smalltv-mod-loader.bin`. It fits the stock slot. The device reboots into the loader.
 3. The loader opens an open WiFi access point named `SmallTV-Loader`. Join it and browse to `http://192.168.4.1/update`.
-4. Upload **`smalltv-mod-firmware.bin`** there. The loader's layout leaves about 717 KB free for OTA; this firmware is 699,429 B (ticker/radar compiled out on every build, TLS kept in) and fits with room to spare. The device reboots into smalltv-mod.
+4. Upload **`smalltv-mod-firmware.bin`** there. The loader's layout leaves about 717 KB free for OTA; this firmware is 689,568 B (plane radar compiled out on every build, TLS kept in) and fits with room to spare. The device reboots into smalltv-mod.
 5. It comes up in the usual `SmallTV-Setup` captive portal for WiFi. From here it is a normal ESP8266 smalltv-mod device.
 
 After this first install, normal OTA works from the Update tab, because this firmware's layout has room for two sketch copies. You only need the loader once.
@@ -171,17 +171,16 @@ bare `OK`, that page is emitted only after the image has been verified. The
 device reboots, the screen lights up, and it comes up in the usual
 `SmallTV-Setup` portal.
 
-### Why this fits (and the ticker/radar are gone)
+### Why this fits (and where the ticker/radar went)
 
-`smalltv_sdpro` compiles out the ticker and the plane radar
-(`WITH_TICKER=0 WITH_RADAR=0`) on every board this project builds, not just
-this one — this fork's deployment is a dedicated Claude-usage meter, one
-build per device, not a general-purpose gadget. That alone took the image
-from ~730 KB down to ~693 KB, which is what makes the single remaining
-build fit the loader's OTA slot with TLS still in (TLS accounts for ~107 KB;
-dropping ticker/radar bought back more than that back). Keeping TLS means
-the GitHub self-updater actually works on this board now, unlike the old
-slim-only variant.
+The stock ticker was **deleted from the codebase** outright, and the plane
+radar is compiled out (`WITH_RADAR=0`) on every board this project builds —
+this fork's deployment is a dedicated Claude-usage meter, one build per
+device, not a general-purpose gadget. Together those took the image from
+~730 KB down to ~683 KB, which is what makes the single remaining build fit
+the loader's OTA slot with TLS still in (TLS accounts for ~107 KB). Keeping
+TLS means the GitHub self-updater actually works on this board now, unlike
+the old slim-only variant.
 
 Consequences worth knowing:
 

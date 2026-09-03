@@ -1,8 +1,8 @@
 // webui.h — single-page config UI served from PROGMEM
 //
 // Tabs are segmented per feature: shared Status/WiFi/Display/Update plus one tab
-// per feature (Ticker / Usage; Radar is added with WITH_RADAR). The config JSON
-// mirrors the nested Settings layout: { ..shared.., ticker:{...}, usage:{...} }.
+// per feature (Usage; Radar is added with WITH_RADAR). The config JSON
+// mirrors the nested Settings layout: { ..shared.., usage:{...}, radar:{...} }.
 #pragma once
 #include <Arduino.h>
 
@@ -60,7 +60,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <button data-t="status" class="active">Status</button>
  <button data-t="wifi">WiFi</button>
  <button data-t="display">Display</button>
- <button data-t="ticker">Ticker</button>
  <button data-t="usage">Usage</button>
  <button data-t="radar">Radar</button>
  <button data-t="calendar">Agenda &amp; weather</button>
@@ -70,8 +69,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <!-- STATUS -->
  <section id="status" class="tab active">
   <div class="card"><h2>Device</h2><div id="statusBox" class="muted">Loading...</div></div>
-  <div class="card"><h2>Tickers</h2><div id="tickBox" class="muted">-</div>
-   <button class="btn sec" style="margin-top:10px" onclick="refreshNow()">Refresh data now</button></div>
  </section>
 
  <!-- WIFI -->
@@ -101,7 +98,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   <div class="card"><h2>Mode</h2>
    <label>What this device shows</label>
    <select id="mode" onchange="modeChanged()">
-    <option value="stocks">Stock / crypto ticker</option>
     <option value="usage">Claude usage</option>
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
@@ -117,7 +113,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <label>Switch mode every (s)</label><input id="carouselSec" type="number" min="5" max="3600">
     <div id="carouselList"></div>
    </div>
-   <small class="hint">Pick the active feature. Ticker/Usage/Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all four stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder.</small>
+   <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all four stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -138,7 +134,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <label>Saturation: <span id="toneSatVal"></span>% <span class="muted">(100 = normal, can boost past it — this palette is intentionally muted, so higher saturation may barely move near-neutral greys and only visibly affects accent colors)</span></label>
    <input id="toneSat" type="range" min="0" max="200" oninput="toneSatVal.textContent=this.value">
    <div style="margin-top:10px"><button class="btn sec" onclick="resetTone()">Reset to defaults</button></div>
-   <small class="hint">Applies device-wide (every screen: ticker, usage, radar, clock, boot/status screens) — not per-feature. Takes effect on Save, no reboot needed.</small>
+   <small class="hint">Applies device-wide (every screen: usage, radar, clock, boot/status screens) — not per-feature. Takes effect on Save, no reboot needed.</small>
   </div>
   <div class="card"><h2>Clock &amp; night mode</h2>
    <label>Timezone</label>
@@ -153,65 +149,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <label>Night brightness: <span id="nlVal"></span>% <span class="muted">(0 = screen off)</span></label>
    <input id="nightLevel" type="range" min="0" max="100" oninput="nlVal.textContent=this.value">
    <small class="hint">Needs internet once to set the clock over NTP (no on-screen clock, this just drives the schedule). While the window is active it overrides the brightness and auto-brightness above. Times are local to the selected timezone; DST is handled automatically. After a reboot the schedule resumes once the clock re-syncs, so the screen may show normal brightness for a few seconds.</small>
-  </div>
- </section>
-
- <!-- TICKER (feature) -->
- <section id="ticker" class="tab">
-  <div class="card"><h2>Rotation &amp; data</h2>
-   <div class="row">
-    <div><label>Show each ticker (s)</label><input id="rotateSec" type="number" min="2" max="300"></div>
-    <div><label>Refresh data (s)</label><input id="pollSec" type="number" min="10" max="3600"></div>
-   </div>
-   <div class="row">
-    <div><label>Chart timeframe</label>
-     <select id="range">
-      <option value="1d">1 day</option><option value="5d">5 days</option>
-      <option value="1mo">1 month</option><option value="3mo">3 months</option>
-      <option value="6mo">6 months</option><option value="ytd">Year to date</option>
-      <option value="1y">1 year</option><option value="2y">2 years</option>
-      <option value="5y">5 years</option><option value="max">Max</option>
-     </select></div>
-    <div><label>Chart points</label><input id="points" type="number" min="0" max="60"></div>
-   </div>
-   <div class="row">
-    <div><label>Change &amp; % basis</label>
-     <select id="changeOnRange">
-      <option value="true">Chart timeframe</option>
-      <option value="false">1 day</option>
-     </select></div>
-   </div>
-   <small class="hint">Chart timeframe: the change, arrow, colors, and chart cover the same span, so they agree. Needs chart data (2+ points); without it the device falls back to the 1-day change. At 1 day it measures from the session's first data point, so overnight gaps are not counted. 1 day: the classic change vs the previous close, which can point the other way than a longer chart.</small>
-   <label>Webhook URL <span class="muted">(only for tickers set to Webhook)</span></label>
-   <input id="webhookUrl" type="url" placeholder="http://n8n.local:5678/webhook/stock">
-  </div>
-  <div class="card"><h2>Color scheme</h2>
-   <select id="colorInverted"><option value="false">Green up / Red down</option>
-    <option value="true">Red up / Green down</option></select>
-  </div>
-  <div class="card"><h2>What to show</h2>
-   <div class="chk"><input id="showName" type="checkbox"><label>Name / symbol</label></div>
-   <div class="chk"><input id="showPrice" type="checkbox"><label>Price</label></div>
-   <div class="chk"><input id="showChange" type="checkbox"><label>Change &amp; % change</label></div>
-   <div class="chk"><input id="showChart" type="checkbox"><label>Sparkline chart</label></div>
-   <div class="chk"><input id="showRangeLabel" type="checkbox"><label>Timeframe label</label></div>
-   <div class="chk"><input id="showUpdatedAgo" type="checkbox"><label>"Updated N s ago"</label></div>
-   <div class="chk"><input id="showPageDots" type="checkbox"><label>Rotation dots</label></div>
-   <div class="chk"><input id="showPortfolio" type="checkbox"><label>Position P/L &amp; portfolio page</label></div>
-  </div>
-  <div class="card"><h2>Tickers (rotate on screen)</h2>
-   <table id="symTable"></table>
-   <button class="btn sec" style="margin-top:10px" onclick="addSym()">+ Add ticker</button>
-   <small class="hint" id="symHint"></small>
-  </div>
-  <div class="card"><h2>cash.ch symbol finder</h2>
-   <label>Instrument <span class="muted">(paste a cash.ch link, ISIN, valor, or a name)</span></label>
-   <div class="row">
-    <input id="cashQ" type="text" placeholder="https://www.cash.ch/... or EU0009654078">
-    <button class="btn sec" style="flex:0 0 auto" onclick="cashFind()">Find</button>
-   </div>
-   <div id="cashRes"></div>
-   <small class="hint">Searches cash.ch from your browser and turns the result into the listing key the ticker needs. Click a match to add it as a ticker.</small>
   </div>
  </section>
 
@@ -514,9 +451,6 @@ document.querySelectorAll('nav button').forEach(function(b){b.onclick=function()
 }});
 
 // field groups by their location in the nested config
-var T_TEXT=['webhookUrl','range'];                   // ticker strings
-var T_NUM=['rotateSec','pollSec','points'];          // ticker numbers
-var T_BOOL=['showName','showPrice','showChange','showChart','showRangeLabel','showUpdatedAgo','showPageDots','showPortfolio'];
 
 // IANA -> POSIX TZ. The device stores/uses the POSIX rule; this map lives in the
 // browser so the firmware carries no tz database (same idea as the cash finder).
@@ -546,8 +480,8 @@ var TZMAP={
  'Australia/Perth':'AWST-8','Australia/Sydney':'AEST-10AEDT,M10.1.0,M4.1.0/3',
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
-var MODEOPT={ticker:'stocks',usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','forecast','zai','codex','antigravity','openrouter']};
-var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity','carouselOpenrouter']};
+var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','forecast','zai','codex','antigravity','openrouter']};
+var CAROPT={usage:'carouselUsage',radar:'carouselRadar',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity','carouselOpenrouter']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -561,7 +495,6 @@ var CAROPT={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',
 // apart" -- its checkbox is rendered nested under the "Next event" row
 // instead (see renderCarouselList's agenda2Toggle below).
 var CAR_MODES=[
- {id:'stocks',chk:'carouselTicker',label:'Ticker'},
  {id:'usage',chk:'carouselUsage',label:'Claude usage'},
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
  {id:'codex',chk:'carouselCodex',label:'Codex quota'},
@@ -632,7 +565,7 @@ function resetTone(){setTone(100,100,100,100)}
 function modeChanged(){if(!$('mode'))return;
  $('carouselRow').style.display=$('mode').value==='carousel'?'block':'none';}
 function loadConfig(){return j('/api/config').then(function(c){C=c;
- var f=c.features||{}; ['ticker','usage','radar','calendar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
+ var f=c.features||{}; ['usage','radar','calendar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
  // CAR_MODES/carOrder are static id lists with no feature-awareness of
  // their own -- renderCarouselList() rebuilds rows straight from CAR_MODES
  // on every call, so a compiled-out feature's row came right back even
@@ -640,7 +573,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // plane radar is still in this carousel selector"). Filter the SOURCE
  // array instead -- parseCarOrder()/renderCarouselList() already skip any
  // id no longer in CAR_MODES via their own `if(!m)return` guards.
- var CAR_FEAT={stocks:'ticker',radar:'radar'};
+ var CAR_FEAT={radar:'radar'};
  for(var ci=CAR_MODES.length-1;ci>=0;ci--){var mf=CAR_FEAT[CAR_MODES[ci].id]; if(mf&&f[mf]===false)CAR_MODES.splice(ci,1);}
  // GitHub self-update needs TLS for both the version check and the flash
  // itself -- on a build with WITH_TLS=0 (every slim env currently deployed)
@@ -648,7 +581,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // rather than show a control that always errors. Manual upload (OTA) below
  // it is plain HTTP and stays available.
  if(f.tls===false){var ghc=$('ghUpdateCard'); if(ghc)ghc.remove();}
- var t=c.ticker||{}, u=c.usage||{};
+ var u=c.usage||{};
  // shared
  ['apSsid','apPass','hostname','daemonIp'].forEach(function(k){$(k).value=c[k]!=null?c[k]:''});
  renderWifi(c.wifi||(c.staSsid?[{ssid:c.staSsid,passSet:c.staPassSet}]:[]));
@@ -670,19 +603,12 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sc('nightEnabled',!!ck.nightEnabled);
  sv('nightStart',ck.nightStart||'22:00'); sv('nightEnd',ck.nightEnd||'07:00');
  sv('nightLevel',ck.nightLevel!=null?ck.nightLevel:0); $('nlVal')&&($('nlVal').textContent=(ck.nightLevel!=null?ck.nightLevel:0));
- $('mode').value=c.mode||'stocks'; modeChanged();
+ $('mode').value=c.mode||'carousel'; modeChanged();
  sv('carouselSec',c.carouselSec||60);
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
- sc('carouselTicker',c.carouselTicker!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
+ sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false);
- // ticker slice
- T_TEXT.forEach(function(k){sv(k,t[k])});
- T_NUM.forEach(function(k){sv(k,t[k])});
- T_BOOL.forEach(function(k){sc(k,t[k])});
- sv('colorInverted',t.colorInverted?'true':'false');
- sv('changeOnRange',t.changeOnRange===false?'false':'true');
- renderSyms(t.symbols||[]); symHintFor('yahoo');
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -711,43 +637,6 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
 })}
 
 function esc(s){return (''+(s==null?'':s)).replace(/[<>&"']/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]})}
-function symHintFor(v){var h=$('symHint');if(!h)return;
- h.innerHTML=(v==='cash'
-  ?'<b>cash.ch</b>: fetched directly by the device. The symbol is a listing key like <code>147478611-246-333</code>; the finder below turns a cash.ch link, ISIN, or name into one.'
-   +(C.chip==='esp8266'?' <b>On this ESP8266</b>, cash.ch\'s TLS is beyond this chip &mdash; use the <b>GitHub</b> source for the same listing key instead (a scheduled workflow publishes it). The ESP32 boards fetch cash.ch directly.':'')
-  :v==='github'
-  ?'<b>GitHub</b>: reads a listing key\'s quote from a small JSON file the repo\'s <code>quotes</code> workflow publishes (a proxy for cash.ch on chips that can\'t reach it directly). The symbol is the cash.ch listing key, and it must be listed in <code>quotes-config.json</code>.'
-  :v==='webhook'
-  ?'<b>Webhook</b>: the device asks the webhook URL above and passes the symbol through as-is, so use whatever your endpoint understands.'
-  :'<b>Yahoo Finance</b>: fetched directly by the device. Use Yahoo symbols: <code>AAPL</code>, <code>NESN.SW</code> (Swiss stocks end in <code>.SW</code>), <code>BTC-USD</code>, <code>EURUSD=X</code>.')
-  +' Name is optional; if set it overrides the source\'s name. Qty and per-unit cost are optional too: set both and the ticker shows your P/L plus a portfolio summary page.';}
-
-// cash.ch symbol finder: runs in YOUR browser (cash.ch answers cross-origin),
-// the device itself is not involved in the search.
-function cashFind(){var q=gv('cashQ').trim();if(!q){toast('Paste a link, ISIN, or name first');return}
- var m=q.match(/^https?:\/\/\S*?(\d{5,12})/); if(m)q=m[1];   // a cash.ch link carries the valor in its slug
- $('cashRes').innerHTML='<div class="muted">Searching cash.ch...</div>';
- var gq='query{textSearch(publication:CASH,search:"'+q.replace(/["\\]/g,'')+'",sort:Relevance,sortOrder:Descending,limit:10,offset:0){'+
-  'equity{items{...on Equity{listingId mName market mCur mIsin}}} fund{items{...on Fund{listingId mName market mCur mIsin}}} '+
-  'derivative{items{...on Derivative{listingId mName market mCur mIsin}}} bond{items{...on Bond{listingId mName market mCur mIsin}}} '+
-  'index{items{...on Index{listingId mName market mCur}}} diverse{items{...on Diverse{listingId mName market mCur mIsin}}} '+
-  'cryptoCurrency{items{...on CryptoCurrency{listingId mName market mCur}}}}}';
- fetch('https://www.cash.ch/_/api/graphql/prod?query='+encodeURIComponent(gq))
- .then(function(r){return r.json()})
- .then(function(d){var out=[];var b=(d.data&&d.data.textSearch)||{};
-  ['equity','derivative','fund','bond','index','diverse','cryptoCurrency'].forEach(function(k){
-   ((b[k]&&b[k].items)||[]).forEach(function(it){if(it&&it.listingId)out.push(it)});});
-  if(!out.length){$('cashRes').innerHTML='<div class="muted">Nothing found on cash.ch</div>';return}
-  var h='';out.slice(0,10).forEach(function(it){
-   h+='<div class="net" onclick="cashPick(this.dataset.k)" data-k="'+esc(it.listingId)+'"><span>'+esc(it.mName||'?')+
-    ' <span class="muted">'+esc(it.mIsin||'')+'</span></span><span class="muted">'+esc(it.market||'')+' '+esc(it.mCur||'')+'</span></div>';});
-  $('cashRes').innerHTML=h;
- }).catch(function(){$('cashRes').innerHTML='<div class="muted">cash.ch not reachable from this browser</div>'});}
-function cashPick(k){var rows=document.querySelectorAll('#symTable tr');var tr=null;
- for(var i=0;i<rows.length;i++){if(!rows[i].querySelector('.s').value.trim()){tr=rows[i];break}}
- if(!tr){if(rows.length>=8){toast('Max 8');return}addRow({});tr=$('symTable').lastChild}
- tr.querySelector('.s').value=k;tr.querySelector('.src').value='cash';symHintFor('cash');
- toast('Added '+k+'. Set a name, then Save.');}
 function radarSrcChanged(){if(!$('radarSource'))return;var d=$('radarSource').value!=='webhook';
  $('radarWebhookRow').style.display=d?'none':'block';
  $('radarSrcHint').innerHTML=d
@@ -760,7 +649,7 @@ function collect(){
   toneR:toneNum('toneR'), toneG:toneNum('toneG'), toneB:toneNum('toneB'), toneSat:toneNum('toneSat'),
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
-  carouselTicker:gc('carouselTicker'), carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
+  carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
   carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
@@ -769,20 +658,6 @@ function collect(){
   hostname:gv('hostname'), apSsid:gv('apSsid'), apPass:gv('apPass'),
   daemonIp:gv('daemonIp'),
   wifi:collectWifi()};
- // ticker slice (only if compiled in)
- if($('ticker')){
-  var t={colorInverted:gv('colorInverted')==='true',changeOnRange:gv('changeOnRange')==='true'};
-  T_TEXT.forEach(function(k){t[k]=gv(k)});
-  T_NUM.forEach(function(k){t[k]=parseInt(gv(k))||0});
-  T_BOOL.forEach(function(k){t[k]=gc(k)});
-  t.symbols=[];
-  document.querySelectorAll('#symTable tr').forEach(function(tr){
-   var s=tr.querySelector('.s').value.trim();
-   if(s)t.symbols.push({symbol:s,name:tr.querySelector('.n').value.trim(),source:tr.querySelector('.src').value,
-    qty:parseFloat(tr.querySelector('.q').value)||0,cost:parseFloat(tr.querySelector('.c').value)||0});
-  });
-  o.ticker=t;
- }
  // usage slice
  if($('usage')){
   o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0, barGrowRight:gc('barGrowRight')};}
@@ -842,20 +717,6 @@ function scanPick(ssid){var rows=document.querySelectorAll('#wifiTable tr');var 
  if(!tr){if(rows.length>=4){toast('Max 4');return}addWifiRow({});tr=$('wifiTable').lastChild}
  tr.querySelector('.ws').value=ssid;tr.querySelector('.wp').focus();}
 
-// symbols
-function renderSyms(arr){var t=$('symTable');if(!t)return;t.innerHTML='';arr.forEach(addRow);if(!arr.length)addRow({})}
-function addRow(o){var t=$('symTable');var tr=document.createElement('tr');tr.className='symrow';
- tr.innerHTML='<td style="width:24%"><input class="s" type="text" placeholder="AAPL" value="'+esc(o.symbol||'')+'"></td>'+
-  '<td><input class="n" type="text" placeholder="name" value="'+esc(o.name||'')+'"></td>'+
-  '<td style="width:118px"><select class="src" onchange="symHintFor(this.value)">'+
-   '<option value="yahoo">Yahoo Finance</option><option value="cash">cash.ch</option><option value="github">GitHub</option><option value="webhook">Webhook</option></select></td>'+
-  '<td style="width:58px"><input class="q" type="number" step="any" min="0" placeholder="qty" value="'+(o.qty>0?o.qty:'')+'"></td>'+
-  '<td style="width:70px"><input class="c" type="number" step="any" min="0" placeholder="cost" value="'+(o.cost>0?o.cost:'')+'"></td>'+
-  '<td style="width:34px"><button class="btn sec" style="padding:6px 10px" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
- tr.querySelector('.src').value=o.source||'yahoo';
- t.appendChild(tr);}
-function addSym(){if(document.querySelectorAll('#symTable tr').length>=8){toast('Max 8');return}addRow({})}
-
 // airports
 function renderAps(arr){var t=$('apTable');if(!t)return;t.innerHTML='';arr.forEach(addApRow);if(!arr.length)addApRow({})}
 function addApRow(o){var t=$('apTable');var tr=document.createElement('tr');tr.className='symrow';
@@ -877,7 +738,7 @@ function scan(){$('scanList').innerHTML='<div class="muted">Scanning...</div>';
 function loadStatus(){j('/api/status').then(function(s){
  $('dot').className='dot'+(s.connected?' ok':'');
  $('hi').textContent=s.mode==='ap'?'setup mode':(s.ip||'');
- var cn=$('clockNow'); if(cn){var ne=!!(C.clock&&C.clock.nightEnabled);var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent=!ne?'Clock: NTP runs only when night mode is on':('Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns);}
+ var cn=$('clockNow'); if(cn){var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent='Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns;}
  var fw=$('fwVer'); if(fw)fw.textContent=s.fw+' '+s.version;
  // Surface the result of a boot-time GitHub update (ESP8266) once on first load,
  // so a failure that happened across the reboot is visible even if the original
@@ -891,17 +752,10 @@ function loadStatus(){j('/api/status').then(function(s){
   kv('Network',esc(s.ssid||'-'))+kv('IP',s.ip||'-')+kv('mDNS','<a href="http://'+esc(C.hostname||'smalltv')+'.local" target="_blank">http://'+esc(C.hostname||'smalltv')+'.local</a>')+
   kv('Signal',s.rssi?s.rssi+' dBm':'-')+
   kv('Free heap',s.heap+' B')+kv('Uptime',fmtUp(s.uptime))+kv('Last reset',s.reset||'-');
- var h='';(s.tickers||[]).forEach(function(t){
-  var c=t.error?'var(--red)':(t.valid?'var(--acc)':'var(--mut)');
-  var pc=t.changePct!=null?(t.changePct>=0?'+':'')+t.changePct.toFixed(2)+'%':'';
-  h+='<div class="kv"><b style="color:'+c+'">'+esc(t.symbol)+'</b><span>'+
-   (t.valid?(t.price+'  '+pc):(t.error?'error':'...'))+'</span></div>';});
- $('tickBox').innerHTML=h||'<span class="muted">No tickers configured</span>';
-})}
+ })}
 function kv(k,v){return '<div class="kv"><span class="muted">'+k+'</span><b>'+v+'</b></div>'}
 function fmtUp(s){var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
  return (d?d+'d ':'')+(h?h+'h ':'')+m+'m'}
-function refreshNow(){j('/api/refresh',{method:'POST'}).then(function(){toast('Refreshing...');setTimeout(loadStatus,1500)})}
 
 // GitHub self-update
 function checkUpdate(){$('ghMsg').textContent='Checking GitHub...';$('chkBtn').disabled=true;

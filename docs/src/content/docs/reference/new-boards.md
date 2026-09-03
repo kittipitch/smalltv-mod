@@ -173,7 +173,7 @@ its `Update Success! Rebooting...` page is emitted only after the write has
 been verified — unlike a vendor `OK`, that message is evidence.
 
 If the full image does not fit even through the loader, compile features out
-(`WITH_TICKER=0 WITH_RADAR=0 WITH_TLS=0`, the same recipe as the
+(`WITH_RADAR=0 WITH_TLS=0`, the same recipe as the
 [SD PRO slim build](/smalltv-mod/getting-started/flashing/#why-the-sd-pro-build-is-a-slim-one))
 and re-check the resulting size against Step 3's bound before flashing again —
 before assuming the hardware is the problem.

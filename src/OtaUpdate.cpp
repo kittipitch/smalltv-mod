@@ -61,10 +61,8 @@ OtaLatest otaCheckLatest(const Settings& s) {
 #else
   if (ESP.getFreeHeap() < 20000) { r.error = F("low heap"); return r; }
 
-  // UPDATE_REPO_OWNER/UPDATE_REPO_NAME, not REPO_OWNER/REPO_NAME -- the
-  // latter stays pointed at upstream giovi321 for StockClient.cpp's ticker
-  // quotes feed only. Self-update fetches from the fork, which now publishes
-  // real matching-named release assets (see config.h's comment on this).
+  // Self-update fetches from the fork, which publishes real matching-named
+  // release assets (see config.h's comment on UPDATE_REPO_OWNER).
   String url = F("https://");
   url += F(GH_API_HOST);
   url += F("/repos/");

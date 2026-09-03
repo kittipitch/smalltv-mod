@@ -6,7 +6,6 @@
 #include "Net.h"
 #include "Gfx.h"
 #include "OtaUpdate.h"
-#include "StockClient.h"
 #include "UsageClient.h"
 #include "Clock.h"
 #if WITH_CALENDAR
@@ -65,7 +64,6 @@ static void handleGetConfig() {
   settingsToJson(*S, root, /*includeSecrets=*/false);
   // Which features are compiled in (so a lean build hides the tabs it dropped).
   JsonObject feat = root["features"].to<JsonObject>();
-  feat["ticker"] = (bool)WITH_TICKER;
   feat["usage"]  = (bool)WITH_USAGE;
   feat["radar"]  = (bool)WITH_RADAR;
   feat["calendar"] = (bool)WITH_CALENDAR;
@@ -94,7 +92,6 @@ static void handleStatus() {
     String f;
     if (WITH_USAGE)    f += "usage,";
     if (WITH_CALENDAR) f += "calendar,";
-    if (WITH_TICKER)   f += "ticker,";
     if (WITH_RADAR)    f += "radar,";
     if (WITH_TLS)      f += "tls,";
     if (f.endsWith(",")) f.remove(f.length() - 1);
@@ -119,25 +116,6 @@ static void handleStatus() {
   o["nightHeld"] = clockNightHeld();      // in the window but waiting for a fresh NTP sync
   o["clockFresh"] = clockTrusted();       // last NTP sync within the trust window
 
-#if WITH_TICKER
-  JsonArray arr = o["tickers"].to<JsonArray>();
-  for (uint8_t i = 0; i < stocksCount(); i++) {
-    const StockData& d = stockAt(i);
-    JsonObject t = arr.add<JsonObject>();
-    t["symbol"] = d.symbol;
-    t["valid"] = d.valid;
-    t["error"] = d.error;
-    if (d.valid) {
-      t["price"] = d.price;
-      float chg, pct;
-      bool onRange = false;
-      if (stockDisplayChange(d, S->ticker, chg, pct, &onRange)) {
-        t["changePct"] = pct;                       // as displayed on the device
-        t["basis"] = onRange ? "range" : "day";     // which basis that was
-      }
-    }
-  }
-#endif
   sendJson(doc);
 }
 
@@ -241,10 +219,10 @@ static void handleImport() {
   scheduleReboot(800);
 }
 
+// No-op success: the only refresh-on-demand consumer was the removed stock
+// feature. Still answers ok:true so an older web UI or script calling this
+// endpoint keeps working instead of getting a 404.
 static void handleRefresh() {
-#if WITH_TICKER
-  stocksForceRefresh();
-#endif
   server.send(200, "application/json", "{\"ok\":true}");
 }
 

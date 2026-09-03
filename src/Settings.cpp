@@ -5,120 +5,6 @@
 static const char* CONFIG_PATH = "/config.json";
 
 // ===========================================================================
-// Ticker slice
-// ===========================================================================
-static const char* srcToStr(uint8_t s) {
-  return (s == SRC_YAHOO) ? "yahoo"
-       : (s == SRC_CASH)  ? "cash"
-       : (s == SRC_GHUB)  ? "github" : "webhook";
-}
-static uint8_t srcFromStr(const String& s) {
-  return s.equalsIgnoreCase("yahoo")  ? SRC_YAHOO
-       : s.equalsIgnoreCase("cash")   ? SRC_CASH
-       : s.equalsIgnoreCase("github") ? SRC_GHUB : SRC_WEBHOOK;
-}
-
-void TickerSettings::setDefaults() {
-  webhookUrl = "";
-  range = DEFAULT_RANGE;
-  points = DEFAULT_POINTS;
-  pollSec = DEFAULT_POLL_SEC;
-  rotateSec = DEFAULT_ROTATE_SEC;
-  colorInverted = false;
-  changeOnRange = true;
-
-  showName = true;
-  showPrice = true;
-  showChange = true;
-  showChart = true;
-  showRangeLabel = true;
-  showUpdatedAgo = false;
-  showPageDots = true;
-  showPortfolio = true;   // only visible once a symbol has qty+cost set
-
-  symbolCount = 0;
-  for (uint8_t i = 0; i < MAX_SYMBOLS; i++) {
-    symbols[i].symbol[0] = 0;
-    symbols[i].name[0] = 0;
-    symbols[i].source = DEFAULT_SOURCE;
-    symbols[i].qty = 0;
-    symbols[i].cost = 0;
-  }
-}
-
-void TickerSettings::toJson(JsonObject o) const {
-  o["webhookUrl"]     = webhookUrl;
-  o["range"]          = range;
-  o["points"]         = points;
-  o["pollSec"]        = pollSec;
-  o["rotateSec"]      = rotateSec;
-  o["colorInverted"]  = colorInverted;
-  o["changeOnRange"]  = changeOnRange;
-  o["showName"]       = showName;
-  o["showPrice"]      = showPrice;
-  o["showChange"]     = showChange;
-  o["showChart"]      = showChart;
-  o["showRangeLabel"] = showRangeLabel;
-  o["showUpdatedAgo"] = showUpdatedAgo;
-  o["showPageDots"]   = showPageDots;
-  o["showPortfolio"]  = showPortfolio;
-
-  JsonArray arr = o["symbols"].to<JsonArray>();
-  for (uint8_t i = 0; i < symbolCount; i++) {
-    JsonObject e = arr.add<JsonObject>();
-    e["symbol"] = symbols[i].symbol;
-    e["name"]   = symbols[i].name;
-    e["source"] = srcToStr(symbols[i].source);
-    e["qty"]    = symbols[i].qty;
-    e["cost"]   = symbols[i].cost;
-  }
-}
-
-void TickerSettings::fromJson(JsonObjectConst o) {
-  // Legacy (pre-2.4) configs carried one global "source"; it becomes the
-  // default for any symbol that doesn't carry its own.
-  uint8_t legacySrc = DEFAULT_SOURCE;
-  if (o["source"].is<const char*>()) legacySrc = srcFromStr(o["source"].as<String>());
-
-  if (o["webhookUrl"].is<const char*>()) webhookUrl = o["webhookUrl"].as<String>();
-  if (o["range"].is<const char*>())      range = o["range"].as<String>();
-  if (o["points"].is<int>())             points = constrain((int)o["points"], 0, MAX_SPARK_POINTS);
-  if (o["pollSec"].is<int>())            pollSec = max(10, (int)o["pollSec"]);
-  if (o["rotateSec"].is<int>())          rotateSec = max(2, (int)o["rotateSec"]);
-  if (o["colorInverted"].is<bool>())     colorInverted = o["colorInverted"];
-  if (o["changeOnRange"].is<bool>())     changeOnRange = o["changeOnRange"];
-
-  if (o["showName"].is<bool>())       showName = o["showName"];
-  if (o["showPrice"].is<bool>())      showPrice = o["showPrice"];
-  if (o["showChange"].is<bool>())     showChange = o["showChange"];
-  if (o["showChart"].is<bool>())      showChart = o["showChart"];
-  if (o["showRangeLabel"].is<bool>()) showRangeLabel = o["showRangeLabel"];
-  if (o["showUpdatedAgo"].is<bool>()) showUpdatedAgo = o["showUpdatedAgo"];
-  if (o["showPageDots"].is<bool>())   showPageDots = o["showPageDots"];
-  if (o["showPortfolio"].is<bool>())  showPortfolio = o["showPortfolio"];
-
-  if (o["symbols"].is<JsonArrayConst>()) {
-    JsonArrayConst arr = o["symbols"].as<JsonArrayConst>();
-    symbolCount = 0;
-    for (JsonObjectConst e : arr) {
-      if (symbolCount >= MAX_SYMBOLS) break;
-      const char* sym = e["symbol"] | "";
-      if (!sym[0]) continue;                 // skip blank rows
-      SymbolCfg& dst = symbols[symbolCount];
-      strlcpy(dst.symbol, sym, MAX_SYMBOL_LEN);
-      strlcpy(dst.name, e["name"] | "", MAX_NAME_LEN);
-      dst.source = e["source"].is<const char*>()
-                     ? srcFromStr(e["source"].as<String>()) : legacySrc;
-      dst.qty  = e["qty"].as<float>();     // absent -> 0
-      dst.cost = e["cost"].as<float>();
-      if (dst.qty < 0)  dst.qty = 0;
-      if (dst.cost < 0) dst.cost = 0;
-      symbolCount++;
-    }
-  }
-}
-
-// ===========================================================================
 // Usage slice
 // ===========================================================================
 void UsageSettings::setDefaults() {
@@ -307,7 +193,7 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselAntigravity = carouselOpenrouter = true;
+  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselAntigravity = carouselOpenrouter = true;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -324,7 +210,6 @@ void Settings::setDefaults() {
   toneB = BOARD_TONE_B;
   toneSat = BOARD_TONE_SAT;
 
-  ticker.setDefaults();
   usage.setDefaults();
   radar.setDefaults();
   clock.setDefaults();
@@ -405,9 +290,8 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_CODEX)    ? "codex"
                             : (s.mode == MODE_ANTIGRAVITY) ? "antigravity"
                             : (s.mode == MODE_OPENROUTER) ? "openrouter"
-                            : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
+                            : "carousel";
   root["carouselSec"]       = s.carouselSec;
-  root["carouselTicker"]    = s.carouselTicker;
   root["carouselUsage"]     = s.carouselUsage;
   root["carouselRadar"]     = s.carouselRadar;
   root["carouselAgenda"]    = s.carouselAgenda;
@@ -430,7 +314,6 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["toneSat"]           = s.toneSat;
 
   // Feature slices
-  s.ticker.toJson(root["ticker"].to<JsonObject>());
   s.usage.toJson(root["usage"].to<JsonObject>());
   s.radar.toJson(root["radar"].to<JsonObject>());
   s.clock.toJson(root["clock"].to<JsonObject>());
@@ -497,10 +380,9 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("codex")    ? MODE_CODEX
            : m.equalsIgnoreCase("antigravity") ? MODE_ANTIGRAVITY
            : m.equalsIgnoreCase("openrouter") ? MODE_OPENROUTER
-           : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL : MODE_STOCKS;
+           : MODE_CAROUSEL;
   }
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
-  if (root["carouselTicker"].is<bool>())  s.carouselTicker = root["carouselTicker"];
   if (root["carouselUsage"].is<bool>())   s.carouselUsage = root["carouselUsage"];
   if (root["carouselRadar"].is<bool>())   s.carouselRadar = root["carouselRadar"];
   if (root["carouselAgenda"].is<bool>())  s.carouselAgenda = root["carouselAgenda"];
@@ -524,10 +406,8 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["toneSat"].is<int>()) s.toneSat = constrain((int)root["toneSat"], 0, 200);
 
   // Feature slices: prefer the nested object; fall back to the top level so a
-  // legacy flat config.json (or a legacy POST) still applies. The old shared
-  // "pollSec" thus seeds both ticker and usage cadence on first upgrade.
-  JsonObjectConst t = root["ticker"].is<JsonObjectConst>() ? root["ticker"].as<JsonObjectConst>() : root;
-  s.ticker.fromJson(t);
+  // legacy flat config.json (or a legacy POST) still applies -- the old shared
+  // "pollSec" seeds the usage cadence on first upgrade.
   JsonObjectConst u = root["usage"].is<JsonObjectConst>() ? root["usage"].as<JsonObjectConst>() : root;
   s.usage.fromJson(u);
   // Radar has no legacy flat layout; only apply when its nested object is present.

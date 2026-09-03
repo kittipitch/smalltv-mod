@@ -57,7 +57,6 @@ src/                    shared core (device, net, web, settings)
   Gfx.*                 shared ST7789 core (Arduino_GFX)
   OtaUpdate.*           GitHub self-update (ESP8266)
   features/
-    ticker/             TickerMode + StockClient
     usage/              UsageMode + UsageClient + Mascot
     radar/              RadarMode + RadarClient
 partitions/             ESP32 flash layout (shared by both ESP32 targets)

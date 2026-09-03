@@ -23,7 +23,7 @@
 // and gets its own checkbox to show/hide independently -- "we can
 // check/uncheck it (to display 3 or 6)". Auto-hidden from the carousel
 // when there aren't more than 3 events (carouselHas() in main.cpp), same
-// "skip when there's nothing to show" pattern the ticker and z.ai modes
+// "skip when there's nothing to show" pattern the z.ai and codex modes
 // already use.
 #pragma once
 #include "Mode.h"

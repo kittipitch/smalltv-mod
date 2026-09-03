@@ -12,7 +12,7 @@
 // Firmware identity
 // ---------------------------------------------------------------------------
 #define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "1.0.0-kitt21"
+#define FW_VERSION  "1.0.0-kitt22"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
 //
@@ -21,15 +21,9 @@
 // webui.h's onstatus() handler) -- points students at this fork, where
 // kittipitch/smalltv-mod's own tagged releases now live.
 //
-// REPO_OWNER/REPO_NAME feed StockClient.cpp's ticker "GitHub static quotes"
-// fetch (via GH_QUOTES_BASE below) -- kept pointing at giovi321 since this
-// fork has no GitHub Actions quotes-publishing workflow of its own; there is
-// no `data/quotes` branch to read here. Changing REPO_URL alone does not
-// repoint this.
-//
 // UPDATE_REPO_OWNER/UPDATE_REPO_NAME are separate and feed OtaUpdate.cpp's
 // self-update check -- these DO point at the fork now. They used to be the
-// same as REPO_OWNER/REPO_NAME (pointed at giovi321) on the theory that
+// the now-removed REPO_OWNER/REPO_NAME (pointed at giovi321) on the theory that
 // "this fork has no matching-schema release yet" -- that stopped being true
 // once build.yml's release-attach step started publishing real per-board
 // assets here (confirmed live: `gh api repos/kittipitch/smalltv-mod/
@@ -44,8 +38,6 @@
 // brick" / "make sure the fetch the correct bin from our mod and not from
 // the upstream if click".
 #define REPO_URL      "https://github.com/kittipitch/smalltv-mod"
-#define REPO_OWNER    "giovi321"
-#define REPO_NAME     "smalltv-mod"
 #define UPDATE_REPO_OWNER "kittipitch"
 #define UPDATE_REPO_NAME  "smalltv-mod"
 // Release asset the GitHub self-updater pulls — one app image per target.
@@ -108,22 +100,17 @@
 // ---------------------------------------------------------------------------
 // Limits (bound RAM usage on the ESP8266)
 // ---------------------------------------------------------------------------
-#define MAX_SYMBOLS       8    // max tickers in the rotation
-#define MAX_SYMBOL_LEN   24    // e.g. "BTC-USD", cash.ch key "147478611-246-333"
 #define MAX_WIFI_NETS     4    // saved WiFi networks; strongest visible wins at boot
 #define MAX_NAME_LEN     20    // friendly name shown on screen
-#define MAX_SPARK_POINTS 60    // sparkline samples kept per symbol
 #define MAX_URL_LEN     200    // webhook base URL
 
 // ---------------------------------------------------------------------------
 // Display mode — what the device shows
-//   0 = stock / crypto ticker (per-symbol source, see SRC_* below)
 //   1 = Claude usage meter (mascot + 5h/7d usage bars, fed by the daemon/)
 //   2 = plane radar
 //   3 = carousel: rotate through the ticked features on a timer
 //   4 = next calendar event + weather/air quality
 // ---------------------------------------------------------------------------
-#define MODE_STOCKS    0
 #define MODE_USAGE     1
 #define MODE_RADAR     2
 #define MODE_CAROUSEL  3
@@ -138,7 +125,7 @@
 #define MODE_CAL_FORECAST 12 // 3-day weather+AQI forecast, own carousel entry next to weather
                               // when there aren't more than 3 events (see carouselHas() in main.cpp)
 #define MODE_OPENROUTER 13  // OpenRouter API $ spend, daemon-pushed, same shape as MODE_ANTIGRAVITY
-#define DEFAULT_MODE MODE_STOCKS
+#define DEFAULT_MODE MODE_CAROUSEL
 #define DEFAULT_CAROUSEL_SEC 60      // per-mode dwell in carousel
 
 // ---------------------------------------------------------------------------
@@ -147,9 +134,6 @@
 // omits that feature's module from the registry and its web UI section.
 // (WITH_RADAR ships off until the radar module lands.)
 // ---------------------------------------------------------------------------
-#ifndef WITH_TICKER
-#define WITH_TICKER 1
-#endif
 #ifndef WITH_USAGE
 #define WITH_USAGE 1
 #endif
@@ -173,56 +157,6 @@
 // stopped, network down) the screen switches from the stats to the idle mascot
 // animation. Effective timeout also scales with the poll period (see main.cpp).
 #define USAGE_STALE_GRACE_MS  20000UL
-
-// ---------------------------------------------------------------------------
-// Data source (stock mode)
-//   0 = custom webhook (n8n / Node-RED / your own HTTP endpoint)
-//   1 = Yahoo Finance, fetched directly by the device (no backend needed)
-//   2 = cash.ch, fetched directly by the device (Swiss instruments, incl.
-//       off-exchange structured products that Yahoo doesn't carry)
-// ---------------------------------------------------------------------------
-#define SRC_WEBHOOK  0
-#define SRC_YAHOO    1
-#define SRC_CASH     2
-#define SRC_GHUB     3   // static JSON published to the repo's data branch (see below)
-#define DEFAULT_SOURCE  SRC_YAHOO            // works out of the box, no server
-
-// Yahoo Finance public chart endpoint. A browser-like User-Agent is required —
-// requests with an empty UA are rejected with HTTP 429. TLS records from Yahoo
-// are <=~1.3 KB, so the 4 KB BearSSL receive buffer in StockClient is plenty.
-// query1/query2 are interchangeable mirrors; we fall back to the second on a
-// transient failure (a single back-to-back HTTPS fetch occasionally drops).
-#define YAHOO_CHART_HOST1 "query1.finance.yahoo.com"
-#define YAHOO_CHART_HOST2 "query2.finance.yahoo.com"
-#define YAHOO_CHART_PATH  "/v8/finance/chart/"
-#define YAHOO_USER_AGENT  "Mozilla/5.0 (SmallTV)"
-
-// cash.ch public GraphQL endpoint. The device sends two small hand-written
-// GraphQL queries per symbol as plain GETs (?query=...): a ~200 B quote and a
-// slim daily-close series for the sparkline. No API key, no cookies, no
-// required headers. The symbol is the cash.ch listing key
-// `valor-marketId-currencyId` (see the docs for how to find it).
-// cash.ch's CDN requires ECDHE. The ESP32 targets (mbedTLS) do this easily. The
-// ESP8266 (BearSSL) can too, but the handshake is memory-tight, so the cash
-// path is shaped to fit: only cash.ch is offered ECDHE (Yahoo and the GitHub
-// source are pinned to the cheap static-RSA suites), the connection uses 512 B
-// buffers + TLS session resumption, and StockClient skips a fetch unless a
-// large enough contiguous heap block is free. The GitHub source below is a
-// zero-crash fallback if a device ever proves too tight for the direct path.
-
-// GitHub source (SRC_GHUB): a scheduled workflow (.github/workflows/quotes.yml)
-// fetches cash.ch server-side and publishes one JSON file per listing key to
-// the repo's `data` branch. The device reads it from raw.githubusercontent.com,
-// which — unlike cash.ch — still accepts the ESP8266's static-RSA handshake
-// (the same one GitHub self-update and Yahoo use). The file is the same JSON
-// the webhook parser accepts. The symbol is the cash.ch listing key; only keys
-// listed in quotes-config.json are published. raw sends a ~4 KB certificate
-// record and does not negotiate MFLN, so this path uses a larger TLS buffer.
-#define GH_QUOTES_BASE "https://raw.githubusercontent.com/" REPO_OWNER "/" REPO_NAME "/data/quotes/"
-#define GH_QUOTES_RXBUF 5120
-#define CASH_GQL_HOST   "www.cash.ch"
-#define CASH_GQL_PATH   "/_/api/graphql/prod"
-#define CASH_USER_AGENT "Mozilla/5.0 (SmallTV)"
 
 // ---------------------------------------------------------------------------
 // Plane radar (MODE_RADAR)
@@ -272,11 +206,6 @@
 #define DEFAULT_AP_PASS      ""              // empty => open AP
 #define DEFAULT_HOSTNAME     "smalltv"
 #define DEFAULT_POLL_SEC      120            // how often to refresh data
-#define TICKER_RETRY_SEC       12            // fast retry after a failed/skipped fetch
-#define TICKER_RETRY_MAX        4            // consecutive fast retries before backing off
-#define DEFAULT_ROTATE_SEC    10             // how long each symbol is shown
-#define DEFAULT_RANGE        "1d"            // chart timeframe (e.g. 1d/5d/1mo/1y)
-#define DEFAULT_POINTS        48             // sparkline points requested
 #define DEFAULT_BRIGHTNESS    90             // 0..100 %
 #define DEFAULT_HTTP_TIMEOUT  8000           // ms per request
 

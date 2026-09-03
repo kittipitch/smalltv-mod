@@ -122,12 +122,12 @@ using TlsSession = BearSSL::Session;
 // win, so size it for the small JSON payloads we fetch. Options:
 //  - session: TLS session resumption. Pass a persistent BearSSL::Session and
 //    the first handshake stores its params; later connects to the same server
-//    resume without the costly ECDHE/RSA math (cash.ch resumes for ~23 h).
+//    resume without the costly ECDHE/RSA math.
 //  - cheapCiphers: offer ONLY the old static-RSA suites. Hosts that accept them
-//    (Yahoo, raw.githubusercontent.com) then skip ECDHE entirely, keeping those
-//    handshakes as light as the old BASIC build. Only cash.ch, which needs
-//    ECDHE, is left on the full (heavy) suite list.
-// cash.ch honors MFLN so 512/512 keeps the whole TLS footprint small.
+//    (github.com, raw.githubusercontent.com) then skip ECDHE entirely, keeping
+//    those handshakes as light as the old BASIC build. Nothing currently needs
+//    the full (heavy) suite list -- the one host that did, the ticker's
+//    ECDHE-only cash.ch CDN, went away with that feature.
 static inline SecureClient* platformMakeSecureClient(uint16_t rxBuf,
                                                      TlsSession* session = nullptr,
                                                      uint16_t txBuf = 512,

@@ -16,7 +16,7 @@ The ESP8266 is 2.4 GHz only. For an AP password use at least 8 characters, or le
 
 ## Add something to show
 
-Open the **Ticker** tab and add a few tickers, for example `AAPL`, `NESN.SW`, or `BTC-USD`. Each ticker picks its own data source; the default is Yahoo Finance, so prices appear within a few seconds with no server to set up. Swiss instruments Yahoo lacks can use cash.ch, and a custom webhook lets you own the source. See [Data sources](/smalltv-mod/reference/data-sources/) for the full list of what works.
+Open the **Usage** tab and point the device at the [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) running on your PC — either by setting the daemon's URL here (pull), or by leaving it blank and running the daemon with `--push-to <hostname>.local` (push). The quota pages for z.ai, Codex, Antigravity and OpenRouter come from the same daemon and appear in the carousel once it has actually pushed data for them. For an agenda and weather panel instead, fill in the **Agenda & weather** tab.
 
 ## Web UI reference
 
@@ -24,7 +24,7 @@ The UI is a single page served from the device. Saving applies most changes live
 
 ### Status
 
-Live device info: mode, IP, signal, free heap, uptime, and the current ticker values. "Refresh data now" forces an immediate poll.
+Live device info: mode, IP, signal, free heap, uptime, and the last reset reason.
 
 ### WiFi
 
@@ -32,17 +32,15 @@ Scan and save up to 4 networks; the device joins the strongest visible one at bo
 
 ### Display
 
-The mode selector (Stock ticker, Claude usage, Plane radar, or Carousel, which rotates through the ticked features on a timer), plus brightness with optional auto-brightness, orientation, and backlight polarity.
+The mode selector (Claude usage, the quota and agenda/weather pages, Plane radar, or Carousel, which rotates through the ticked features on a timer), plus brightness with optional auto-brightness, orientation, and backlight polarity.
 
 #### Clock and night mode
 
 The "Clock & night mode" card sets a timezone by IANA name (`Europe/Rome`, `Europe/Zurich`, `America/New_York`, and so on) from a dropdown; DST is handled automatically. Enabling the nightly window adds a From and To time (HH:MM) and a night brightness, where 0 turns the backlight fully off and any other value just dims it. Night mode is off by default. The device keeps rendering behind the dimmed or off backlight rather than sleeping, so WiFi, the web UI, and usage push stay up throughout.
 
-Night mode only switches on once NTP has confirmed the clock within the last few minutes. If NTP can't be reached, the screen stays on and the device keeps retrying until it syncs or the window ends in the morning, so a device that never reaches NTP is never left stuck dark. NTP itself only runs while night mode is enabled. On an ESP8266 this matters if you also use cash.ch tickers: their TLS handshake needs a large contiguous block of heap, and adding night mode's NTP client on top can leave too little. If a ticker stops fetching after enabling night mode, switch it to the GitHub source or leave night mode off on that device; ESP32 boards aren't affected.
+Night mode only switches on once NTP has confirmed the clock within the last few minutes. If NTP can't be reached, the screen stays on and the device keeps retrying until it syncs or the window ends in the morning, so a device that never reaches NTP is never left stuck dark.
 
-### Ticker
-
-Up to 8 tickers, each with its own data source (Yahoo Finance, cash.ch, GitHub, or your webhook). `symbol` follows the source: a Yahoo ticker (`AAPL`, `NESN.SW`, `BTC-USD`, `EURUSD=X`), a cash.ch listing key for cash.ch or GitHub (the built-in finder turns a cash.ch link or ISIN into one), or whatever your webhook expects. `name` is an optional label that overrides the source's own name. Optional `qty` and per-unit `cost` turn a ticker into a position: its page gains a P/L line and a portfolio summary page joins the rotation. The tab also sets the chart timeframe and point count, rotation and refresh intervals, the colour scheme, and which fields to draw.
+NTP is armed on every boot, whether or not night mode is enabled. It used to start only when night mode was on, to keep its heap allocation away from the ticker's TLS handshake; with the ticker gone that trade-off no longer exists, and the old behaviour had a nasty edge — a device with night mode off came back from any reboot with no clock at all, losing the usage page's clock overlay and the agenda's event times.
 
 ### Update
 
@@ -52,6 +50,5 @@ Check for and install the newest GitHub release (every board fetches its own ima
 
 Each mode has its own page:
 
-- [Stock and crypto ticker](/smalltv-mod/features/ticker/)
 - [Claude usage meter](/smalltv-mod/features/usage/)
 - [Plane radar](/smalltv-mod/features/radar/)

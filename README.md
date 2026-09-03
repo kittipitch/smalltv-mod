@@ -46,12 +46,12 @@
 
 > Not affiliated with GeekMagic or Anthropic. This firmware replaces the stock firmware entirely.
 
-The GeekMagic SmallTV is a cheap desk gadget: a little cube with a 1.54" colour screen, an ESP inside, and a USB-C port. This firmware throws away the stock apps and turns it into things you actually watch: a **stock and crypto ticker** with prices, change, and a sparkline; a **Claude usage meter** with an animated mascot and your 5-hour and 7-day usage bars, plus matching quota pages for **z.ai, Codex CLI, and Google Antigravity CLI**; a **live plane radar** centred on your location, pulled from a free public feed; and an **agenda + weather/AQI** view fed from Google Calendar and a weather API. See [What it does](#what-it-does) for the full list. One image carries everything you enable; you switch between them (or rotate a carousel) in a built-in web UI, and you update over WiFi.
+The GeekMagic SmallTV is a cheap desk gadget: a little cube with a 1.54" colour screen, an ESP inside, and a USB-C port. This firmware throws away the stock apps and turns it into things you actually watch: a **Claude usage meter** with an animated mascot and your 5-hour and 7-day usage bars, plus matching quota pages for **z.ai, Codex CLI, and Google Antigravity CLI**; a **live plane radar** centred on your location, pulled from a free public feed; and an **agenda + weather/AQI** view fed from Google Calendar and a weather API. See [What it does](#what-it-does) for the full list. One image carries everything you enable; you switch between them (or rotate a carousel) in a built-in web UI, and you update over WiFi.
 
 This firmware builds for four boards from one codebase. The original SmallTV runs an **ESP8266**; the **SmallTV-ultra** is the same ESP-12F hardware and screen, but its stock "Ultra" firmware and flash partitions block a normal OTA of this image, so it takes a two-step loader install (see [Flashing](#flashing)); a second version sold under the same "smart weather clock" look uses an **ESP32-C2 (ESP8684)** instead. A third build targets the **NMMiner NM-TV-154** (PCB marked "NM-TV-Miner"), a classic-ESP32 BTC lottery miner in the same cube with the same screen, confirmed working by a community tester in [issue #1](https://github.com/giovi321/smalltv-mod/issues/1). Pick yours below.
 
 <p align="center">
-  <img src="docs/public/assets/screen.svg" alt="The SmallTV running its three modes: stock ticker, Claude usage, and plane radar" width="900" />
+  <img src="docs/public/assets/screen.svg" alt="The SmallTV running its modes: Claude usage, agenda and weather, and plane radar" width="900" />
 </p>
 
 ## Which one do I have
@@ -95,7 +95,7 @@ The four above are the models this firmware is known to run on. The same cube is
 
 > **Now tested, and there is one way to destroy the device — read this first.**
 > SD PRO is a supported target: build `smalltv_sdpro` (4M2M layout,
-> `-D SDPRO_CS_GND` so GPIO15 is left alone; ticker/radar compiled out on
+> `-D SDPRO_CS_GND` so GPIO15 is left alone; radar compiled out on
 > every target, TLS kept in so self-update actually works). What is *not*
 > safe is its stock updater. **It performs no free-space check: hand it an
 > image bigger than the room it has and it replies `HTTP 200 OK`, writes
@@ -116,17 +116,18 @@ The four above are the models this firmware is known to run on. The same cube is
 
 ## What it does
 
-> The stock ticker and plane radar below are compiled OUT of every prebuilt
-> image on the [Releases](../../releases) page and every `pio run` env in
-> this repo (`-D WITH_TICKER=0 -D WITH_RADAR=0`, plus their folders excluded
-> from the build) — this fork's own deployment is a dedicated Claude-usage
-> meter, not a general-purpose gadget, so there is exactly one build per
-> device and it doesn't carry them. The code still exists and both features
-> still work; re-enable them yourself by editing `platformio.ini` (drop the
-> two `-D WITH_*=0` flags and the matching `build_src_filter` exclusions,
-> `features/ticker/` and `features/radar/`) if you want a build that does.
-
-- **Stock and crypto ticker.** Price, absolute change, percent change with an up/down arrow, and a sparkline. Up to 8 symbols rotate on a timer. Data comes straight from Yahoo Finance over HTTPS with no backend, from cash.ch for Swiss instruments Yahoo doesn't carry (structured products, AMCs, tracker certificates), or from your own webhook if you want to own the source. Stocks, ETFs, Swiss equities (`NESN.SW`), crypto (`BTC-USD`), and FX (`EURUSD=X`) all work. Add a quantity and cost basis to any ticker and it shows your P/L, with a portfolio summary page in the rotation.
+> **The stock/crypto ticker upstream ships has been removed from this fork
+> entirely** — the `features/ticker/` module, its Yahoo/cash.ch/GitHub/webhook
+> sources, the web UI tab, and the scheduled workflow that published quotes are
+> all deleted, not just compiled out. This fork's deployment is a dedicated
+> Claude-usage meter, not a general-purpose gadget. If you want a ticker, use
+> [upstream giovi321/smalltv-mod](https://github.com/giovi321/smalltv-mod),
+> which still carries it.
+>
+> The plane radar below still exists in the code but is compiled OUT of every
+> prebuilt image and every `pio run` env here (`-D WITH_RADAR=0`, plus
+> `features/radar/` excluded from the build). Re-enable it by editing
+> `platformio.ini` if you want a build that carries it.
 - **Claude usage meter.** An animated pixel mascot plus your 5-hour and 7-day usage as big percentages with fill bars and reset countdowns. It is fed over WiFi by the [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) on your PC. When the data stops, the mascot plays an idle animation until it comes back. Running several devices, the daemon discovers them over mDNS and pushes to all of them.
 - **Plane radar.** A scope centred on your location with nearby aircraft as heading triangles, speed vectors, and callsign or altitude labels, from the free [adsb.fi](https://adsb.fi) API or a LAN webhook. Marker size, an altitude filter, and label decluttering are configurable.
 - **z.ai, Codex CLI, and Google Antigravity CLI quota pages.** Each its own logo, a `7d %` fill bar, and a reset/expiry countdown — the same two-card layout as the Claude usage page, fed by the same daemon.
@@ -149,7 +150,7 @@ The right method depends on your board. The steps below are the short version; t
 
 **SmallTV (ESP8266).** The stock firmware exposes an OTA updater, so you can install this without opening the device. Find its IP, browse to `http://<device-ip>/update`, and upload `smalltv-mod-firmware.bin`. Back up the stock image first if you might want it back.
 
-**SmallTV-ultra.** Same ESP8266 hardware, but the stock "Ultra" firmware reserves most of the flash for image storage, so its OTA slot is too small for the vendor's own updater. Install in two steps, no soldering: flash `smalltv-mod-loader.bin` at `http://<device-ip>/update` (it fits the small slot), join the open `SmallTV-Loader` AP it opens at `192.168.4.1`, then upload **`smalltv-mod-firmware.bin`** at `http://192.168.4.1/update`. There is just the one build now (ticker/radar out, TLS in) — it's 699,429 B, which fits the loader's own ~717 KB OTA slot with room to spare. UART is the fallback for both hops: `esptool write_flash 0x0 smalltv-mod-firmware.bin`.
+**SmallTV-ultra.** Same ESP8266 hardware, but the stock "Ultra" firmware reserves most of the flash for image storage, so its OTA slot is too small for the vendor's own updater. Install in two steps, no soldering: flash `smalltv-mod-loader.bin` at `http://<device-ip>/update` (it fits the small slot), join the open `SmallTV-Loader` AP it opens at `192.168.4.1`, then upload **`smalltv-mod-firmware.bin`** at `http://192.168.4.1/update`. There is just the one build now (radar out, TLS in) — it's 689,568 B, which fits the loader's own ~717 KB OTA slot with room to spare. UART is the fallback for both hops: `esptool write_flash 0x0 smalltv-mod-firmware.bin`.
 
 **SmallTV (ESP32-C2).** Flash over the USB-C cable with esptool, which talks to the onboard CH340C. Auto-reset works, so no button is needed. Back up the stock image first, then write `smalltv-mod-firmware-c2.factory.bin` from the [Releases](../../releases) page:
 
@@ -192,7 +193,7 @@ After the first flash, every board updates from the browser under the web UI's U
 2. Join it. A captive portal should open; if not, browse to `http://192.168.4.1`.
 3. Open **WiFi**, scan, pick your 2.4 GHz network, enter the password, and save. The device reboots and joins.
 4. It shows the network, its IP, and its `http://<hostname>.local` address on screen. Browse to either one.
-5. Add a few tickers under **Ticker** (for example `AAPL`, `NESN.SW`, `BTC-USD`). Each ticker picks its own source; Yahoo Finance is the default, so it works immediately.
+5. Open **Usage** and point the device at the [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) on your PC — set its URL here (pull), or leave it blank and run the daemon with `--push-to <hostname>.local` (push).
 
 The [First-time setup guide](https://kittipitch.github.io/smalltv-mod/getting-started/setup/) walks through the web UI tab by tab.
 
@@ -202,7 +203,7 @@ Full docs live at **[kittipitch.github.io/smalltv-mod](https://kittipitch.github
 
 - [Hardware and variants](https://kittipitch.github.io/smalltv-mod/getting-started/hardware/) with pin maps for every board
 - [Flashing](https://kittipitch.github.io/smalltv-mod/getting-started/flashing/) and [first-time setup](https://kittipitch.github.io/smalltv-mod/getting-started/setup/)
-- The three modes: [ticker](https://kittipitch.github.io/smalltv-mod/features/ticker/), [Claude usage](https://kittipitch.github.io/smalltv-mod/features/usage/), [plane radar](https://kittipitch.github.io/smalltv-mod/features/radar/)
+- The modes: [Claude usage](https://kittipitch.github.io/smalltv-mod/features/usage/), [plane radar](https://kittipitch.github.io/smalltv-mod/features/radar/)
 - [Data sources](https://kittipitch.github.io/smalltv-mod/reference/data-sources/), [building from source](https://kittipitch.github.io/smalltv-mod/reference/building/), and [recovery](https://kittipitch.github.io/smalltv-mod/reference/recovery/)
 
 ## Building from source
@@ -219,7 +220,7 @@ pio run -e smalltv_c2 -t upload    # build + flash the C2 over USB-C
 pio device monitor -e smalltv_c2   # serial logs @ 115200
 ```
 
-All targets share one codebase. Chip and board differences live in `src/Platform.h` and the per-board pin headers (`src/board_esp8266.h`, `src/board_esp32c2.h`, `src/board_esp32.h`); the feature modes and the web UI are identical across all of them. Every env compiles out the ticker and plane radar (`-D WITH_TICKER=0 -D WITH_RADAR=0`, plus their folders excluded from the build) — this fork's own deployment is a dedicated Claude-usage meter, one build per device, not a general-purpose gadget; edit `platformio.ini` yourself if you want them back. TLS stays in (it's what makes the GitHub self-updater work); pass `-D WITH_TLS=0` on top for a build that drops it too. See [Building from source](https://kittipitch.github.io/smalltv-mod/reference/building/) for the project layout and the ESP32 toolchain notes.
+All targets share one codebase. Chip and board differences live in `src/Platform.h` and the per-board pin headers (`src/board_esp8266.h`, `src/board_esp32c2.h`, `src/board_esp32.h`); the feature modes and the web UI are identical across all of them. The stock ticker is gone from this fork's code entirely, and every env compiles out the plane radar (`-D WITH_RADAR=0`, plus `features/radar/` excluded from the build) — this fork's own deployment is a dedicated Claude-usage meter, one build per device, not a general-purpose gadget; edit `platformio.ini` if you want the radar back. TLS stays in (it's what makes the GitHub self-updater work); pass `-D WITH_TLS=0` on top for a build that drops it too. See [Building from source](https://kittipitch.github.io/smalltv-mod/reference/building/) for the project layout and the ESP32 toolchain notes.
 
 The PC-side usage daemon lives in its own repo: [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon).
 

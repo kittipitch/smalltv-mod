@@ -46,7 +46,7 @@ Two differences from the Ultra that this firmware handles for you:
 - **The panel renders much less saturated** and has none of the Ultra's blue
   cast, so the build defaults to `toneSat=200`, `toneB=100`. Without that the
   UI looks washed-out blue and the mascot reads as white.
-- **The image is one build, not two.** `WITH_TICKER=0 WITH_RADAR=0` (every
+- **The image is one build, not two.** `WITH_RADAR=0` (every
   target compiles these out now, not just this board) brings it to ~693 KB,
   fitting the loader's own OTA slot with room to spare — no separate slim
   variant needed, and TLS stays in, so GitHub self-update works normally.

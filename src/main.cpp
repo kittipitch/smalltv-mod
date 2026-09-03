@@ -1,8 +1,7 @@
 // smalltv-mod — custom firmware for the GeekMagic SmallTV (ESP-12F / ESP8266)
 //
-// Three features, each a self-contained DisplayMode (see Mode.h), picked in the
+// Each feature is a self-contained DisplayMode (see Mode.h), picked in the
 // web UI and dispatched from the registry below:
-//   - Ticker (features/ticker):  stock/crypto price, % change, sparkline.
 //   - Usage  (features/usage):   Claude 5h/7d usage bars + animated mascot.
 //   - Radar  (features/radar):   live ADS-B plane radar (compiled in when WITH_RADAR).
 // Shared plumbing (WiFi, web UI, OTA, display core, settings) lives at src root.
@@ -19,9 +18,6 @@
 #include "Mode.h"
 #include "Clock.h"
 
-#if WITH_TICKER
-#include "TickerMode.h"
-#endif
 #if WITH_USAGE
 #include "UsageMode.h"
 #endif
@@ -41,9 +37,6 @@
 // The compiled-in features, in display order. main.cpp holds no per-feature
 // state of its own — each mode owns its fetch/render/dirty tracking.
 static DisplayMode* kModes[] = {
-#if WITH_TICKER
-  &g_tickerMode,
-#endif
 #if WITH_USAGE
   &g_usageMode,
 #endif
@@ -135,19 +128,16 @@ static void rebuildCarouselOrder(const Settings& s) {
 
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
-    // Skip ticker in the carousel until at least one symbol is configured —
-    // otherwise it just shows an empty "No tickers" page every rotation.
-    case MODE_STOCKS: return s.carouselTicker && s.ticker.symbolCount > 0;
     case MODE_USAGE:  return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
     case MODE_CAL_AGENDA:  return s.carouselAgenda;
     // Only in rotation when there's actually a 4th-6th event to show --
-    // same "skip until there's real content" pattern as ticker/z.ai above.
+    // same "skip until there's real content" pattern as z.ai below.
     case MODE_CAL_AGENDA2: return s.carouselAgenda2 && calendarGet().count > 3;
     case MODE_CAL_WEATHER: return s.carouselWeather;
     case MODE_CAL_FORECAST: return s.carouselForecast;
 #if WITH_CALENDAR
-    // Same "skip until there's real content" pattern as ticker above --
+    // Same "skip until there's real content" pattern as the others --
     // stays out of the carousel until the daemon has a working z.ai key
     // configured and has actually pushed data at least once.
     case MODE_ZAI:    return s.carouselZai && zaiGet().valid;
@@ -350,11 +340,9 @@ void setup() {
 
   Serial.println("[boot] net");
   netBegin(g_settings, bootProgress);
-  // Arm SNTP now that WiFi (STA) is up — but only if night mode is enabled, so a
-  // ticker-only device doesn't pay the SNTP heap cost (which can starve the cash.ch
-  // TLS handshake on the ESP8266). clockReapply arms it iff needed. Skipped after a
-  // crash so a fault in here can't boot-loop before the web server starts (the
-  // device then comes up in safe mode, OTA-recoverable, instead of needing UART).
+  // Arm SNTP now that WiFi (STA) is up. Skipped after a crash so a fault in here
+  // can't boot-loop before the web server starts (the device then comes up in
+  // safe mode, OTA-recoverable, instead of needing UART).
   if (!g_safeMode) clockReapply(g_settings);
 
   // A GitHub update queued from the web UI runs now, before the features claim

@@ -50,7 +50,7 @@ jobs:
             exit 1
           fi
 
-      # smalltv/smalltv_sdpro are each ONE build per device (ticker/radar
+      # smalltv/smalltv_sdpro are each ONE build per device (radar
       # out, TLS in) -- the separate "_slim" (TLS-off) envs were retired
       # ("we dont want to maintain more than one version per device").
       - name: Build firmware (all targets)

@@ -10,7 +10,6 @@ A tiny desk display showing:
 - Your next few Google Calendar events (agenda, up to 6 across two pages)
 - Local weather, rain chance, and air quality (AQI/PM2.5)
 - Nearby aircraft (plane radar), centred on your home or weather location
-- (Optional) a stock/crypto ticker
 
 ...without opening chat, your calendar app, or a weather site to check.
 
@@ -19,7 +18,7 @@ A tiny desk display showing:
 - **GeekMagic SmallTV / SmallTV Ultra** — a tiny pixel-display desk gadget,
   ESP8266 chip (WiFi 2.4GHz only)
 - **Stock firmware** — only does clock/weather/photo album; no quota-page
-  support (that's PRO-model-only, for crypto/stocks)
+  support (that's PRO-model-only)
 - **This firmware fork ([`kittipitch/smalltv-mod`](https://github.com/kittipitch/smalltv-mod))**
   — community firmware (originally by giovi321) adding a Claude usage mode,
   then extended in this fork with z.ai/Codex/Antigravity quota pages, an
@@ -64,7 +63,6 @@ pin the display to one mode:
 - **Plane radar** — nearby aircraft as heading triangles with callsign/
   altitude labels, centred on your home location (or the weather location
   above, if you haven't set a separate one for radar)
-- **Stock/crypto ticker** — optional, off by default if you don't configure
   any symbols
 - A small clock overlay (top-right) on every quota page
 
@@ -172,7 +170,7 @@ works everywhere regardless of platform.
 ### 3. Set the device's modes
 
 In the web UI: pick which modes to include in the carousel (Usage, z.ai,
-Codex, Antigravity, Radar, Agenda & weather, Ticker), drag them into
+Codex, Antigravity, Radar, Agenda & weather), drag them into
 whatever rotation order you want, or pin one mode permanently. This can be
 done anytime from `http://<device-ip>/`, no reflash needed.
 

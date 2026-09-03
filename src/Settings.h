@@ -1,8 +1,8 @@
 // Settings.h — persisted configuration (LittleFS /config.json)
 //
 // Layout is segmented per feature: shared device/network fields live at the top
-// level, and each feature owns a nested settings slice (ticker / usage / radar).
-// config.json mirrors this: { ..shared.., "ticker":{...}, "usage":{...} }.
+// level, and each feature owns a nested settings slice (usage / radar / ...).
+// config.json mirrors this: { ..shared.., "usage":{...}, "radar":{...} }.
 // The JSON reader also still accepts the old flat layout, so a device upgrading
 // from the pre-segmentation firmware keeps its WiFi + symbols; the next save
 // rewrites it nested.
@@ -10,14 +10,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "config.h"
-
-struct SymbolCfg {
-  char    symbol[MAX_SYMBOL_LEN];
-  char    name[MAX_NAME_LEN];
-  uint8_t source;     // SRC_* per ticker (see config.h)
-  float   qty;        // position size; 0 = not a position
-  float   cost;       // cost basis per unit, in the instrument's currency
-};
 
 // A home-area airport marker (radar feature), configured in the web UI.
 struct Airport {
@@ -30,36 +22,6 @@ struct Airport {
 struct WifiCred {
   String ssid;
   String pass;
-};
-
-// ---- Ticker (stock/crypto) feature slice ----------------------------------
-// The data source is per symbol (SymbolCfg.source); webhookUrl is shared by
-// every symbol whose source is SRC_WEBHOOK.
-struct TickerSettings {
-  String   webhookUrl;    // custom webhook base URL (used by webhook symbols)
-  String   range;         // chart timeframe token (e.g. "1d", "5d", "1mo", "1y")
-  uint16_t points;        // sparkline points requested
-  uint16_t pollSec;       // refresh period
-  uint16_t rotateSec;     // per-symbol on-screen time
-  bool     colorInverted; // false: up=green/down=red ; true: swapped
-  bool     changeOnRange; // true: change/% over the chart timeframe; false: provider's 1-day change
-
-  // What to show
-  bool showName;
-  bool showPrice;
-  bool showChange;
-  bool showChart;
-  bool showRangeLabel;
-  bool showUpdatedAgo;
-  bool showPageDots;
-  bool showPortfolio;   // P/L line on position tickers + portfolio summary page
-
-  SymbolCfg symbols[MAX_SYMBOLS];
-  uint8_t   symbolCount;
-
-  void setDefaults();
-  void toJson(JsonObject o) const;
-  void fromJson(JsonObjectConst o);   // applies only the keys present
 };
 
 // ---- Claude usage feature slice -------------------------------------------
@@ -155,12 +117,12 @@ struct Settings {
   String daemonIp;
 
   // --- Active feature ---
-  uint8_t mode;         // MODE_STOCKS / MODE_USAGE / MODE_RADAR / MODE_CAROUSEL
+  uint8_t mode;         // MODE_USAGE / MODE_RADAR / MODE_CAROUSEL / MODE_CAL_*
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselTicker, carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselForecast, carouselZai, carouselCodex, carouselAntigravity, carouselOpenrouter;
-  // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather,ticker"),
+  bool carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselForecast, carouselZai, carouselCodex, carouselAntigravity, carouselOpenrouter;
+  // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather"),
   // user-defined rotation order via the web UI's up/down arrows. Empty =
   // use the compiled-in kModes[] order (default, backward compatible).
   // Ids not present in this string, or present but no longer compiled in,
@@ -176,14 +138,13 @@ struct Settings {
   uint8_t  rotation;          // 0..3 screen orientation
 
   // --- Device-wide color correction (applied at the display driver level,
-  // so it affects every mode — ticker/usage/radar/clock/boot screens alike) ---
+  // so it affects every mode — usage/radar/clock/boot screens alike) ---
   uint8_t  toneR;    // 0..100 red gain,   100 = normal
   uint8_t  toneG;    // 0..100 green gain, 100 = normal
   uint8_t  toneB;    // 0..100 blue gain,  100 = normal (lower = warmer)
   uint8_t  toneSat;  // 0..200 saturation, 100 = normal, >100 = boosted
 
   // --- Feature slices ---
-  TickerSettings   ticker;
   UsageSettings    usage;
   RadarSettings    radar;
   ClockSettings    clock;

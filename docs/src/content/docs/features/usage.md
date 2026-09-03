@@ -3,7 +3,7 @@ title: Claude usage meter
 description: Show your Claude 5-hour and 7-day usage with an animated mascot, fed over WiFi from your PC.
 ---
 
-Switch **Display → Mode** to **Claude usage** and the device stops showing tickers and shows your Claude consumption instead. It is the idea of a desk usage meter, on the SmallTV, over WiFi. The device's USB is power only, so nothing is wired between it and your PC.
+Switch **Display → Mode** to **Claude usage** and the device shows your Claude consumption. It is the idea of a desk usage meter, on the SmallTV, over WiFi. The device's USB is power only, so nothing is wired between it and your PC.
 
 ## What it shows
 

@@ -39,19 +39,14 @@ void clockBegin(const Settings& s) {
 }
 
 void clockReapply(const Settings& s) {
-  // SNTP only runs when night mode needs it. Starting the lwIP SNTP client is a
-  // permanent mid-arena heap allocation, and on the memory-tight ESP8266 that can
-  // fragment the largest contiguous block below what the cash.ch TLS handshake
-  // needs (blanking those tickers). So arm on the first enable, re-arm on a
-  // timezone change, and never start it while night mode is off.
-  // ...but that whole rationale is about BearSSL. A build with WITH_TLS=0 has no
-  // handshake to starve (no ticker, no GitHub self-update), so withholding the
-  // clock there buys nothing and costs the agenda its event times: the SD PRO
-  // came up with synced=false indefinitely while the Ultra, which happens to run
-  // night mode, was fine. Arm it unconditionally when there is no TLS.
-#if WITH_TLS
-  if (!s.clock.nightEnabled) return;
-#endif
+  // SNTP is armed unconditionally. It used to start only when night mode was
+  // enabled, because starting the lwIP SNTP client is a permanent mid-arena heap
+  // allocation that could fragment the largest contiguous block below what the
+  // ticker's cash.ch TLS handshake needed. That feature no longer exists, so the
+  // rationale is gone -- and the guard actively broke things: a unit with night
+  // mode off came back from ANY reboot with synced=false forever, losing the
+  // usage page's clock overlay and the agenda's event times (hit on 2026-09-03
+  // after a routine reflash). Re-arm on a timezone change.
   if (!s_ntpStarted || s.clock.tzPosix != s_armedTz) clockBegin(s);
 }
 
