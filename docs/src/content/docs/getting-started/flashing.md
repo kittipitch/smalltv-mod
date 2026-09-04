@@ -184,10 +184,11 @@ the old slim-only variant.
 
 Consequences worth knowing:
 
-- **No GitHub self-update.** It is compiled out, and the update path would not
-  fit anyway. Updates are the same two hops: firmware → loader → new firmware.
-- **`https://` pull URLs are unavailable.** The daemon's normal push works
-  fine; an `https://` usage URL will log that the build has no TLS and decline.
+- **GitHub self-update works.** TLS is compiled in, so the web UI's Update tab
+  can pull a new release directly. This is the difference from the old slim
+  variant, which had TLS stripped and could not.
+- **First install is still two hops**, though: stock → loader → firmware. Only
+  later updates go over the air in one step.
 
 ### Panel calibration
 

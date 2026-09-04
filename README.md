@@ -48,7 +48,7 @@
 
 The GeekMagic SmallTV is a cheap desk gadget: a little cube with a 1.54" colour screen, an ESP inside, and a USB-C port. This firmware throws away the stock apps and turns it into things you actually watch: a **Claude usage meter** with an animated mascot and your 5-hour and 7-day usage bars, plus matching quota pages for **z.ai, Codex CLI, and Google Antigravity CLI**; a **live plane radar** centred on your location, pulled from a free public feed; and an **agenda + weather/AQI** view fed from Google Calendar and a weather API. See [What it does](#what-it-does) for the full list. One image carries everything you enable; you switch between them (or rotate a carousel) in a built-in web UI, and you update over WiFi.
 
-This firmware builds for four boards from one codebase. The original SmallTV runs an **ESP8266**; the **SmallTV-ultra** is the same ESP-12F hardware and screen, but its stock "Ultra" firmware and flash partitions block a normal OTA of this image, so it takes a two-step loader install (see [Flashing](#flashing)); a second version sold under the same "smart weather clock" look uses an **ESP32-C2 (ESP8684)** instead. A third build targets the **NMMiner NM-TV-154** (PCB marked "NM-TV-Miner"), a classic-ESP32 BTC lottery miner in the same cube with the same screen, confirmed working by a community tester in [issue #1](https://github.com/giovi321/smalltv-mod/issues/1). Pick yours below.
+This firmware builds for five boards from one codebase. The original SmallTV runs an **ESP8266**; the **SmallTV-ultra** is the same ESP-12F hardware and screen, but its stock "Ultra" firmware and flash partitions block a normal OTA of this image, so it takes a two-step loader install (see [Flashing](#flashing)); a second version sold under the same "smart weather clock" look uses an **ESP32-C2 (ESP8684)** instead. A third build targets the **NMMiner NM-TV-154** (PCB marked "NM-TV-Miner"), a classic-ESP32 BTC lottery miner in the same cube with the same screen, confirmed working by a community tester in [issue #1](https://github.com/giovi321/smalltv-mod/issues/1). Pick yours below.
 
 <p align="center">
   <img src="docs/public/assets/screen.svg" alt="The SmallTV running its modes: Claude usage, agenda and weather, and plane radar" width="900" />
@@ -183,7 +183,7 @@ curl -m 300 -F "firmware=@smalltv-mod-firmware-sdpro.bin" http://$IP/update
 # "Update Success! Rebooting..." means it's verified and written
 ```
 
-It then boots into the usual `SmallTV-Setup` portal — continue at [First-time setup](#first-time-setup) below. **Never upload `smalltv-mod-firmware.bin` (the full, non-slim image) to this board, at any hop** — it does not fit even through the loader.
+It then boots into the usual `SmallTV-Setup` portal — continue at [First-time setup](#first-time-setup) below. **Never upload the generic `smalltv-mod-firmware.bin` to this board, at any hop** — only `smalltv-mod-firmware-sdpro.bin` fits, even through the loader.
 
 After the first flash, every board updates from the browser under the web UI's Update tab.
 

@@ -48,8 +48,8 @@ Two differences from the Ultra that this firmware handles for you:
   UI looks washed-out blue and the mascot reads as white.
 - **The image is one build, not two.** `WITH_RADAR=0` (every
   target compiles these out now, not just this board) brings it to ~693 KB,
-  fitting the loader's own OTA slot with room to spare — no separate slim
-  variant needed, and TLS stays in, so GitHub self-update works normally.
+  fitting the loader's own OTA slot with room to spare. There is one build per
+  target with TLS in, so GitHub self-update works normally.
 
 Its UART pads are not where the original SmallTV's are: there is no labelled
 six-pad row. Ground and GPIO0 are on a three-pad group marked `G V O` on the
