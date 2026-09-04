@@ -35,4 +35,4 @@ Keep a `stock-backup.bin` from before your first flash and you can always return
 
 ## License
 
-[WTFPL](https://github.com/giovi321/smalltv-mod/blob/main/LICENSE). Do What The F*ck You Want To Public License.
+[WTFPL](https://github.com/kittipitch/smalltv-mod/blob/main/LICENSE). Do What The F*ck You Want To Public License.

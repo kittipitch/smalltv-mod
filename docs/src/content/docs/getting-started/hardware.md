@@ -1,9 +1,9 @@
 ---
 title: Hardware and variants
-description: The three supported boards (ESP8266, ESP32-C2, and the classic-ESP32 NM-TV-154), how to tell them apart, and the pin map for each.
+description: The five supported boards (ESP8266, SmallTV-ultra, ESP32-C2, the classic-ESP32 NM-TV-154, and the SD PRO clone), how to tell them apart, and the pin map for each.
 ---
 
-Three boards wear the same cube. Confirm which one you have before you flash it, because they use different chips and flash differently. The screen is the same 1.54" 240×240 ST7789 IPS panel on all of them.
+Five boards wear the same cube. Confirm which one you have before you flash it, because they use different chips and flash differently. The screen is the same 1.54" 240×240 ST7789 IPS panel on all of them.
 
 The GeekMagic SmallTV is a 45 × 35 × 40 mm cube with a 28 × 28 mm colour screen and a USB-C port for power. It sells for about 6 to 8 EUR on AliExpress. A second version of the hardware, sold under the same "smart weather clock" listing, swaps the ESP8266 for an ESP32-C2 but keeps the case and screen. A third device, the NMMiner NM-TV-154 BTC lottery miner, uses the same cube and screen with a classic ESP32 inside.
 
@@ -47,7 +47,7 @@ Two differences from the Ultra that this firmware handles for you:
   cast, so the build defaults to `toneSat=200`, `toneB=100`. Without that the
   UI looks washed-out blue and the mascot reads as white.
 - **The image is one build, not two.** `WITH_RADAR=0` (every
-  target compiles these out now, not just this board) brings it to ~693 KB,
+  target compiles these out now, not just this board) brings it to 683,120 B,
   fitting the loader's own OTA slot with room to spare. There is one build per
   target with TLS in, so GitHub self-update works normally.
 

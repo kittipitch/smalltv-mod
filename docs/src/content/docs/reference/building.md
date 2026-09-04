@@ -1,14 +1,15 @@
 ---
 title: Building from source
-description: Build any of the three board targets with PlatformIO, and the ESP32 toolchain notes.
+description: Build any of the five board targets with PlatformIO, and the ESP32 toolchain notes.
 ---
 
-The three board targets share one codebase and build from [PlatformIO](https://platformio.org/). Pick the env that matches your board.
+The five board targets share one codebase and build from [PlatformIO](https://platformio.org/). Pick the env that matches your board.
 
 ```bash
 pio run -e smalltv                 # ESP8266
 pio run -e smalltv_c2              # ESP32-C2
 pio run -e smalltv_esp32           # NM-TV-154 (classic ESP32)
+pio run -e smalltv_sdpro           # SD PRO (JUZIPi clone, ESP8266)
 pio run -e smalltv_c2 -t upload    # build + flash the C2 over USB-C
 pio device monitor -e smalltv_c2   # serial logs @ 115200
 pio run -e smalltv_loader          # ESP8266 loader for the SmallTV-ultra
@@ -74,6 +75,6 @@ The two ESP32 targets have a few requirements the ESP8266 does not.
 
 ## Footprint
 
-The ESP8266 build is about 620 KB of flash and roughly half the RAM at boot, with headroom for OTA, which needs room for two sketch copies. The ESP32-C2 build is about 1.27 MB in a 1.5 MB app slot, using around 15 percent of RAM. The mascot frame data lives in flash, not the heap.
+The ESP8266 build is roughly 690 KB of flash and roughly half the RAM at boot, with headroom for OTA, which needs room for two sketch copies. The ESP32-C2 build is about 1.27 MB in a 1.5 MB app slot, using around 15 percent of RAM. The mascot frame data lives in flash, not the heap.
 
-The PC-side usage daemon is a separate repo: [clawdmeter-daemon](https://github.com/giovi321/clawdmeter-daemon).
+The PC-side usage daemon is a separate repo: [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon).

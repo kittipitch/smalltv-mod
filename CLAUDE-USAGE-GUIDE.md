@@ -181,7 +181,8 @@ hostname), and pass that IP to `--push-to` below instead of the hostname.
 ### 4. Install and configure `clawdmeter-daemon`
 
 1. Clone [`kittipitch/clawdmeter-daemon`](https://github.com/kittipitch/clawdmeter-daemon)
-   (or the upstream `giovi321/clawdmeter-daemon` — same code, no secrets
+   (**not** the upstream `giovi321/clawdmeter-daemon` — that one has no z.ai, Codex,
+   Antigravity, OpenRouter or weather support, no secrets
    baked into either)
 2. Install dependencies (needs a real Python — see the Windows gotcha below)
 3. Run it pointed at your device:

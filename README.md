@@ -107,7 +107,7 @@ The four above are the models this firmware is known to run on. The same cube is
 >
 > So install in two hops, never straight through the stock updater:
 > `smalltv-mod-loader.bin` (315,920 B) to `POST /update_ota` field `update`,
-> then `smalltv-mod-firmware-sdpro.bin` (~693 KB, fits the loader's own
+> then `smalltv-mod-firmware-sdpro.bin` (683,120 B, fits the loader's own
 > ~717 KB OTA slot) to the loader's `POST /update` field `firmware`. Between
 > the two the screen is dark and the device leaves the network — that is
 > the loader working, not a brick; it answers `200` on `/update` and `404`
@@ -137,7 +137,7 @@ The four above are the models this firmware is known to run on. The same cube is
 
 ## Get the firmware
 
-You do not need a toolchain. GitHub Actions builds the images for all four boards.
+You do not need a toolchain. GitHub Actions builds the images for all five boards.
 
 - Every push: the **Actions** tab, latest `build` run, download the firmware artifact.
 - Tagged releases (`vX.Y.Z`): attached to the [Releases](../../releases) page.
