@@ -402,6 +402,14 @@ void loop() {
   clockService(g_settings);
   appApplyBrightness();
 
+#if WITH_CALENDAR
+  // Weather/AQI keeps itself fresh regardless of which page is showing, so a
+  // device with no daemon has data ready when the carousel reaches it. Cheap:
+  // it returns immediately unless its own poll period has elapsed AND pushes
+  // have gone quiet.
+  weatherService(g_settings);
+#endif
+
   DisplayMode* m = activeMode(g_settings);
   if (m) m->service(g_settings);
 

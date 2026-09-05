@@ -267,12 +267,36 @@ void UsageMode::drawClockOverlay() {
   }
 }
 
+void UsageMode::wake(const Settings& s) {
+  (void)s;
+  needRender_ = true;
+  needFullRender_ = true;
+  // Regaining the screen after another carousel page repainted over us. Two
+  // pieces of state believe they still own the framebuffer and both must be
+  // dropped, or the idle mascot repaints as a cell-diff on top of whatever
+  // page was showing -- the "mascot superimposed on the forecast" symptom.
+  //
+  // Deliberately NOT invalidate(): that ends in usageForceRefresh(), which in
+  // pull mode would fire an HTTP poll on every carousel hop.
+  showingMascot_ = false;   // -> drawMascot(restart=true) -> fillScreen
+  s_mascotPrimed = false;   // the cell-diff base is stale
+}
+
 void UsageMode::invalidate(const Settings& s) {
   (void)s;
   needRender_ = true;
   needFullRender_ = true;
   showingMascot_ = false;
   usageRenderedOk_ = 0xFFFFFFFF;
+  // The idle mascot is drawn as a cell-diff against what it believes is still
+  // on screen. Any other carousel page repaints over it, so that belief is
+  // stale the moment this mode loses the screen -- and invalidate() is exactly
+  // when it gets it back (wake() calls this). Without the reset the next idle
+  // frame skips its fillScreen and punches only the CHANGED cells over
+  // whatever page is showing, which looks like the mascot superimposed on the
+  // forecast/agenda. drawUsage() already clears this for the stats screen; the
+  // idle path never goes through drawUsage(), so it has to be cleared here too.
+  s_mascotPrimed = false;
   // Deliberately NOT usageInit() here: that clears the cached reading, and on
   // a push-mode device (usageUrl empty -- the daemon POSTs to /api/usage)
   // there is no device-side fetch to replace it. Every settings save then

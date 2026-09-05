@@ -15,7 +15,8 @@ class UsageMode : public DisplayMode {
   void begin(const Settings& s) override;
   void service(const Settings& s) override;
   void invalidate(const Settings& s) override;
-  void wake(const Settings& s) override { needRender_ = true; needFullRender_ = true; }  // repaint only
+  void wake(const Settings& s) override;   // defined in the .cpp: it must reach
+                                          // file-static mascot state (s_mascotPrimed)
 
  private:
   void drawClockOverlay();   // top-right "HH:MM", this page only (see UsageMode.cpp)

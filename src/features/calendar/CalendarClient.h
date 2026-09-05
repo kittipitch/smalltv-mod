@@ -2,16 +2,27 @@
 // PUSHED by clawdmeter-daemon (not fetched by the device):
 //   - Calendar: POST /api/calendar. The device never does Google OAuth
 //     itself; calendarApply() just parses the payload.
-//   - Weather + air quality: POST /api/weather. Originally fetched directly
-//     by the device from Open-Meteo, but that path proved hard to debug
-//     on the ESP8266 (no serial access in this project's workflow, opaque
-//     TLS/HTTP failures) -- moved to the daemon, which has real logging and
-//     can be iterated on quickly. weatherApply() just parses the payload.
+//   - Weather + air quality: POST /api/weather, AND a device-direct fetch as a
+//     fallback (weatherService(), WITH_DEVICE_WEATHER). A push always wins while
+//     one keeps arriving; the device only fetches for itself once pushes go
+//     quiet, so a unit with no daemon still shows weather. The fetch is plain
+//     HTTP -- no BearSSL heap -- which is what makes it viable now where the
+//     original device-direct path was fragile.
 #pragma once
 #include "Settings.h"
 #include "CalendarData.h"
 
 void calendarInit(const Settings& s);
+
+// Device-direct weather/AQI fetch (WITH_DEVICE_WEATHER, default on). A push to
+// /api/weather always wins while one keeps arriving; this only runs once pushes
+// have gone quiet, so a device with no daemon still shows weather. Call each loop.
+void weatherService(const Settings& s);
+
+// Last device-direct fetch outcome, for /api/status: HTTP code per endpoint
+// (200 ok, -100 parsed-badly, negative HTTPC_ERROR_* connect fail, 0 never
+// tried) and how long ago it ran.
+void weatherFetchDiag(int& fc, int& aq, int& aqf, uint32_t& agoMs);
 
 const CalendarEvent& calendarGet();
 const WeatherData&   weatherGet();

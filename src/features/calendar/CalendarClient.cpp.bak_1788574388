@@ -400,7 +400,6 @@ static uint32_t g_wxFcOkMs   = 0;   // last GOOD forecast (per-half staleness)
 // during development -- so the result has to be visible over HTTP.
 static int      g_wxLastFc   = 0;   // HTTP code, or -1 parse fail, 0 = not tried
 static int      g_wxLastAq   = 0;
-static int      g_wxLastAqF  = 0;   // per-day AQI forecast, same encoding
 static uint32_t g_wxTriedMs  = 0;
 static uint32_t g_wxAqOkMs   = 0;   // last GOOD air quality
 static uint32_t g_wxPushOkMs = 0;   // set ONLY by weatherApply(); a self-fetch
@@ -496,7 +495,6 @@ void weatherService(const Settings& s) {
   g_wxTriedMs = millis();
 
   char url[320];   // the forecast request is 261 chars rendered; 220 truncated it
-  bool fcFresh = false;   // fc[] was (re)built by THIS cycle's forecast fetch
   bool gotAny = false;
 
   // --- forecast: current conditions + the next 3 days ---
@@ -546,7 +544,6 @@ void weatherService(const Settings& s) {
       g_weather.forecastError = false;
       g_wxFcOkMs = millis(); if (!g_wxFcOkMs) g_wxFcOkMs = 1;
       gotAny = true;
-      fcFresh = true;
       g_wxLastFc = 200;
     } else {
       g_weather.forecastError = true;
@@ -584,67 +581,6 @@ void weatherService(const Settings& s) {
     }
   }
 
-  // --- air-quality forecast: per-day AQI for the 3-day page ---
-  // The air-quality API has no "daily" block at all -- asking for one is a hard
-  // error ("Cannot initialize ForecastVariableDaily from invalid String value
-  // us_aqi_max"), unlike the weather API which hands us daily maxima ready-made.
-  // So AQI per day means pulling the hourly series and reducing it here.
-  //
-  // timezone=auto makes the series start at LOCAL midnight, so hour i belongs to
-  // day i/24 with no date parsing -- which is why "time" is deliberately NOT in
-  // the filter below: dropping it avoids allocating 96 timestamp strings on a
-  // board with ~27 KB of free heap. forecast_days=4 yields exactly 96 hours, and
-  // fc[n] is day offset n+1 (index 0 is today), so fc[n] reduces the hours
-  // [(n+1)*24, (n+1)*24+24).
-  //
-  // Gated on fcFresh, NOT on hasForecast/fcCount: those persist from earlier
-  // cycles (a failed forecast only sets forecastError; the retire below needs
-  // period*3 to clear them). Decorating a stale fc[] with fresh AQI silently
-  // misaligns the days -- after local midnight fc[0] is physically today but
-  // would receive tomorrow's AQI -- so only a fc[] rebuilt this cycle is
-  // eligible. Same reason a daemon-pushed fc[] is left alone once pushes stop.
-  //
-  // Skipped too when the current-AQ GET just failed at the transport level
-  // (negative HTTPC_ERROR_*): it is the same host, so a third blocking attempt
-  // only adds ~9 s to the loop() stall for a connection we already know is down.
-  if (!fcFresh) {
-    g_wxLastAqF = 0;              // no attempt this cycle; don't leave a stale 200
-  } else if (g_wxLastAq < 0) {
-    g_wxLastAqF = -103;           // skipped: same host unreachable this cycle
-  } else {
-    snprintf(url, sizeof(url),
-             "http://air-quality-api.open-meteo.com/v1/air-quality?latitude=%.4f&longitude=%.4f"
-             "&hourly=pm2_5&forecast_days=4&timezone=auto",
-             s.calendar.lat, s.calendar.lon);
-    JsonDocument filter;
-    filter["hourly"]["pm2_5"] = true;
-    JsonDocument doc;
-    if (wxGetJson(s, url, doc, filter)) {
-      JsonArray v = doc["hourly"]["pm2_5"];
-      const int sz = (int)v.size();   // O(n) in ArduinoJson v7 -- hoist it
-      int filled = 0;
-      for (uint8_t n = 0; n < g_weather.fcCount && n < WX_FC_DAYS; n++) {
-        const int base = (int)(n + 1) * 24;
-        int mx = -1;
-        for (int i = base; i < base + 24 && i < sz; i++) {
-          // Open-Meteo returns null for hours it has no model output for. A day
-          // that is entirely null must stay "no data", not read as 0 -- which
-          // the renderer would colour as pristine air.
-          if (v[i].isNull()) continue;
-          // as<float>(), not "| 0": pm2_5 is fractional and operator| only
-          // matches integer-typed values, so 60.5 would silently read as 0.
-          int a = wxAqiFromPm25(v[i].as<float>());
-          if (a > mx) mx = a;
-        }
-        if (mx >= 0) { g_weather.fc[n].aqi = mx; g_weather.fc[n].hasAqi = true; filled++; }
-      }
-      g_wxLastAqF = filled ? 200 : -101;  // -101 = parsed fine, but every hour was null
-      gotAny = true;
-    } else {
-      g_wxLastAqF = g_wxHttpCode ? g_wxHttpCode : -1;
-    }
-  }
-
   // Retire a half that has been failing long enough that showing it would be a
   // lie. Without this, one dead endpoint leaves its last values on screen
   // indefinitely with nothing marking them stale -- and after midnight the old
@@ -672,8 +608,8 @@ void weatherService(const Settings&) {}
 // Called by weatherApply() on every accepted push. Kept separate from
 // g_weather.lastOkMs because that field is also written by our own fetch.
 void weatherNotePush() { g_wxPushOkMs = millis(); if (!g_wxPushOkMs) g_wxPushOkMs = 1; }
-void weatherFetchDiag(int& fc, int& aq, int& aqf, uint32_t& agoMs) {
-  fc = g_wxLastFc; aq = g_wxLastAq; aqf = g_wxLastAqF;
+void weatherFetchDiag(int& fc, int& aq, uint32_t& agoMs) {
+  fc = g_wxLastFc; aq = g_wxLastAq;
   agoMs = g_wxTriedMs ? (millis() - g_wxTriedMs) : 0;
 }
 #endif

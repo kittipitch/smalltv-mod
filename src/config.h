@@ -187,12 +187,25 @@
 
 // ---------------------------------------------------------------------------
 // Calendar + weather (MODE_CALENDAR)
-//   Both pushed to the device by clawdmeter-daemon (POST /api/calendar,
-//   POST /api/weather) — the device never talks to Google or Open-Meteo
-//   directly. Weather/AQI used to be a device-direct Open-Meteo fetch, but
-//   that proved hard to debug on the ESP8266 (no serial access in this
-//   project's workflow); moved server-side for real logging.
+//   Calendar is always pushed by clawdmeter-daemon (POST /api/calendar) — the
+//   device never does Google OAuth itself.
+//
+//   Weather/AQI is pushed too (POST /api/weather), but ALSO fetches itself from
+//   Open-Meteo when nothing is pushing (WITH_DEVICE_WEATHER, default on). It was
+//   device-direct originally, moved server-side because it was hard to debug on
+//   the ESP8266 (no serial access in this project's workflow); the fetch is back
+//   as a FALLBACK only, so a daemon-fed device still behaves exactly as before
+//   and keeps the daemon's logging. Plain HTTP, so it costs no BearSSL heap.
 // ---------------------------------------------------------------------------
+
+// Device-direct weather/AQI fetch, used only when nothing is pushing (see the
+// note above). Must be defined HERE, not in CalendarClient.cpp: that file has
+// #if guards near its top, and a #define further down evaluates as 0 there --
+// silently compiling out the push-detection and leaving the fallback fighting
+// a live daemon.
+#ifndef WITH_DEVICE_WEATHER
+#define WITH_DEVICE_WEATHER 1
+#endif
 
 // Defaults (lat/lon 0,0 is the "not set yet" sentinel, same convention as radar).
 #define DEFAULT_CAL_LAT           0.0f

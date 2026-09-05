@@ -62,8 +62,9 @@ struct CalendarEvent {
   }
 };
 
-// Fetched directly by the device from Open-Meteo (two independent endpoints —
-// see config.h). Each field is independently optional: a temp-only response
+// Filled either by a daemon push (POST /api/weather) or by the device's own
+// Open-Meteo fetch when nothing is pushing (two independent endpoints — see
+// config.h). Each field is independently optional: a temp-only response
 // with no AQI (or vice versa) is a normal, expected state, not an error.
 #define WX_CITY_LEN 24   // truncated for display well before this
 
@@ -71,8 +72,10 @@ struct CalendarEvent {
                         // already shown on the main weather page
 
 struct ForecastDay {
-  char day[6];    // "Tmr"/"Mon"/"Tue"/etc, daemon-formatted (fixed English
-                   // 3-4 char labels, no date math or i18n done here)
+  char day[6];    // "Tmr"/"Mon"/"Tue"/etc. Daemon-formatted when pushed; derived
+                   // from the device clock when self-fetched (falls back to
+                   // "+2d" style if the clock is unsynced). Fixed English
+                   // 3-4 char labels either way, no i18n done here.
   int  code;      // WMO weather code, same table as WeatherData.weatherCode
   int  hi;        // daily max temp, whole degrees C (daemon-rounded)
   int  lo;        // daily min temp, whole degrees C (daemon-rounded)
@@ -97,7 +100,8 @@ struct WeatherData {
 
   float    pm25;
   int      aqi;         // US AQI, Open-Meteo's own 24h-rolling-average-derived value
-  int      aqiNow;       // US AQI computed daemon-side from THIS hour's pm25 alone
+  int      aqiNow;       // US AQI computed from THIS hour's pm25 alone, daemon-side
+                          // when pushed or on-device when self-fetched (same table)
                           // (python-aqi, classic pre-2024 EPA breakpoints) -- a fast-
                           // reacting complement to aqi, not a replacement for it.
   bool     hasPm25;

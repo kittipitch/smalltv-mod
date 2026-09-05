@@ -105,7 +105,13 @@ static void handleStatus() {
   o["ip"] = netIP();
   o["rssi"] = netRSSI();
   o["heap"] = ESP.getFreeHeap();
-  o["maxblk"] = platformMaxFreeBlock();     // largest contiguous block (TLS handshake needs one)
+  o["maxblk"] = platformMaxFreeBlock();   // largest contiguous block (TLS handshake needs one)
+  #if WITH_CALENDAR && WITH_DEVICE_WEATHER
+  // Device-direct weather fetch outcome -- this board has no serial, so the
+  // only way to see why the weather page is blank is over HTTP.
+  { int fc, aq, aqf; uint32_t ago; weatherFetchDiag(fc, aq, aqf, ago);
+    o["wxFc"] = fc; o["wxAq"] = aq; o["wxAqF"] = aqf; o["wxAgoS"] = ago / 1000; }
+  #endif
   o["contstk"] = platformFreeContStack();   // primary stack headroom (ESP8266)
   o["uptime"] = millis() / 1000;
   o["reset"] = appResetReason();
