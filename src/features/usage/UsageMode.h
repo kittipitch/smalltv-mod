@@ -22,6 +22,10 @@ class UsageMode : public DisplayMode {
   void drawClockOverlay();   // top-right "HH:MM", this page only (see UsageMode.cpp)
   uint32_t usageSampled_ = 0;              // lastOkMs already fed to the mascot tracker
   uint32_t usageRenderedOk_ = 0xFFFFFFFF;
+  // Tracks the last-rendered hasWeekly so a flip forces a FULL redraw: the
+  // percentage is right-aligned, so "N/A" and " 12%" start at different x
+  // and the opaque-glyph overwrite alone would leave stale pixels behind.
+  int8_t   weeklyKnownRendered_ = -1;   // -1 = nothing rendered yet
   bool     showingMascot_ = false;
   bool     needRender_ = true;
   // Structural changes (wake/invalidate/mascot-exit/warmth-saturation change)
