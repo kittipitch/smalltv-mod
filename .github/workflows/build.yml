@@ -64,10 +64,9 @@ jobs:
       - name: Build firmware (all targets)
         run: pio run -e smalltv -e smalltv_sdpro -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader
 
-      # One app image per target (web-UI OTA + GitHub self-update), the merged
-      # factory images for first-time USB flashing of the ESP32 boards, and the
-      # minimal loader used to install onto a SmallTV-ultra.
-      - name: Stage artifacts
+      # Everything still BUILDS above, so a break in the ESP32 targets is caught
+      # in CI. What gets published is a narrower set -- see below.
+      - name: Stage artifacts (CI artifact only — all targets)
         run: |
           mkdir -p dist
           cp .pio/build/smalltv/firmware.bin               dist/smalltv-mod-firmware.bin
@@ -84,8 +83,28 @@ jobs:
           name: smalltv-mod-firmware
           path: dist/
 
+      # Only the boards this project actually runs and tests on hardware get
+      # published as downloadable images: the ESP8266 SmallTV/Ultra and SD PRO,
+      # plus the loader used to install onto them.
+      #
+      # The ESP32-C2 and NM-TV-154 targets build fine and stay in the tree, but
+      # nobody here owns one to verify a flash on, and shipping an untested
+      # image for a board nobody has booted is how devices get bricked -- this
+      # fleet has already lost two units to a bad image. They remain available
+      # as the CI artifact above and buildable from source (docs -> Building).
+      # Owner decision 2026-09-15, after four such assets were attached
+      # automatically to v1.0.0-kitt26 and had to be deleted by hand.
+      - name: Stage release assets (tested boards only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p release
+          cp dist/smalltv-mod-firmware.bin        release/
+          cp dist/smalltv-mod-firmware-sdpro.bin  release/
+          cp dist/smalltv-mod-loader.bin          release/
+          ls -l release/
+
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: release/*
