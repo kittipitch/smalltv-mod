@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 280" width="880" height="280" role="img" aria-label="Three screen states: animated mascot before any data arrives, two percentage bars while the daemon pushes, and DAEMON OFFLINE with dimmed numbers after roughly four and a half minutes without a push.">
+  <rect width="880" height="280" rx="10" fill="#ffffff"/>
+  <style>
+    .t { font: 600 15px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #16233a; }
+    .s { font: 12.5px system-ui, sans-serif; fill: #4a5b78; }
+    .lbl { font: 600 12px system-ui, sans-serif; fill: #6b7c99; }
+    .screen { fill: #10141c; stroke: #3a4557; stroke-width: 2; }
+    .arrow { stroke: #98a9c4; stroke-width: 2; fill: none; marker-end: url(#a); }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#98a9c4"/></marker>
+  </defs>
+
+  <text class="t" x="24" y="32" style="font-size:17px">What the usage page looks like, and what each state means</text>
+
+  <!-- state 1: mascot -->
+  <rect class="screen" x="40" y="56" width="150" height="150" rx="10"/>
+  <rect x="88" y="96" width="54" height="46" rx="6" fill="#d97757"/>
+  <rect x="100" y="110" width="8" height="8" fill="#10141c"/>
+  <rect x="122" y="110" width="8" height="8" fill="#10141c"/>
+  <rect x="104" y="128" width="22" height="5" fill="#10141c"/>
+  <text x="115" y="176" text-anchor="middle" fill="#8b96a8" style="font: 12px system-ui">waiting…</text>
+  <text class="t" x="40" y="230">1 · Mascot</text>
+  <text class="s" x="40" y="252">No data since boot. Normal</text>
+  <text class="s" x="40" y="270">before the first push.</text>
+
+  <path class="arrow" d="M198 130 H 246"/>
+  <text class="lbl" x="196" y="120">first push</text>
+
+  <!-- state 2: bars -->
+  <rect class="screen" x="252" y="56" width="150" height="150" rx="10"/>
+  <text x="268" y="86" fill="#8b96a8" style="font: 11px system-ui">5h</text>
+  <text x="386" y="90" text-anchor="end" fill="#ffffff" style="font: 700 26px system-ui">12%</text>
+  <rect x="268" y="98" width="118" height="10" rx="5" fill="#2b3444"/>
+  <rect x="268" y="98" width="26" height="10" rx="5" fill="#2e9367"/>
+  <text x="268" y="126" fill="#8b96a8" style="font: 11px system-ui">Resets in 2h 14m</text>
+  <text x="268" y="152" fill="#8b96a8" style="font: 11px system-ui">7d</text>
+  <text x="386" y="156" text-anchor="end" fill="#ffffff" style="font: 700 26px system-ui">76%</text>
+  <rect x="268" y="164" width="118" height="10" rx="5" fill="#2b3444"/>
+  <rect x="268" y="164" width="90" height="10" rx="5" fill="#e8a33d"/>
+  <text class="t" x="252" y="230">2 · Stats — it works</text>
+  <text class="s" x="252" y="252">Appears within ~30 s of</text>
+  <text class="s" x="252" y="270">starting the daemon.</text>
+
+  <path class="arrow" d="M410 130 H 458"/>
+  <text class="lbl" x="404" y="120">no push for ~4.5 min</text>
+
+  <!-- state 3: daemon offline -->
+  <rect class="screen" x="464" y="56" width="150" height="150" rx="10"/>
+  <text x="480" y="86" fill="#5a6474" style="font: 11px system-ui">5h</text>
+  <text x="598" y="90" text-anchor="end" fill="#6b7688" style="font: 700 26px system-ui">12%</text>
+  <rect x="480" y="98" width="118" height="10" rx="5" fill="#232a36"/>
+  <rect x="480" y="98" width="26" height="10" rx="5" fill="#2c5f4c"/>
+  <text x="480" y="152" fill="#c96b6b" style="font: 700 13px system-ui">DAEMON OFFLINE</text>
+  <text x="480" y="172" fill="#5a6474" style="font: 11px system-ui">last reading 6m ago</text>
+  <text class="t" x="464" y="230">3 · Daemon offline</text>
+  <text class="s" x="464" y="252">PC asleep or daemon stopped.</text>
+  <text class="s" x="464" y="270">Old numbers kept, dimmed.</text>
+
+  <rect x="646" y="56" width="210" height="150" rx="8" fill="#f4f7fc" stroke="#c9d6ea" stroke-width="1.5"/>
+  <text class="t" x="666" y="84">Stuck on state 1?</text>
+  <text class="s" x="666" y="108">· daemon not running</text>
+  <text class="s" x="666" y="128">· no Claude token (log has no</text>
+  <text class="s" x="666" y="146">  `5h=` line)</text>
+  <text class="s" x="666" y="166">· wrong push target</text>
+  <text class="s" x="666" y="186">· Mode is Carousel, so the page</text>
+  <text class="s" x="666" y="200">  is only shown part of the time</text>
+</svg>

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" role="img" aria-label="Six steps: create a project, enable the Calendar API, create a service account with no roles, download the JSON key, share the calendar with the service account email, then run the daemon.">
+  <rect width="880" height="300" rx="10" fill="#ffffff"/>
+  <style>
+    .t { font: 600 15px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #16233a; }
+    .s { font: 13px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #4a5b78; }
+    .n { font: 700 13px system-ui, sans-serif; fill: #ffffff; }
+    .box { fill: #f4f7fc; stroke: #c9d6ea; stroke-width: 1.5; }
+    .hi { fill: #fff5e8; stroke: #e8a33d; stroke-width: 2; }
+    .arrow { stroke: #98a9c4; stroke-width: 2; fill: none; marker-end: url(#a); }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#98a9c4"/>
+    </marker>
+  </defs>
+
+  <text class="t" x="24" y="34" style="font-size:17px">Google side (once, ~10 minutes)</text>
+
+  <g>
+    <rect class="box" x="24" y="52" width="180" height="74" rx="8"/>
+    <circle cx="44" cy="72" r="11" fill="#3b6fd4"/><text class="n" x="40" y="77">1</text>
+    <text class="t" x="62" y="77">Project</text>
+    <text class="s" x="38" y="102">console.cloud.google.com</text>
+    <text class="s" x="38" y="118">/projectcreate</text>
+  </g>
+  <path class="arrow" d="M210 89 H 244"/>
+
+  <g>
+    <rect class="box" x="250" y="52" width="180" height="74" rx="8"/>
+    <circle cx="270" cy="72" r="11" fill="#3b6fd4"/><text class="n" x="266" y="77">2</text>
+    <text class="t" x="288" y="77">Enable Calendar API</text>
+    <text class="s" x="264" y="102">ENABLE (or MANAGE</text>
+    <text class="s" x="264" y="118">if already on)</text>
+  </g>
+  <path class="arrow" d="M436 89 H 470"/>
+
+  <g>
+    <rect class="box" x="476" y="52" width="180" height="74" rx="8"/>
+    <circle cx="496" cy="72" r="11" fill="#3b6fd4"/><text class="n" x="492" y="77">3</text>
+    <text class="t" x="514" y="77">Service account</text>
+    <text class="s" x="490" y="102">NO roles, NO users.</text>
+    <text class="s" x="490" y="118">Gives you an email.</text>
+  </g>
+  <path class="arrow" d="M662 89 H 696"/>
+
+  <g>
+    <rect class="box" x="702" y="52" width="154" height="74" rx="8"/>
+    <circle cx="722" cy="72" r="11" fill="#3b6fd4"/><text class="n" x="718" y="77">4</text>
+    <text class="t" x="740" y="77">JSON key</text>
+    <text class="s" x="716" y="102">Downloads once.</text>
+    <text class="s" x="716" y="118">chmod 600.</text>
+  </g>
+
+  <path class="arrow" d="M779 132 V 168"/>
+
+  <g>
+    <rect class="hi" x="476" y="172" width="380" height="86" rx="8"/>
+    <circle cx="500" cy="196" r="11" fill="#e8a33d"/><text class="n" x="496" y="201">5</text>
+    <text class="t" x="518" y="201">Share the calendar with that email</text>
+    <text class="s" x="494" y="224">calendar.google.com &#8594; Settings and sharing &#8594;</text>
+    <text class="s" x="494" y="242">Share with specific people &#8594; See all event details</text>
+  </g>
+
+  <path class="arrow" d="M470 215 H 436"/>
+
+  <g>
+    <rect class="box" x="250" y="172" width="180" height="86" rx="8"/>
+    <circle cx="270" cy="196" r="11" fill="#2e9367"/><text class="n" x="266" y="201">6</text>
+    <text class="t" x="288" y="201">Run the daemon</text>
+    <text class="s" x="264" y="224">--calendar --calendar-id</text>
+    <text class="s" x="264" y="242">Log: &#8220;Calendar: 3 upcoming&#8221;</text>
+  </g>
+
+  <path class="arrow" d="M244 215 H 210"/>
+  <g>
+    <rect class="box" x="24" y="172" width="180" height="86" rx="8" fill="#eef7f2" stroke="#8fd0b0"/>
+    <text class="t" x="46" y="205">Agenda page shows</text>
+    <text class="t" x="46" y="227">your next events</text>
+  </g>
+
+  <text class="s" x="24" y="284">Step 5 is the one people skip. Without it, everything looks configured and no event ever appears.</text>
+</svg>

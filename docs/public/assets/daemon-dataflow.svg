@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 340" width="880" height="340" role="img" aria-label="Your PC runs the daemon: it asks Anthropic over HTTPS how much of your plan you have used, then pushes two percentages to the SmallTV over your home WiFi every 20 seconds. The device never talks to the internet for usage.">
+  <rect width="880" height="340" rx="10" fill="#ffffff"/>
+  <style>
+    .t { font: 600 15px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #16233a; }
+    .s { font: 12.5px system-ui, sans-serif; fill: #4a5b78; }
+    .lbl { font: 600 12px system-ui, sans-serif; fill: #6b7c99; }
+    .box { fill: #f4f7fc; stroke: #c9d6ea; stroke-width: 1.5; }
+    .ok { fill: #eef7f2; stroke: #8fd0b0; stroke-width: 1.5; }
+    .arrow { stroke: #3b6fd4; stroke-width: 2.5; fill: none; marker-end: url(#b); }
+    .push { stroke: #2e9367; stroke-width: 2.5; fill: none; marker-end: url(#g); }
+    .never { stroke: #c96b6b; stroke-width: 2; fill: none; stroke-dasharray: 6 5; marker-end: url(#r); }
+  </style>
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3b6fd4"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2e9367"/></marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c96b6b"/></marker>
+  </defs>
+
+  <text class="t" x="24" y="32" style="font-size:17px">Where the numbers come from</text>
+
+  <rect class="box" x="24" y="58" width="210" height="86" rx="8"/>
+  <text class="t" x="46" y="86">Anthropic</text>
+  <text class="s" x="46" y="108">knows your plan usage</text>
+  <text class="s" x="46" y="126">(5-hour and 7-day)</text>
+
+  <path class="arrow" d="M238 90 H 330"/>
+  <text class="lbl" x="246" y="80">HTTPS, your token</text>
+  <path class="arrow" d="M330 118 H 238"/>
+  <text class="lbl" x="246" y="138">two percentages</text>
+
+  <rect class="box" x="334" y="52" width="230" height="98" rx="8"/>
+  <text class="t" x="356" y="80">Your computer</text>
+  <text class="s" x="356" y="102">clawdmeter-daemon, running</text>
+  <text class="s" x="356" y="120">in the tray / menu bar</text>
+  <text class="s" x="356" y="138">polls every 60 s</text>
+
+  <path class="push" d="M568 101 H 660"/>
+  <text class="lbl" x="574" y="91">POST /api/usage</text>
+  <text class="lbl" x="574" y="130">every 20 s, plain HTTP</text>
+  <text class="lbl" x="574" y="148">over your home WiFi</text>
+
+  <rect class="ok" x="664" y="52" width="192" height="98" rx="8"/>
+  <text class="t" x="686" y="80">SmallTV</text>
+  <text class="s" x="686" y="102">shows the two bars</text>
+  <text class="s" x="686" y="120">smalltv-XXXX.local</text>
+  <text class="s" x="686" y="138">2.4 GHz WiFi only</text>
+
+  <path class="never" d="M760 156 V 196 H 130 V 152"/>
+  <text class="s" x="300" y="188" fill="#c96b6b">the device never reaches Anthropic itself — that is the daemon's whole job</text>
+
+  <rect class="box" x="24" y="216" width="400" height="96" rx="8"/>
+  <text class="t" x="46" y="242">push (use this)</text>
+  <text class="s" x="46" y="264">Your PC starts the connection, so it works even where</text>
+  <text class="s" x="46" y="282">the WiFi stops devices talking to each other.</text>
+  <text class="s" x="46" y="300">Device setting: Usage daemon URL = blank.</text>
+
+  <rect class="box" x="440" y="216" width="416" height="96" rx="8"/>
+  <text class="t" x="462" y="242">serve (only if you want it)</text>
+  <text class="s" x="462" y="264">The device polls your PC instead. Needs your PC's IP</text>
+  <text class="s" x="462" y="282">typed into the device, a fixed IP, and a firewall hole.</text>
+  <text class="s" x="462" y="300">Device setting: Usage daemon URL = http://&lt;pc-ip&gt;:8787/</text>
+</svg>

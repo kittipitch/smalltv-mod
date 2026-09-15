@@ -1,0 +1,171 @@
+// Settings.h — persisted configuration (LittleFS /config.json)
+//
+// Layout is segmented per feature: shared device/network fields live at the top
+// level, and each feature owns a nested settings slice (usage / radar / ...).
+// config.json mirrors this: { ..shared.., "usage":{...}, "radar":{...} }.
+// The JSON reader also still accepts the old flat layout, so a device upgrading
+// from the pre-segmentation firmware keeps its WiFi + symbols; the next save
+// rewrites it nested.
+#pragma once
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include "config.h"
+
+// A home-area airport marker (radar feature), configured in the web UI.
+struct Airport {
+  char  icao[MAX_ICAO_LEN];
+  float lat, lon;
+};
+
+// One saved WiFi station network. The device keeps up to MAX_WIFI_NETS and
+// joins the strongest visible one at boot (hidden SSIDs are tried last).
+struct WifiCred {
+  String ssid;
+  String pass;
+};
+
+// ---- Claude usage feature slice -------------------------------------------
+struct UsageSettings {
+  String   usageUrl;      // daemon HTTP endpoint, e.g. http://192.168.1.10:8787/
+  uint16_t pollSec;       // refresh period
+  bool     barGrowRight;  // false (default): bar fills left->right; true: right->left
+
+  void setDefaults();
+  void toJson(JsonObject o) const;
+  void fromJson(JsonObjectConst o);
+};
+
+// ---- Clock / night mode slice (device-wide) --------------------------------
+struct ClockSettings {
+  String   tz;            // IANA display name, e.g. "Europe/Rome" (UI round-trip)
+  String   tzPosix;       // POSIX TZ rule the device feeds SNTP
+  bool     nightEnabled;  // dim/blank on a nightly schedule
+  uint16_t nightStartMin; // minutes since local midnight (0..1439)
+  uint16_t nightEndMin;
+  uint8_t  nightLevel;    // 0..100, 0 = backlight off
+
+  void setDefaults();
+  void toJson(JsonObject o) const;
+  void fromJson(JsonObjectConst o);
+};
+
+// ---- Calendar + weather feature slice --------------------------------------
+// Calendar event data itself arrives via push (POST /api/calendar from
+// clawdmeter-daemon) — no URL/poll setting needed for it here, same as usage's
+// push path. lat/lon + pollSec are for the device-direct weather+AQI fetch.
+struct CalendarSettings {
+  float    lat;            // weather/AQ location (0,0 = not set yet)
+  float    lon;
+  // User-facing label for that location, shown as the weather page header.
+  // Needed because the device cannot reverse-geocode: the daemon does it and
+  // ships "city" in its push, so a unit with no daemon showed the literal
+  // "WEATHER" forever. The web UI already reverse-geocodes in the BROWSER for
+  // its "Use my location" button -- this stores what that lookup returned, so
+  // no device-side geocode API call is added.
+  String   place;
+  uint16_t weatherPollSec; // device-direct Open-Meteo refresh period
+  String   ids;            // comma-separated Google Calendar ID(s), daemon-read
+                            // each poll via /api/config -- see clawdmeter-daemon's
+                            // read_device_calendar_ids(). Empty = daemon falls
+                            // back to its own --calendar-id flag/auto-detect.
+  String   colorIds;       // comma-separated Google palette colorId (1-24, see
+                            // CalendarMode.cpp's kGCalPalette) per entry in `ids`,
+                            // index-aligned -- e.g. ids="a@x.com,b@y.com" +
+                            // colorIds="3,,7" means a@x.com is forced to palette
+                            // color 3, b@y.com has no override (empty slot -- use
+                            // whatever real color the daemon resolved, or the
+                            // default accent). Local/device-only: never written
+                            // back to Google, purely what this device displays.
+
+  void setDefaults();
+  void toJson(JsonObject o) const;
+  void fromJson(JsonObjectConst o);
+};
+
+// ---- Plane radar feature slice --------------------------------------------
+struct RadarSettings {
+  float    lat;           // home latitude  (0,0 = not set yet)
+  float    lon;           // home longitude
+  uint8_t  source;        // RADAR_SRC_DIRECT or RADAR_SRC_WEBHOOK
+  String   webhookUrl;    // LAN proxy base URL (when source=webhook)
+  uint16_t rangeKm;       // outer ring radius
+  uint16_t pollSec;       // refresh period
+  bool     unitsMi;       // show distances in miles instead of km
+
+  bool     showLabels;    // callsign + altitude next to each aircraft
+  bool     showVectors;   // speed/heading vector line
+  bool     showRimDots;   // aircraft beyond the ring as bearing dots on the rim
+  uint8_t  uiScale;       // marker/text size: 0 = small, 1 = medium, 2 = large
+  uint16_t minAltFt;      // hide aircraft below this altitude (ft); 0 = show all
+
+  Airport airports[MAX_AIRPORTS];
+  uint8_t airportCount;
+
+  void setDefaults();
+  void toJson(JsonObject o) const;
+  void fromJson(JsonObjectConst o);
+};
+
+// ---- Top-level settings ----------------------------------------------------
+struct Settings {
+  // --- WiFi station networks (the device joins one of these) ---
+  WifiCred wifi[MAX_WIFI_NETS];
+  uint8_t  wifiCount;
+
+  // --- Access point (config / fallback hotspot) ---
+  String apSsid;
+  String apPass;        // empty => open network
+  String hostname;      // mDNS name => http://<hostname>.local
+
+  // --- Optional source-IP filter for the daemon push endpoints (usage/
+  // calendar/weather/zai/codex/antigravity/openrouter) only. NOT a security boundary --
+  // plaintext HTTP, no auth -- just catches a daemon accidentally pointed at
+  // the wrong device. Empty (default) = accept a push from anywhere.
+  String daemonIp;
+
+  // --- Active feature ---
+  uint8_t mode;         // MODE_USAGE / MODE_RADAR / MODE_CAROUSEL / MODE_CAL_*
+
+  // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
+  uint16_t carouselSec;
+  bool carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselForecast, carouselZai, carouselCodex, carouselAntigravity, carouselOpenrouter, carouselAlbum;
+  // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather"),
+  // user-defined rotation order via the web UI's up/down arrows. Empty =
+  // use the compiled-in kModes[] order (default, backward compatible).
+  // Ids not present in this string, or present but no longer compiled in,
+  // are appended in their kModes[] order -- see rebuildCarouselOrder() in
+  // main.cpp -- so a firmware update adding/removing a mode never hides it.
+  String carouselOrder;
+
+  // --- Shared HTTP / display ---
+  uint16_t httpTimeout; // ms
+  uint8_t  brightness;        // 0..100 %
+  bool     autoBrightness;    // use LDR on A0
+  bool     backlightInverted; // active-low backlight
+  uint8_t  rotation;          // 0..3 screen orientation
+
+  // --- Device-wide color correction (applied at the display driver level,
+  // so it affects every mode — usage/radar/clock/boot screens alike) ---
+  uint8_t  toneR;    // 0..100 red gain,   100 = normal
+  uint8_t  toneG;    // 0..100 green gain, 100 = normal
+  uint8_t  toneB;    // 0..100 blue gain,  100 = normal (lower = warmer)
+  uint8_t  toneSat;  // 0..200 saturation, 100 = normal, >100 = boosted
+
+  // --- Feature slices ---
+  UsageSettings    usage;
+  RadarSettings    radar;
+  ClockSettings    clock;
+  CalendarSettings calendar;
+
+  void setDefaults();
+};
+
+// Persistence
+bool settingsBegin();                       // mount LittleFS
+bool loadSettings(Settings& s);             // false => defaults applied
+bool saveSettings(const Settings& s);
+void factoryReset(Settings& s);             // wipe file + defaults
+
+// JSON <-> struct. `includeSecrets=false` masks passwords for the web API.
+void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets);
+void settingsApplyJson(Settings& s, JsonObjectConst root); // partial update allowed

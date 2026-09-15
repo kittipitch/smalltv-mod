@@ -1,0 +1,91 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# The release-attach step needs write access to create/update the release asset.
+permissions:
+  contents: write
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO
+        # PINNED <6.2, not --upgrade: platformio 6.2.0 (released 2026-09-07)
+        # pulls tool-scons 4.41101.0 (SCons 4.11), which removed
+        # SCons.Tool.FortranCommon; the espressif32 platform's builder scripts
+        # import it, so every env targeting espressif32 (smalltv_c2) died with
+        # "ModuleNotFoundError: No module named 'SCons.Tool.FortranCommon'".
+        # 6.1.19 + tool-scons 4.40801.0 (SCons 4.8.1) is the known-good pair --
+        # it is what has been building this repo all along. Revisit when a
+        # platformio release fixes the espressif32 builders under SCons 4.11.
+        run: pip install "platformio>=6.1,<6.2"
+
+      # SDPRO_CS_GND is a raw hardware fact (panel CS tied to GND on this
+      # board) and must only ever be tested in board_esp8266.h/config.h --
+      # everywhere else tests a named BOARD_* capability macro instead (see
+      # board_esp8266.h's own comment for why: OtaUpdate.cpp once had two
+      # separate #ifdef SDPRO_CS_GND blocks for two unrelated reasons that
+      # sat next to each other looking like the same cruft). This catches a
+      # future PR reintroducing a raw SDPRO_CS_GND check anywhere else.
+      - name: Guard against scattered SDPRO_CS_GND checks
+        run: |
+          hits=$(grep -rnE '#\s*if(n?def)?[^/]*\bSDPRO_CS_GND\b|\bdefined\(\s*SDPRO_CS_GND\s*\)' src/ \
+            --exclude=board_esp8266.h --exclude=config.h || true)
+          if [ -n "$hits" ]; then
+            echo "SDPRO_CS_GND must only be tested in board_esp8266.h/config.h -- found elsewhere:"
+            echo "$hits"
+            exit 1
+          fi
+
+      # smalltv/smalltv_sdpro are each ONE build per device (radar
+      # out, TLS in) -- the separate "_slim" (TLS-off) envs were retired
+      # ("we dont want to maintain more than one version per device").
+      - name: Build firmware (all targets)
+        run: pio run -e smalltv -e smalltv_sdpro -e smalltv_c2 -e smalltv_esp32 -e smalltv_loader
+
+      # One app image per target (web-UI OTA + GitHub self-update), the merged
+      # factory images for first-time USB flashing of the ESP32 boards, and the
+      # minimal loader used to install onto a SmallTV-ultra.
+      - name: Stage artifacts
+        run: |
+          mkdir -p dist
+          cp .pio/build/smalltv/firmware.bin               dist/smalltv-mod-firmware.bin
+          cp .pio/build/smalltv_sdpro/firmware.bin         dist/smalltv-mod-firmware-sdpro.bin
+          cp .pio/build/smalltv_c2/firmware.bin            dist/smalltv-mod-firmware-c2.bin
+          cp .pio/build/smalltv_c2/firmware.factory.bin    dist/smalltv-mod-firmware-c2.factory.bin
+          cp .pio/build/smalltv_esp32/firmware.bin         dist/smalltv-mod-firmware-esp32.bin
+          cp .pio/build/smalltv_esp32/firmware.factory.bin dist/smalltv-mod-firmware-esp32.factory.bin
+          cp .pio/build/smalltv_loader/firmware.bin        dist/smalltv-mod-loader.bin
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smalltv-mod-firmware
+          path: dist/
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
