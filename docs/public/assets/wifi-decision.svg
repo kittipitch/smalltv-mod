@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 420" width="880" height="420" role="img" aria-label="Decision tree: if the router has a 2.4 GHz SSID, just join it. Otherwise use a phone hotspot on 2.4 GHz, a Mac with an Ethernet or iPhone-USB uplink sharing to Wi-Fi, an Ubuntu laptop hosting a NetworkManager hotspot, or a USB Wi-Fi dongle.">
+  <rect width="880" height="420" rx="10" fill="#ffffff"/>
+  <style>
+    .t { font: 600 15px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #16233a; }
+    .s { font: 12.5px system-ui, -apple-system, "Segoe UI", sans-serif; fill: #4a5b78; }
+    .q { font: 600 15px system-ui, sans-serif; fill: #16233a; }
+    .box { fill: #f4f7fc; stroke: #c9d6ea; stroke-width: 1.5; }
+    .good { fill: #eef7f2; stroke: #8fd0b0; stroke-width: 1.5; }
+    .warn { fill: #fff5e8; stroke: #e8a33d; stroke-width: 1.5; }
+    .arrow { stroke: #98a9c4; stroke-width: 2; fill: none; marker-end: url(#a); }
+    .lbl { font: 600 12px system-ui, sans-serif; fill: #6b7c99; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#98a9c4"/>
+    </marker>
+  </defs>
+
+  <text class="t" x="24" y="32" style="font-size:17px">The device needs 2.4 GHz. Where does it come from?</text>
+
+  <rect class="box" x="300" y="50" width="280" height="52" rx="8"/>
+  <text class="q" x="322" y="72">Does your router publish</text>
+  <text class="q" x="322" y="91">a 2.4 GHz SSID you can join?</text>
+
+  <path class="arrow" d="M300 76 H 200 V 132"/>
+  <text class="lbl" x="228" y="68">yes</text>
+  <rect class="good" x="60" y="136" width="280" height="66" rx="8"/>
+  <text class="t" x="82" y="162">Just join it — done</text>
+  <text class="s" x="82" y="184">Band steering? Give the 2.4 GHz radio its own name.</text>
+
+  <path class="arrow" d="M580 76 H 690 V 132"/>
+  <text class="lbl" x="616" y="68">no / not reachable</text>
+  <rect class="box" x="540" y="136" width="300" height="52" rx="8"/>
+  <text class="q" x="562" y="158">Have a phone you can spare?</text>
+  <text class="s" x="562" y="177">Hotspot forced to 2.4 GHz — shortest path</text>
+
+  <path class="arrow" d="M690 190 V 226"/>
+  <text class="lbl" x="700" y="212">no</text>
+
+  <rect class="box" x="24" y="230" width="250" height="120" rx="8"/>
+  <text class="t" x="46" y="256">macOS laptop</text>
+  <text class="s" x="46" y="278">Wi-Fi cannot be both in and out.</text>
+  <text class="s" x="46" y="296">Uplink must be Ethernet, a dock,</text>
+  <text class="s" x="46" y="314">or iPhone over USB.</text>
+  <text class="s" x="46" y="336">Then share to Wi-Fi, channel 1/6/11.</text>
+
+  <rect class="box" x="292" y="230" width="250" height="120" rx="8"/>
+  <text class="t" x="314" y="256">Ubuntu laptop</text>
+  <text class="s" x="314" y="278">nmcli hotspot: band bg, ch 6,</text>
+  <text class="s" x="314" y="296">WPA2-PSK, pmf 1.</text>
+  <text class="s" x="314" y="314">One card = you leave your own</text>
+  <text class="s" x="314" y="336">Wi-Fi network while it runs.</text>
+
+  <rect class="warn" x="560" y="230" width="280" height="120" rx="8"/>
+  <text class="t" x="582" y="256">Doing this often?</text>
+  <text class="s" x="582" y="278">A cheap USB Wi-Fi dongle hosts</text>
+  <text class="s" x="582" y="296">2.4 GHz while your built-in card</text>
+  <text class="s" x="582" y="314">stays on 5 GHz. No restrictions,</text>
+  <text class="s" x="582" y="336">no channel sharing.</text>
+
+  <rect class="good" x="24" y="366" width="816" height="36" rx="8"/>
+  <text class="s" x="46" y="389">Whatever you pick: 2.4 GHz &#183; WPA2-PSK &#183; AES/CCMP &#183; PMF off or optional &#183; passphrase 8+ characters &#183; SSID visible</text>
+</svg>
