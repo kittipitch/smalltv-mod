@@ -35,6 +35,7 @@ bool usageFresh(uint32_t withinMs) {
 static void usageFilter(JsonDocument& f) {
   f["s"] = true; f["sr"] = true; f["w"] = true;
   f["wr"] = true; f["st"] = true; f["ok"] = true;
+  f["resetCredits"] = true; f["resetCreditExpireMins"] = true;
 }
 
 static bool applyUsageDoc(UsageData& d, JsonDocument& doc) {
@@ -49,6 +50,20 @@ static bool applyUsageDoc(UsageData& d, JsonDocument& doc) {
   d.sessionResetMin = doc["sr"] | 0;
   d.weeklyResetMin  = doc["wr"] | 0;
   strlcpy(d.status, doc["st"] | "", sizeof(d.status));
+
+  // Assigned UNCONDITIONALLY, so an absent key clears the flag rather than
+  // leaving the previous value standing. Every accepted payload is a full
+  // snapshot (the parser above already rejects one without "s"), so "absent"
+  // is authoritative: it is how the daemon says the credit is gone -- claimed,
+  // or past its date. CodexMode's equivalent (CalendarClient.cpp:305-312) sets
+  // its has* flag only inside `if (present)` and never clears it, so a unit
+  // there keeps drawing the last count until it reboots; that has gone
+  // unnoticed only because a Codex credit has never actually hit zero on the
+  // shelf. Do not copy that shape here (04-pending.md carries it as a Codex fix).
+  d.hasResetCredits          = doc["resetCredits"].is<int>();
+  d.resetCredits             = doc["resetCredits"] | 0;
+  d.hasResetCreditExpireMins = doc["resetCreditExpireMins"].is<int>();
+  d.resetCreditExpireMins    = doc["resetCreditExpireMins"] | 0;
 
   d.valid = true;
   d.error = false;

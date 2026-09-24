@@ -144,6 +144,77 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
   gfx->print(line);
 }
 
+// Urgency bands for a reset credit's remaining days. Mirrored from barColor()'s
+// green/yellow/orange/red scale but in the opposite direction, since fewer days
+// left = more urgent while a fuller bar = more used. Deliberately the same four
+// colors, so a glance reads the same way on either page.
+static uint16_t creditColor(int days) {
+  if (days < 3)  return C_RED;
+  if (days < 7)  return C_ACCENT;
+  if (days < 14) return C_YELLOW;
+  return C_UGREEN;
+}
+
+// Free reset credits, drawn in the 7d card's dead space -- the gap between the
+// label row (top+12, ends ~top+28) and the bar (top+52). Verbatim copy of
+// CodexMode.cpp's drawCodexResetSuffix() so both quota pages render the same
+// shape from the same two numbers; kept as a copy rather than hoisted to a
+// shared header because these palettes are per-file #define copies by
+// convention (OpenRouterMode.cpp does the same), and touching zero Codex lines
+// keeps this flash's audit surface to one file with no Codex regression path.
+//
+// Format: "N" when N credits are available but no expiry is known, "N·Dd" when
+// one is -- e.g. "1·28d" = 1 reset available, soonest expiring in ~28 days.
+// The count stays C_DIM (neutral fact) and only the day segment takes the
+// urgency color, so the eye reads the count as fact and the days as the thing
+// worth a glance. Blank when there are none.
+//
+// Always drawn, never gated on `full`, so a data-only push still updates it.
+// Clears its own fixed-width budget with an explicit fillRect (rather than this
+// file's usual padded-opaque-string trick) because two differently-colored
+// segments cannot share one opaque background print.
+//
+// Right-edge check: the card's size5 percentage is right-aligned and at most 3
+// chars ("99%" or "N/A"), so its cursor sits at x=128. This form's worst case
+// "99·99d" is 6 chars = 72px from x=22, ending at x≈118. Clear in every state.
+static void drawResetSuffix(Arduino_GFX* gfx, int top, bool hasCredits,
+                            int credits, bool hasExpire, int expireMins) {
+  const int x = 8 + 14, y = top + 34, w = 8 * 12, h = 16;
+  gfx->fillRect(x, y, w, h, C_PANEL);
+  if (!(hasCredits && credits > 0)) return;
+
+  gfx->setTextSize(2);
+  if (hasExpire) {
+    int days = (int)((expireMins / 1440.0f) + 0.5f);
+    if (days < 0) days = 0;
+    char cnt[6], suffix[6];
+    snprintf(cnt, sizeof(cnt), "%d", constrain(credits, 0, 99));
+    snprintf(suffix, sizeof(suffix), "%dd", min(days, 99));
+    gfx->setTextColor(C_DIM, C_PANEL);
+    gfx->setCursor(x, y);
+    gfx->print(cnt);
+    // Hand-drawn middle dot: this display's built-in font is the classic CP437
+    // table, where the U+00B7 byte draws a box-drawing glyph, and a real "."
+    // sits on the baseline rather than mid-height. Centered on both axes --
+    // the font's 8-row cell only inks rows 0-6 (row 7 is the descender
+    // spacer), so at size 2 the ink spans y..y+14 and true center is y+7, not
+    // y+h/2 (h is the clearing rect's height, taller than the glyph's ink).
+    const int DOT = 3;
+    int dotX = x + gfxTextW(cnt, 2) + 2;
+    gfx->fillRect(dotX, y + 7 - DOT / 2, DOT, DOT, C_DIM);
+    int sx = dotX + DOT + 2;
+    gfx->setTextColor(creditColor(days), C_PANEL);
+    gfx->setCursor(sx, y);
+    gfx->print(suffix);
+  } else {
+    char v[8];
+    snprintf(v, sizeof(v), "%d", constrain(credits, 0, 99));
+    gfx->setTextColor(C_UGREEN, C_PANEL);
+    gfx->setCursor(x, y);
+    gfx->print(v);
+  }
+}
+
 // Stats screen: mascot header + 5h/7d meters. `full` clears and redraws
 // everything (first entry / wake / mode switch / mascot-idle exit); a
 // steady-state data update (`full=false`) skips the full-screen clear and the
@@ -196,6 +267,13 @@ static void drawUsage(const UsageData& u, bool full, bool growRight, bool stale 
   int rw = u.weeklyResetMin  - ageMin; if (rw < 0) rw = 0;
   drawMeter(gfx, 50,  "5h", u.sessionPct, r5, full, growRight);
   drawMeter(gfx, 138, "7d", u.weeklyPct,  rw, full, growRight, u.hasWeekly);
+  // Same card and offset as the Codex page. Deliberately NOT aged by ageMin
+  // like the countdowns above: this one is drawn at day granularity, and the
+  // daemon stops sending the keys the moment the credit's date passes, so a
+  // stale page can only over-report by one push interval -- not by the hours
+  // that made aging necessary for the "Resets in" rows.
+  drawResetSuffix(gfx, 138, u.hasResetCredits, u.resetCredits,
+                  u.hasResetCreditExpireMins, u.resetCreditExpireMins);
 }
 
 // Idle animation: full-screen mascot, diffed cell-by-cell for a flicker-free draw.
