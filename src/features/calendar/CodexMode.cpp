@@ -259,6 +259,11 @@ static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits,
   gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
   int left = (have && hasExpire) ? constrain(expireMins, 0, WEEK_MINS) : 0;
   int fw = (have && hasExpire) ? (int)((long)bw * left / WEEK_MINS) : 0;
+  // Floor a surviving credit at 3px. bw=196 over a 10080-minute scale means the
+  // fill only reaches 1px at ~52 minutes left, so without this the final hour of
+  // a credit's life draws an EMPTY track -- which on this page reads as "no
+  // credit", the exact opposite of "spend it now". A sliver says "almost gone".
+  if (left > 0 && fw < 3) fw = 3;
   int fx = growRight ? (bx + bw - fw) : bx;
   if (fw > 0) {
     int days = (int)((expireMins / 1440.0f) + 0.5f);
@@ -333,12 +338,25 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   // slot 1 is drawn. The branch is on hasPct5h alone, which is stable for an
   // account (a plan tier, not a fluctuating reading), so it cannot flip on a
   // data-only render the way a `has*` flag going false->true could.
+  // The branch DOES flip once in normal life even though the plan never
+  // changes: g_codex is zero-initialized, so the first render after boot or a
+  // mode switch has hasPct5h=false and draws the Reset card, and on a Plus
+  // account the next push swaps in the 5h meter. Both cards only paint their
+  // panel background under `full`, which that first render may already have
+  // spent -- so without this the swap would leave the old card's "Reset" label
+  // and "Expires in" line ghosting under the new meter. Force a card-local full
+  // repaint whenever the kind of card in slot 1 changes.
+  static int8_t s_lastCard1 = -1;            // -1 none yet, 0 reset card, 1 5h meter
+  int8_t card1 = c.hasPct5h ? 1 : 0;
+  bool card1Full = full || (s_lastCard1 != card1);
+  s_lastCard1 = card1;
   if (c.hasPct5h) {
-    drawCodexMeter(gfx, 50, "5h", c.hasPct5h, c.pct5h, c.hasR5h, c.r5h, full, growRight);
+    drawCodexMeter(gfx, 50, "5h", c.hasPct5h, c.pct5h, c.hasR5h, c.r5h,
+                   card1Full, growRight);
   } else {
     drawCodexResetCard(gfx, 50, c.hasResetCredits, c.resetCredits,
                        c.hasResetCreditExpireMins, c.resetCreditExpireMins,
-                       full, growRight);
+                       card1Full, growRight);
   }
   drawCodexMeter(gfx, 138, "7d", c.hasPctWeek, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
   // Suffix only when the credit is NOT already the headline of card 1 --
