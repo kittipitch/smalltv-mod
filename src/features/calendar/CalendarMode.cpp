@@ -16,6 +16,15 @@ CalendarForecastMode g_calendarForecastMode;
 #define C_UGREEN  0x7C6B   // sage green 0x788c5d — AQI good band
 #define C_DIM     0xB574   // secondary/placeholder text, warm grey
 #define C_SKY     0x5D9C   // muted blue — cloud/rain icon strokes
+#define C_MOON    0xDF3E   // pale moonlight ~#dce6f0 — crescent, clear sky after dark
+#define C_SUN     0xFE66   // sun yellow ~#ffcc33 — the clear-sky icon. Was C_ACCENT
+                            // (terra-cotta #d97757), which reads as a RED sun at any hour
+                            // and was wrong day or night (owner, 2026-09-27: "the sun
+                            // shudnt be red day or night ... shud be yellowish"). Same
+                            // yellow family as C_STORM below and not meaningfully
+                            // distinguishable from it by eye; that is acceptable because
+                            // exactly one weather icon is on screen at a time, so the two
+                            // never appear together to be told apart.
 #define C_STORM   0xFE01   // bright caution-sign yellow (~#FFC107) — thunderstorm icon. WMO
                             // codes >=95 are all thunderstorm variants, no separate "plain
                             // storm" category exists; rain (51-82) already stays C_SKY/blue,
@@ -273,11 +282,19 @@ static void formatDayRange(int sm, int sd, int em, int ed, char* out, size_t n) 
   }
 }
 
-static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat) {
+// `night` swaps the clear-sky sun for a crescent moon. Defaulted false so the
+// 3-day forecast rows keep calling this unchanged: is_day describes RIGHT NOW,
+// so putting a moon on tomorrow's row would be asserting something the API
+// never said. Only the current-conditions call passes it.
+static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat,
+                            bool night = false) {
   const uint8_t* mask;
   uint16_t color;
   switch (cat) {
-    case WX_CLEAR: mask = kWxIconClear; color = C_ACCENT; break;
+    case WX_CLEAR:
+      if (night) { mask = kWxIconMoon;  color = C_MOON; }
+      else       { mask = kWxIconClear; color = C_SUN;  }
+      break;
     case WX_CLOUD: mask = kWxIconCloud; color = C_SKY;    break;
     case WX_FOG:   mask = kWxIconFog;   color = C_DIM;    break;
     case WX_RAIN:  mask = kWxIconRain;  color = C_SKY;    break;
@@ -493,7 +510,10 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w, const Settin
 
   bool wxOk = w.hasTemp || w.hasPrecip;
   WxCat cat = wxCategory(w.weatherCode, w.hasWeatherCode);
-  drawWeatherIcon(gfx, 120, 54, wxOk ? cat : WX_UNKNOWN);
+  // Night only when the daemon actually said so. hasIsDay false (older daemon,
+  // or the forecast half of the fetch failed) keeps the sun.
+  drawWeatherIcon(gfx, 120, 54, wxOk ? cat : WX_UNKNOWN,
+                  w.hasIsDay && !w.isDay);
 
   // Current-condition word + raw WMO code, centered directly under the icon
   // (icon bottom is cy=54 + WX_ICON_SIZE/2=20 = 74). Independent of rain

@@ -97,6 +97,15 @@ struct WeatherData {
 
   float    uvIndex;      // Open-Meteo "current.uv_index", same forecast call as tempC
   bool     hasUvIndex;
+  // Open-Meteo "current.is_day" (1 day / 0 night), same forecast call again -- the
+  // API's own daylight answer for this lat/lon, not a guess from the clock. Only
+  // effect is swapping the clear-sky sun for a crescent moon after dark. Absent
+  // (hasIsDay false) means the daemon predates this key or the fetch half failed:
+  // draw the sun, exactly as before. Do NOT substitute an hour-of-day heuristic --
+  // that is invented sunrise data, the same class of mistake as the fabricated
+  // "7d 0%" card and the weather page reading 0 as a measurement.
+  bool     isDay;
+  bool     hasIsDay;
 
   float    pm25;
   int      aqi;         // US AQI, Open-Meteo's own 24h-rolling-average-derived value
@@ -131,6 +140,7 @@ struct WeatherData {
     tempC = 0; precipPct = 0; hasTemp = hasPrecip = false;
     weatherCode = 0; hasWeatherCode = false;
     uvIndex = 0; hasUvIndex = false;
+    isDay = true; hasIsDay = false;
     pm25 = 0; aqi = 0; aqiNow = 0; hasPm25 = hasAqi = hasAqiNow = false;
     city[0] = 0; hasCity = false;
     fcCount = 0; hasForecast = false;

@@ -208,6 +208,76 @@ static void drawCodexResetSuffix(Arduino_GFX* gfx, int top, bool hasCredits,
   }
 }
 
+// Card 1 for accounts with NO short window (Codex Pro: `secondary` is null on
+// every poll -- confirmed live 2026-09-27, primary windowDurationMins=10080 and
+// secondary null, so the "5h" card had nothing to show and drew "--" forever).
+// Plus accounts do have the 5h window and keep the meter; see drawCodexPage.
+//
+// This restores the free-reset-credit card that used to own a card slot before
+// the 5h/7d pair took both (the firmware history holding it was wiped, so this
+// is rebuilt from the spec recorded in 04-pending.md: label "Reset", the credit
+// count as the value, and a bar that is TIME LEFT BEFORE THE CREDIT EXPIRES
+// UNUSED on a 7-day scale -- full = plenty of runway, empty = about to lapse --
+// NOT a percent-used bar like every other card here. The point of the card is
+// to spend the credit before it evaporates).
+//
+// The label is drawn UNCONDITIONALLY and opaque, AFTER the value, not gated on
+// `full` like the other cards' labels. That is a deliberate fix, not an
+// inconsistency: an advisor caught this exact card clipping its label to
+// "Free rese" before a flash, because the label was gated on `full` while the
+// value redrew on every data push and overwrote it (04-pending.md:1411).
+static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits,
+                               int credits, bool hasExpire, int expireMins,
+                               bool full, bool growRight) {
+  const int x = 8, w = 224, h = 82;
+  if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+
+  bool have = hasCredits && credits > 0;
+  char v[8];
+  if (have) snprintf(v, sizeof(v), "%2d", min(credits, 99));
+  else      strlcpy(v, " --", sizeof(v));
+  uint8_t sz = gfxFitSize(v, 150, 5);
+  int vw = gfxTextW(v, sz);
+  gfx->setTextSize(sz);
+  gfx->setTextColor(C_WHITE, C_PANEL);
+  gfx->setCursor(x + w - vw - 14, top + 10);
+  gfx->print(v);
+
+  // After the value, always, opaque -- see the clipping bug above.
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 12);
+  gfx->print("Reset");
+
+  // 7-day scale, and it DRAINS: a credit with a week or more left fills the
+  // track, one about to lapse leaves it nearly empty. Same creditColor() bands
+  // the suffix uses, so the colour means the same thing on both renderings of
+  // this number (the suffix is suppressed while this card is up, so the two
+  // never contradict each other on screen).
+  const int WEEK_MINS = 7 * 1440;
+  int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
+  gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
+  int left = (have && hasExpire) ? constrain(expireMins, 0, WEEK_MINS) : 0;
+  int fw = (have && hasExpire) ? (int)((long)bw * left / WEEK_MINS) : 0;
+  int fx = growRight ? (bx + bw - fw) : bx;
+  if (fw > 0) {
+    int days = (int)((expireMins / 1440.0f) + 0.5f);
+    gfx->fillRoundRect(fx, by, fw, bh, bh / 2, creditColor(days));
+  }
+
+  char rs[16], line[12 + sizeof(rs) + 1];
+  if (have && hasExpire) fmtReset(expireMins, rs, sizeof(rs));
+  else                   strlcpy(rs, "--", sizeof(rs));
+  // "Expires in", not "Resets in": this countdown is the credit lapsing
+  // unused, the opposite meaning from a quota window rolling over. Padded to
+  // fmtReset's longest output (7 chars) so a shorter string self-clears.
+  snprintf(line, sizeof(line), "Expires in %-7s", rs);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 66);
+  gfx->print(line);
+}
+
 static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
@@ -249,10 +319,35 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   // separate tick with needFullRender_ already spent), the flag flipping
   // false->true would skip the panel-fill/label (both gated on `full`)
   // forever until the next genuine structural redraw.
-  drawCodexMeter(gfx, 50, "5h", c.hasPct5h, c.pct5h, c.hasR5h, c.r5h, full, growRight);
+  // Card 1 depends on the PLAN, decided by the data rather than by a setting:
+  // Codex Plus has a short (5h) window and gets the 5h meter; Codex Pro has
+  // only the weekly one (`secondary` null on every poll -- live-confirmed on
+  // this account 2026-09-27), so its 5h card could only ever draw "--". That
+  // slot goes to the free-reset-credit card instead (owner, 2026-09-27: "if
+  // there is 5h limit show it (1st card), if not replace it w/ reset count
+  // (same position), dont touch the lower card").
+  //
+  // Both branches draw a full card in the same slot, so the "always draw, let
+  // the card fall back internally" rule the comment above states is preserved
+  // -- what is conditional here is WHICH card occupies slot 1, not whether
+  // slot 1 is drawn. The branch is on hasPct5h alone, which is stable for an
+  // account (a plan tier, not a fluctuating reading), so it cannot flip on a
+  // data-only render the way a `has*` flag going false->true could.
+  if (c.hasPct5h) {
+    drawCodexMeter(gfx, 50, "5h", c.hasPct5h, c.pct5h, c.hasR5h, c.r5h, full, growRight);
+  } else {
+    drawCodexResetCard(gfx, 50, c.hasResetCredits, c.resetCredits,
+                       c.hasResetCreditExpireMins, c.resetCreditExpireMins,
+                       full, growRight);
+  }
   drawCodexMeter(gfx, 138, "7d", c.hasPctWeek, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
-  drawCodexResetSuffix(gfx, 138, c.hasResetCredits, c.resetCredits,
-                        c.hasResetCreditExpireMins, c.resetCreditExpireMins);
+  // Suffix only when the credit is NOT already the headline of card 1 --
+  // otherwise the same credit would be drawn twice on one screen. It still
+  // clears its own slot when suppressed, so switching between the two layouts
+  // cannot strand the old "N·Dd" pixels inside the 7d card.
+  drawCodexResetSuffix(gfx, 138,
+                       c.hasPct5h && c.hasResetCredits, c.resetCredits,
+                       c.hasResetCreditExpireMins, c.resetCreditExpireMins);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/ZaiMode.cpp -- per the same
