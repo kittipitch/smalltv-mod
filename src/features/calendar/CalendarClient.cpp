@@ -146,7 +146,7 @@ bool calendarApply(const String& body) {
 // from a device-direct fetch -- see CalendarClient.h for why.
 static void weatherFilter(JsonDocument& f) {
   f["ok"] = true; f["tempC"] = true; f["precipPct"] = true;
-  f["weatherCode"] = true; f["uvIndex"] = true;
+  f["weatherCode"] = true; f["uvIndex"] = true; f["isDay"] = true;
   f["pm25"] = true; f["aqi"] = true; f["aqiNow"] = true; f["city"] = true;
   // Array filter: one representative element describes which fields to
   // keep on EVERY element of "forecast", per ArduinoJson's own filter
@@ -177,6 +177,14 @@ bool weatherApply(const String& body) {
   if (gotPrecip) { g_weather.precipPct = doc["precipPct"].as<int>(); g_weather.hasPrecip = true; }
   if (gotCode)   { g_weather.weatherCode = doc["weatherCode"].as<int>(); g_weather.hasWeatherCode = true; }
   if (gotUv)     { g_weather.uvIndex = doc["uvIndex"].as<float>(); g_weather.hasUvIndex = true; }
+  // Open-Meteo sends is_day as 1/0; accept a JSON bool too in case the daemon
+  // ever normalizes it. Deliberately NOT added to the "payload carried nothing"
+  // guard above: is_day alone is not weather, and a push carrying only it should
+  // not count as a weather update.
+  if (doc["isDay"].is<int>() || doc["isDay"].is<bool>()) {
+    g_weather.isDay = doc["isDay"].as<int>() != 0;
+    g_weather.hasIsDay = true;
+  }
   if (gotPm)     { g_weather.pm25 = doc["pm25"].as<float>(); g_weather.hasPm25 = true; }
   if (gotAqi)    { g_weather.aqi = doc["aqi"].as<int>(); g_weather.hasAqi = true; }
   if (gotAqiNow) { g_weather.aqiNow = doc["aqiNow"].as<int>(); g_weather.hasAqiNow = true; }
