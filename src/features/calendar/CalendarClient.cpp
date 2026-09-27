@@ -275,10 +275,18 @@ bool zaiApply(const String& body) {
   bool gotMcp = doc["pctMcp"].is<int>();
   if (!got5h && !gotMcp) return false;
 
-  if (got5h)  { g_zai.pct5h = doc["pct5h"].as<int>(); g_zai.hasPct5h = true; }
-  if (gotMcp) { g_zai.pctMcp = doc["pctMcp"].as<int>(); g_zai.hasPctMcp = true; }
-  if (doc["r5h"].is<int>())  { g_zai.r5h = doc["r5h"].as<int>(); g_zai.hasR5h = true; }
-  if (doc["rMcp"].is<int>()) { g_zai.rMcp = doc["rMcp"].as<int>(); g_zai.hasRMcp = true; }
+  // Unconditional: a key that stops arriving clears its flag. See codexApply()
+  // for the full reasoning -- each quota push is a complete snapshot, so an
+  // absent key means the window is gone, and keeping the last value would draw
+  // a frozen reading as if it were live.
+  g_zai.hasPct5h = got5h;
+  g_zai.pct5h    = doc["pct5h"] | 0;
+  g_zai.hasPctMcp = gotMcp;
+  g_zai.pctMcp    = doc["pctMcp"] | 0;
+  g_zai.hasR5h = doc["r5h"].is<int>();
+  g_zai.r5h    = doc["r5h"] | 0;
+  g_zai.hasRMcp = doc["rMcp"].is<int>();
+  g_zai.rMcp    = doc["rMcp"] | 0;
   g_zai.valid = true;
   g_zai.lastOkMs = millis();
   return true;
@@ -306,18 +314,34 @@ bool codexApply(const String& body) {
   bool gotWeek = doc["pctWeek"].is<int>();
   if (!got5h && !gotWeek) return false;
 
-  if (got5h)   { g_codex.pct5h = doc["pct5h"].as<int>(); g_codex.hasPct5h = true; }
-  if (gotWeek) { g_codex.pctWeek = doc["pctWeek"].as<int>(); g_codex.hasPctWeek = true; }
-  if (doc["r5h"].is<int>())   { g_codex.r5h = doc["r5h"].as<int>(); g_codex.hasR5h = true; }
-  if (doc["rWeek"].is<int>()) { g_codex.rWeek = doc["rWeek"].as<int>(); g_codex.hasRWeek = true; }
-  if (doc["resetCredits"].is<int>()) {
-    g_codex.resetCredits = doc["resetCredits"].as<int>();
-    g_codex.hasResetCredits = true;
-  }
-  if (doc["resetCreditExpireMins"].is<int>()) {
-    g_codex.resetCreditExpireMins = doc["resetCreditExpireMins"].as<int>();
-    g_codex.hasResetCreditExpireMins = true;
-  }
+  // EVERY flag is assigned unconditionally, so a key that stops arriving clears
+  // its flag instead of freezing the last value on screen. Each push is a full
+  // snapshot -- poll_codex() rebuilds the payload from scratch every cycle and
+  // the guard above already rejects one carrying neither window -- so "absent"
+  // is a statement, not a gap.
+  //
+  // This was `if (present) { ...; has* = true; }` for all six and never cleared
+  // anything, which broke exactly the case the owner hits: they change ChatGPT
+  // plans often. Pro has no short window (`secondary` null), Plus does. Going
+  // Pro -> Plus worked, because a flag only ever turned ON. Going Plus -> Pro
+  // left `hasPct5h` true forever, so card 1 kept drawing a FROZEN 5h meter
+  // showing the last percentage that account ever reported, until a reboot --
+  // a stale reading presented as live, which is the one thing this project's
+  // display rules never allow. The same staleness hid in the credit fields: a
+  // credit spent or lapsed stops being sent, and the card/suffix kept claiming
+  // it existed.
+  g_codex.hasPct5h = got5h;
+  g_codex.pct5h    = doc["pct5h"] | 0;
+  g_codex.hasPctWeek = gotWeek;
+  g_codex.pctWeek    = doc["pctWeek"] | 0;
+  g_codex.hasR5h  = doc["r5h"].is<int>();
+  g_codex.r5h     = doc["r5h"] | 0;
+  g_codex.hasRWeek = doc["rWeek"].is<int>();
+  g_codex.rWeek    = doc["rWeek"] | 0;
+  g_codex.hasResetCredits = doc["resetCredits"].is<int>();
+  g_codex.resetCredits    = doc["resetCredits"] | 0;
+  g_codex.hasResetCreditExpireMins = doc["resetCreditExpireMins"].is<int>();
+  g_codex.resetCreditExpireMins    = doc["resetCreditExpireMins"] | 0;
   g_codex.valid = true;
   g_codex.lastOkMs = millis();
   return true;
@@ -345,19 +369,31 @@ bool antigravityApply(const String& body) {
   bool gotAny = doc["pctPro"].is<int>() || doc["pctFlash"].is<int>();
   if (!gotAny) return false;
 
-  if (doc["pctPro"].is<int>()) { g_antigravity.pctPro = doc["pctPro"].as<int>(); g_antigravity.hasPctPro = true; }
-  if (doc["labelPro"].is<const char*>()) {
+  // Unconditional, same rule as codexApply(): a model that disappears from the
+  // payload (agy drops a variant, or the newest Pro/Flash name changes tier)
+  // must stop being drawn, not freeze at its last percentage. The label buffers
+  // are cleared too, so a stale model NAME can never outlive its own reading --
+  // that would be the worst version of this bug, a real number under the wrong
+  // model.
+  g_antigravity.hasPctPro = doc["pctPro"].is<int>();
+  g_antigravity.pctPro    = doc["pctPro"] | 0;
+  g_antigravity.hasLabelPro = doc["labelPro"].is<const char*>();
+  if (g_antigravity.hasLabelPro)
     strlcpy(g_antigravity.labelPro, jstr(doc["labelPro"]), sizeof(g_antigravity.labelPro));
-    g_antigravity.hasLabelPro = true;
-  }
-  if (doc["rPro"].is<int>()) { g_antigravity.rPro = doc["rPro"].as<int>(); g_antigravity.hasRPro = true; }
+  else
+    g_antigravity.labelPro[0] = 0;
+  g_antigravity.hasRPro = doc["rPro"].is<int>();
+  g_antigravity.rPro    = doc["rPro"] | 0;
 
-  if (doc["pctFlash"].is<int>()) { g_antigravity.pctFlash = doc["pctFlash"].as<int>(); g_antigravity.hasPctFlash = true; }
-  if (doc["labelFlash"].is<const char*>()) {
+  g_antigravity.hasPctFlash = doc["pctFlash"].is<int>();
+  g_antigravity.pctFlash    = doc["pctFlash"] | 0;
+  g_antigravity.hasLabelFlash = doc["labelFlash"].is<const char*>();
+  if (g_antigravity.hasLabelFlash)
     strlcpy(g_antigravity.labelFlash, jstr(doc["labelFlash"]), sizeof(g_antigravity.labelFlash));
-    g_antigravity.hasLabelFlash = true;
-  }
-  if (doc["rFlash"].is<int>()) { g_antigravity.rFlash = doc["rFlash"].as<int>(); g_antigravity.hasRFlash = true; }
+  else
+    g_antigravity.labelFlash[0] = 0;
+  g_antigravity.hasRFlash = doc["rFlash"].is<int>();
+  g_antigravity.rFlash    = doc["rFlash"] | 0;
 
   g_antigravity.valid = true;
   g_antigravity.lastOkMs = millis();
@@ -392,10 +428,16 @@ bool openrouterApply(const String& body) {
   // every sibling quota parser (codex sol pre-flash audit, 2026-08-25).
   if (!gotDaily && !gotWeekly && !gotTotal) return false;
 
-  if (gotDaily) { g_openrouter.usdDaily = doc["usd_daily"].as<double>(); g_openrouter.hasUsdDaily = true; }
-  if (gotWeekly) { g_openrouter.usdWeekly = doc["usd_weekly"].as<double>(); g_openrouter.hasUsdWeekly = true; }
-  if (gotTotal) { g_openrouter.usdTotal = doc["usd_total"].as<double>(); g_openrouter.hasUsdTotal = true; }
-  if (gotFreeTier) { g_openrouter.freeTier = doc["free_tier"].as<bool>(); g_openrouter.hasFreeTier = true; }
+  // Unconditional, same rule as codexApply(): a figure the API stops returning
+  // clears, rather than freezing yesterday's spend on screen as today's.
+  g_openrouter.hasUsdDaily = gotDaily;
+  g_openrouter.usdDaily    = gotDaily ? doc["usd_daily"].as<double>() : 0.0;
+  g_openrouter.hasUsdWeekly = gotWeekly;
+  g_openrouter.usdWeekly    = gotWeekly ? doc["usd_weekly"].as<double>() : 0.0;
+  g_openrouter.hasUsdTotal = gotTotal;
+  g_openrouter.usdTotal    = gotTotal ? doc["usd_total"].as<double>() : 0.0;
+  g_openrouter.hasFreeTier = gotFreeTier;
+  g_openrouter.freeTier    = gotFreeTier && doc["free_tier"].as<bool>();
 
   g_openrouter.valid = true;
   g_openrouter.lastOkMs = millis();
