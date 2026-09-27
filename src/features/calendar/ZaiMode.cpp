@@ -126,8 +126,14 @@ static void drawZaiPage(Arduino_GFX* gfx, const ZaiData& z, bool full, bool grow
     gfx->print("Z.AI");
   }
 
-  drawZaiMeter(gfx, 50,  "5h",  z.hasPct5h,  z.pct5h,  z.hasR5h,  z.r5h,  full, growRight);
-  drawZaiMeter(gfx, 138, "MCP", z.hasPctMcp, z.pctMcp, z.hasRMcp, z.rMcp, full, growRight);
+  // The countdown is gated on the window's OWN percentage flag as well as its
+  // own: a card whose value reads "--" must not print a live "Resets in" under
+  // it, which would be a real number attached to a window we are simultaneously
+  // saying we know nothing about. Only reachable since the parsers started
+  // clearing flags independently (an absent key now clears just that key), so
+  // the two can disagree where before they were stuck together.
+  drawZaiMeter(gfx, 50,  "5h",  z.hasPct5h,  z.pct5h,  z.hasPct5h  && z.hasR5h,  z.r5h,  full, growRight);
+  drawZaiMeter(gfx, 138, "MCP", z.hasPctMcp, z.pctMcp, z.hasPctMcp && z.hasRMcp, z.rMcp, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp -- per explicit request, any

@@ -351,14 +351,14 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   bool card1Full = full || (s_lastCard1 != card1);
   s_lastCard1 = card1;
   if (c.hasPct5h) {
-    drawCodexMeter(gfx, 50, "5h", c.hasPct5h, c.pct5h, c.hasR5h, c.r5h,
+    drawCodexMeter(gfx, 50, "5h", c.hasPct5h, c.pct5h, c.hasPct5h && c.hasR5h, c.r5h,
                    card1Full, growRight);
   } else {
     drawCodexResetCard(gfx, 50, c.hasResetCredits, c.resetCredits,
                        c.hasResetCreditExpireMins, c.resetCreditExpireMins,
                        card1Full, growRight);
   }
-  drawCodexMeter(gfx, 138, "7d", c.hasPctWeek, c.pctWeek, c.hasRWeek, c.rWeek, full, growRight);
+  drawCodexMeter(gfx, 138, "7d", c.hasPctWeek, c.pctWeek, c.hasPctWeek && c.hasRWeek, c.rWeek, full, growRight);
   // Suffix only when the credit is NOT already the headline of card 1 --
   // otherwise the same credit would be drawn twice on one screen. It still
   // clears its own slot when suppressed, so switching between the two layouts
