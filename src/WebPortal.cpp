@@ -3,7 +3,11 @@
 #include "Platform.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include "webui.h"
+// webui_gz.h is generated from webui.h at build time (scripts/webui_gz.py) and
+// holds the same page gzip-compressed. webui.h itself is NOT included here any
+// more: leaving it in kept the 57,858 B uncompressed copy in the image beside
+// the 19,847 B compressed one, which is the opposite of the point.
+#include "webui_gz.h"
 #include "Net.h"
 #include "Gfx.h"
 #include "OtaUpdate.h"
@@ -99,7 +103,22 @@ static void htmlEsc(String& out, const String& in) {
 static void handleRoot() {
   server.sendHeader("Cache-Control", "no-cache");
   if (netMode() != NET_AP || server.hasArg("full")) {
-    server.send_P(200, "text/html", WEBUI_HTML);
+    // Served pre-compressed from flash: the page is emitted verbatim (no
+    // placeholder substitution anywhere), which is the only reason gzipping a
+    // stored page is safe -- there is nothing to patch into the bytes.
+    // src/webui_gz.h is regenerated from src/webui.h on every build by
+    // scripts/webui_gz.py, so the two cannot drift.
+    //
+    // The 4-argument send_P is REQUIRED: gzip data contains 0x00 bytes, and the
+    // 3-argument overload measures the body with strlen_P and would truncate at
+    // the first one.
+    //
+    // No uncompressed fallback exists, so this does not check Accept-Encoding.
+    // Every browser sends it; the one caller that would not is `curl` without
+    // --compressed, and nothing in this project fetches "/" by script (the
+    // fleet tooling talks to /api/*).
+    server.sendHeader("Content-Encoding", "gzip");
+    server.send_P(200, "text/html", (PGM_P)WEBUI_GZ, WEBUI_GZ_LEN);
     return;
   }
   // Reserve above the scan worst case once (6 rows of 32-char SSIDs): growing
