@@ -193,9 +193,9 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
   // always drawn unconditionally (not gated on has*) -- same
   // both-cards-always-drawn fix already applied to CodexMode.cpp.
   drawAntigravityMeter(gfx, 50,  a.hasLabelPro ? a.labelPro : "Pro",
-                        a.hasPctPro, a.pctPro, a.hasRPro, a.rPro, full, growRight);
+                        a.hasPctPro, a.pctPro, a.hasPctPro && a.hasRPro, a.rPro, full, growRight);
   drawAntigravityMeter(gfx, 138, a.hasLabelFlash ? a.labelFlash : "Flash",
-                        a.hasPctFlash, a.pctFlash, a.hasRFlash, a.rFlash, full, growRight);
+                        a.hasPctFlash, a.pctFlash, a.hasPctFlash && a.hasRFlash, a.rFlash, full, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/CodexMode.cpp -- per the same
