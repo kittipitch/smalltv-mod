@@ -65,3 +65,8 @@ firmware_backup/
 
 # Local fleet list for scripts/fleet_audit.sh -- never publish device names
 scripts/fleet_units.local
+
+# Generated at build time by scripts/webui_gz.py from src/webui.h.
+# Untracked AND ignored on purpose: git_sha.py marks the image dirty on any
+# porcelain output, which would make every build fail preflash_check.sh.
+src/webui_gz.h
