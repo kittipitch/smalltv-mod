@@ -32,6 +32,12 @@ GLYPHS = {
     'Fog':   'wi-fog',
 }
 
+def fetch_glyph(glyph):
+    url = f'{BASE}/{glyph}.svg'
+    req = urllib.request.Request(url, headers={'User-Agent': 'smalltv-mod-icon-gen'})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return r.read()
+
 def fetch(name):
     url = f'{BASE}/{GLYPHS[name]}.svg'
     req = urllib.request.Request(url, headers={'User-Agent': 'smalltv-mod-icon-gen'})
@@ -83,11 +89,7 @@ def block(cat, rows):
     return 'static const uint8_t kWxIcon%s[200] PROGMEM = {\n%s\n};\n' % (cat, carray(rows))
 
 MOON_NOTE = """
-// Crescent moon -- NOT from erikflowers/weather-icons, which has no night
-// variants for a clear night. Generated geometrically (filled r=18 disc minus
-// an offset r=17.5 disc, opening left). Same 40x40 1-bit layout and the same
-// byte-wide PROGMEM path as the six above, so it inherits the
-// LoadStoreError-safe byte access described in the header comment.
+// %s
 //
 // Used ONLY for the current-conditions icon when the daemon reports night
 // (isDay=0) and the sky is clear -- never on the 3-day forecast rows.
@@ -102,7 +104,7 @@ def current_moon_rows():
     bs = [int(b, 16) for b in re.findall(r'0x([0-9A-Fa-f]{2})', m.group(1))]
     return [''.join(f'{b:08b}' for b in bs[r*5:(r+1)*5]) for r in range(40)]
 
-def emit(rows_by_cat, moon_rows, box):
+def emit(rows_by_cat, moon_rows, box, moon_src=None):
     hdr_comment = """// WeatherIcons.h -- auto-generated 1-bit PROGMEM masks, 40x40.
 // Source: erikflowers/weather-icons (SIL OFL 1.1), rasterized then thresholded
 // to a monochrome mask. Drawn via Arduino_GFX::drawBitmap(x,y,mask,w,h,color) --
@@ -121,7 +123,18 @@ def emit(rows_by_cat, moon_rows, box):
     parts = [hdr_comment]
     for cat in ['Clear', 'Cloud', 'Rain', 'Snow', 'Storm', 'Fog']:
         parts.append(block(cat, rows_by_cat[cat]))
-    parts.append(MOON_NOTE % carray(moon_rows))
+    if moon_src:
+        note = ("Crescent moon from erikflowers/weather-icons (%s), rendered by the\n"
+                "// same pipeline as the six above (ink in a %dx%d box, centered) --\n"
+                "// replaces the original geometric crescent so the whole\n"
+                "// current-conditions set shares one collection. Same 1-bit PROGMEM\n"
+                "// byte path." % (moon_src, box, box))
+    else:
+        note = ("Crescent moon, generated geometrically (filled r=18 disc minus an\n"
+                "// offset r=17.5 disc, opening left) -- erikflowers/weather-icons has\n"
+                "// no night variants. Same 40x40 1-bit layout and byte-wide PROGMEM\n"
+                "// path as the six above.")
+    parts.append(MOON_NOTE % (note, carray(moon_rows)))
     with open(OUT, 'w') as f:
         f.write(chr(10).join(parts))
 
@@ -129,9 +142,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--box', type=int, default=36)
     ap.add_argument('--verify-28', action='store_true')
+    ap.add_argument('--moon', metavar='GLYPH', default=None,
+                    help='replace the geometric moon with a collection glyph '
+                         '(e.g. wi-night-clear) at the same box')
     args = ap.parse_args()
 
-    moon = current_moon_rows()
+    if args.moon:
+        moon = rows_large(fetch_glyph(args.moon), args.box)
+        moon_src = args.moon
+    else:
+        moon = current_moon_rows()
+        moon_src = None
     rows = {}
     for cat in GLYPHS:
         rows[cat] = rows_direct40(fetch(cat)) if args.verify_28 else rows_large(fetch(cat), args.box)
@@ -151,7 +172,7 @@ def main():
             sys.exit(1)
         return
 
-    emit(rows, moon, args.box)
+    emit(rows, moon, args.box, moon_src)
     print('wrote', os.path.normpath(OUT))
 
 if __name__ == '__main__':
