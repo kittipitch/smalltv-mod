@@ -70,3 +70,12 @@ scripts/fleet_units.local
 # Untracked AND ignored on purpose: git_sha.py marks the image dirty on any
 # porcelain output, which would make every build fail preflash_check.sh.
 src/webui_gz.h
+
+# Fetched on demand by scripts/wx_icons.py (SIL OFL 1.1, upstream erikflowers/weather-icons).
+# Not vendored: the script documents the one-line curl that retrieves it.
+scripts/weathericons.ttf
+
+# Agent tooling session artifacts (autoharness locks). Never project content, and
+# an untracked file here makes git_sha.py stamp the image dirty, which makes
+# preflash_check.sh refuse to flash.
+.claude/
