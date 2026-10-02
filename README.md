@@ -15,6 +15,14 @@
 >   events shown as a compact date range ("Aug 10-11") instead of looking
 >   like a same-day event — current weather/rain%/condition, 6-band AQI +
 >   PM2.5, city name)
+> - **Weather icons know day from night**, and say when it's heavy: a clear sky
+>   draws a **crescent moon** after dark instead of the sun (from the icon
+>   font's own `wi-night-clear` glyph, sized to sit with its neighbours rather
+>   than loom over them), and the condition line gains a **`+`** for the heavy
+>   end of each group — `Rain+`, `Storm+` — so a violent downpour no longer
+>   renders identically to a light drizzle. Night comes from the weather API's
+>   own `is_day` for your coordinates, not from the daemon host's clock, and a
+>   daemon that doesn't send it simply keeps the sun
 > - **Plane radar**, live (not disabled — see below), and it now falls back to
 >   the weather-location setting if its own home lat/lon isn't set, so you
 >   don't have to enter your location twice

@@ -60,9 +60,51 @@ src/                    shared core (device, net, web, settings)
   features/
     usage/              UsageMode + UsageClient + Mascot
     radar/              RadarMode + RadarClient
+    calendar/           CalendarMode + CalendarClient + WeatherIcons.h
 partitions/             ESP32 flash layout (shared by both ESP32 targets)
+scripts/wx_icons.py     regenerates the weather icon masks from the icon font
 n8n/                    webhook contract and importable workflows
 ```
+
+## Weather icons
+
+`src/features/calendar/WeatherIcons.h` holds seven 1-bit 40x40 PROGMEM masks,
+rasterized from [erikflowers/weather-icons](https://github.com/erikflowers/weather-icons)
+(SIL OFL 1.1). The font is **not** vendored; `scripts/wx_icons.py` documents the
+one-line `curl` that fetches it.
+
+**Regenerate with the script — never draw a mask by hand.** One mask serves both
+weather pages: current conditions and every 3-day forecast row call the same
+`drawWeatherIcon()`, which does a single `drawBitmap()` with no scaling path, so
+whatever you commit is what both pages show at the same size.
+
+```sh
+python3 scripts/wx_icons.py audit          # ink coverage of every committed mask
+python3 scripts/wx_icons.py preview f02e   # ASCII render of one codepoint
+python3 scripts/wx_icons.py bytes   f02e   # PROGMEM rows to paste
+```
+
+Four things have to match the existing set, and each one is here because
+skipping it produced an icon that looked wrong only once it was on a screen:
+
+1. **Outline, not a filled silhouette.** Every mask is line art. A solid shape
+   reads as a painted blob beside the others.
+2. **~3px strokes, 16.5-24.7% ink** (264-395 of 1600 px). The font's own strokes
+   land ~5px at this size, which is why `outline40()` fills the glyph to a
+   silhouette and then keeps a 3px boundary band instead of using the raster
+   directly — and why the committed masks cannot be reproduced by plain
+   thresholding.
+3. **36 px wide at x 2-37** by default.
+4. **Check the glyph's native size against `wi-day-sunny` before trusting (3).**
+   Normalizing every mask to 36 px throws away the font's own relative sizing.
+   That is harmless for most of the set — Clear, Cloud, Rain, Snow and Storm are
+   all 97-100% of the sun natively — but `wi-night-clear` is only 67% of it, so
+   normalizing blew the moon up ~1.5x and it loomed over the cloud on hardware.
+   It ships at 30x30 instead. `wi-fog` is the mirror case, natively the widest
+   glyph at 116%, so it renders slightly narrower than drawn; left as-is.
+
+Height may vary with the shape (a cloud is wider than tall); width and that
+x 2-37 span should not, unless check 4 says otherwise.
 
 ## ESP32 toolchain notes
 
