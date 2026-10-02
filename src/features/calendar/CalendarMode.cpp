@@ -201,6 +201,33 @@ static const char* wxLabel(WxCat cat) {
   }
 }
 
+// True for the WMO codes whose own description says heavy/violent/dense. The
+// six categories above collapse intensity completely -- 51 (light drizzle) and
+// 82 (violent rain showers) are both just "Rain", drawn with the same icon --
+// so a downpour looked identical to a drizzle (owner, 2026-10-03). This adds a
+// single "+" to the label for the heavy end.
+//
+// A "+" and not a word: the condition row is shared with the UV segment and has
+// ~10px of slack. Worst case today is "Cloudy (99)" (11 chars, 132px at size 2)
+// plus " UVI 20" (84px) = 216px against a 226px budget, so "Heavy rain (82)"
+// (180px) overflows, and even renaming Storm to "T-storm" (144px) exceeds it by
+// 2px. "Storm+ (99)" is 11 chars -- exactly the existing worst case, so the
+// layout arithmetic above stays true.
+//
+// Codes, with the meanings they carry in Open-Meteo's WMO table (verified
+// against its own docs, not assumed): 55 dense drizzle, 57 dense freezing
+// drizzle, 65 heavy rain, 67 heavy freezing rain, 75 heavy snow fall, 82
+// violent rain showers, 86 heavy snow showers, 97 heavy thunderstorm, 99
+// thunderstorm with heavy hail.
+static bool wxHeavy(int code, bool has) {
+  if (!has) return false;
+  switch (code) {
+    case 55: case 57: case 65: case 67:
+    case 75: case 82: case 86: case 97: case 99: return true;
+    default: return false;
+  }
+}
+
 static WxCat wxCategory(int code, bool has) {
   if (!has) return WX_UNKNOWN;
   if (code == 0 || code == 1) return WX_CLEAR;
@@ -521,8 +548,9 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w, const Settin
   // combination from Open-Meteo's separate weather_code/
   // precipitation_probability fields, not a bug.
   char cond[20] = "--";
-  if (wxOk && w.hasWeatherCode) snprintf(cond, sizeof(cond), "%s (%d)", wxLabel(cat), w.weatherCode);
-  else if (wxOk) strlcpy(cond, wxLabel(cat), sizeof(cond));
+  const char* heavy = wxHeavy(w.weatherCode, w.hasWeatherCode) ? "+" : "";
+  if (wxOk && w.hasWeatherCode) snprintf(cond, sizeof(cond), "%s%s (%d)", wxLabel(cat), heavy, w.weatherCode);
+  else if (wxOk) snprintf(cond, sizeof(cond), "%s%s", wxLabel(cat), heavy);
 
   // UVI shares the condition row (same size 2, centered) rather than the
   // temp row or a row of its own -- the page is already floor-to-ceiling
