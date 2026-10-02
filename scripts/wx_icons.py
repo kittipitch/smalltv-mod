@@ -63,7 +63,7 @@ def m2img(m):
     for y in range(len(m)):
         for x in range(len(m[0])): p[x,y]=255 if m[y][x] else 0
     return im
-def to40(img,pad=1,thr=128):
+def to40(img,pad=2,thr=128):
     box=40-2*pad;sc=min(box/img.width,box/img.height)
     g=img.resize((max(1,round(img.width*sc)),max(1,round(img.height*sc))),Image.LANCZOS)
     c=Image.new('L',(40,40),0);c.paste(g,((40-g.width)//2,(40-g.height)//2));px=c.load()
