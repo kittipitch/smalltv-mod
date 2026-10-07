@@ -1,5 +1,29 @@
 # Calendar weekday labels — 2026-10-08
 
+## Final left-grouped header (supersedes the layouts below)
+
+Both independent visual readers, Fable and Astra, preferred the weekday before
+absolute dates/ranges, hidden for Today/Tomorrow. The owner approved two-letter
+codes: Mo Tu We Th Fr Sa Su. Full Tomorrow is retained; single-day times remain
+right-aligned and all-day/multi-day events still omit time. Both agenda pages
+share this renderer. The two-letter prefix plus 6px gap and longest 13-character
+range use 186px of the 200px header width. Date colors and titles are unchanged.
+
+Tomorrow uses the existing synchronized local clock and mktime calendar
+normalization, including month/year/leap/DST boundaries. Without a valid clock,
+the absolute date and weekday remain visible. Multi-day ranges always win over
+relative labels. The existing weekday validation helper is reused unchanged.
+
+Verification: native source-derived pixel previews and exact position/label
+checks pass, along with year rollover, leap day, spring/fall DST and no-clock
+renderer checks. Standalone page rotation regression passes. Ultra validation
+build passes. Independent mandatory preflash review and clean published rebuild
+are the final gates before the authorized home-only update; office is untouched.
+FW_VERSION remains 1.0.0-kitt27. No release or version bump is requested.
+
+Trap: time must not reserve the old rightmost weekday column after moving the
+weekday left. Its original right margin is restored, keeping Tomorrow readable.
+
 ## Centered weekday follow-up
 
 The owner saw `Today R` on the home unit and requested more separation. The
