@@ -2,6 +2,7 @@
 #include <Arduino_GFX_Library.h>
 #include "Gfx.h"
 #include "CalendarClient.h"
+#include "CalendarWeekday.h"
 #include "Clock.h"
 #include "WeatherIcons.h"
 
@@ -433,6 +434,15 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     gfx->setTextColor(eventColor, C_PANEL);
     gfx->setCursor(x + 12, top + 8);
     gfx->print(dateBuf);
+    int dateEndX = x + 12 + (int)strlen(dateBuf) * 12;
+    const char weekday = calendarStartWeekday(ev.start);
+    if (weekday) {
+      // The range's START weekday follows the date. A half-glyph gap keeps
+      // "Oct 10-11 S" plus HH:MM within the 200px header at text size 2.
+      gfx->setCursor(dateEndX + 6, top + 8);
+      gfx->print(weekday);
+      dateEndX += 18;
+    }
 
     // Time, right-aligned on the same row. Multi-day events show the START
     // time same as single-day ones (still useful -- "when does it begin" --
@@ -444,7 +454,6 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     char timeBuf[8];
     if (ev.allDay) strlcpy(timeBuf, "All day", sizeof(timeBuf));
     else extractTimeHHMM(ev.start, timeBuf, sizeof(timeBuf));
-    int dateEndX = x + 12 + (int)strlen(dateBuf) * 12;
     int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
     if (timeX - dateEndX >= 12) {  // 12px min gap (one glyph width) so range and time never look adjacent/run-together
       gfx->setTextColor(eventColor, C_PANEL);
