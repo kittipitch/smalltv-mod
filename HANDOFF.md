@@ -1,5 +1,23 @@
 # Calendar weekday labels — 2026-10-08
 
+## Centered weekday follow-up
+
+The owner saw `Today R` on the home unit and requested more separation. The
+weekday now occupies the horizontal center of a 240px header (glyph x=114,
+12px advance); date remains left and time remains right. Long ranges that
+extend into the center keep the weekday 6px after the date to avoid overlap.
+The time collision check accounts for the weekday's actual new position.
+
+The native preview's position assertion failed before implementation and
+passed afterward. The resulting two-page PNG was visually inspected: Today,
+single dates and their weekdays have clear spacing; multi-day ranges fit;
+single-day HH:MM remains visible. Source-based rotation regression still passes.
+This is a follow-up to home deployment `7916aed`; the same home-only rollout
+authorization applies. Office 6a12 remains unchanged.
+Ultra validation build passed, and independent follow-up audit found no source
+blocker or new ESP8266/PROGMEM/partition hazard. Clean published rebuild and
+preflash gate are required before the home update.
+
 ## Standalone agenda rotation follow-up
 
 Selecting `Next event` now alternates populated pages 1 and 2 at the same

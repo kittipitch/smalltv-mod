@@ -437,10 +437,13 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     int dateEndX = x + 12 + (int)strlen(dateBuf) * 12;
     const char weekday = calendarStartWeekday(ev.start);
     if (weekday) {
-      // The range's START weekday follows the date with a half-glyph gap.
-      gfx->setCursor(dateEndX + 6, top + 8);
+      // Center the weekday on the screen; long ranges keep a gap after the
+      // date instead of drawing over it. Size-2 glyph advance is 12px.
+      int weekdayX = x + w / 2 - 6;
+      if (weekdayX < dateEndX + 6) weekdayX = dateEndX + 6;
+      gfx->setCursor(weekdayX, top + 8);
       gfx->print(weekday);
-      dateEndX += 18;
+      dateEndX = weekdayX + 12;
     }
 
     // Only single-day timed events need a time label. All-day and multi-day

@@ -155,7 +155,7 @@ assert labels == ["Today", "R", "14:30", "Today meeting", "Oct 9", "F", "All-day
 for page, date in (("0", "Today"), ("0", "Oct 9"), ("0", "Oct 12-14"),
                    ("1", "Oct 31-Nov 2"), ("1", "Nov 4"), ("1", "Today")):
     i = next(i for i, r in enumerate(rows) if r[0] == page and r[4] == date)
-    assert int(rows[i+1][1]) == int(rows[i][1]) + len(date)*12 + 6
+    assert int(rows[i+1][1]) == max(114, int(rows[i][1]) + len(date)*12 + 6)
 assert all(int(r[1]) + len(r[4])*6*int(r[3]) <= 220 for r in rows)
 contact = Image.new("RGB", (480, 240))
 for page in (1, 2):
