@@ -46,6 +46,8 @@ cpp = r'''
 #include <iostream>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <cassert>
 #define pgm_read_byte(p) (*(p))
 struct String : std::string {
   using std::string::string;
@@ -60,7 +62,9 @@ struct String : std::string {
   int toInt() const { return std::atoi(c_str()); }
 };
 struct Settings { struct { String ids, colorIds; } calendar; };
-bool clockNow(tm& now) { now = {}; now.tm_year = 126; now.tm_mon = 9; now.tm_mday = 8; return true; }
+tm previewNow = {};
+bool previewClockReady = true;
+bool clockNow(tm& now) { now = previewNow; return previewClockReady; }
 class Arduino_GFX {
 public:
   std::vector<uint16_t> pixels = std::vector<uint16_t>(240*240);
@@ -121,13 +125,14 @@ void event(CalendarEvent& c,int index,const char* title,const char* start,const 
 }
 int main(int argc,char** argv) {
   (void)argc;
+  previewNow.tm_year=126; previewNow.tm_mon=9; previewNow.tm_mday=8;
   CalendarEvent c={}; c.valid=true; c.count=6;
   event(c,0,"Today meeting","2026-10-08T14:30:00","2026-10-08T15:30:00",false);
-  event(c,1,"All-day holiday","2026-10-09","2026-10-10",true);
+  event(c,1,"Tomorrow meeting","2026-10-09T09:30:00","2026-10-09T10:30:00",false);
   event(c,2,"Same-month trip","2026-10-12","2026-10-15",true);
   event(c,3,"Cross-month trip","2026-10-31T10:00:00","2026-11-02T17:00:00",false);
   event(c,4,"Future meeting","2026-11-04T09:30:00","2026-11-04T10:30:00",false);
-  event(c,5,"Today all-day","2026-10-08","2026-10-09",true);
+  event(c,5,"Future all-day","2026-11-05","2026-11-06",true);
   Settings s;
   for(int page=0;page<2;++page) {
     Arduino_GFX gfx; gfx.page=page;
@@ -139,6 +144,25 @@ int main(int argc,char** argv) {
       image.write(rgb,3);
     }
   }
+  // Exercise the actual renderer at calendar/DST boundaries and without RTC.
+  const char* dates[] = {"2027-01-01", "2028-02-29", "2026-03-09", "2026-11-02"};
+  const int years[] = {126,128,126,126}, months[] = {11,1,2,10}, days[] = {31,28,8,1};
+  setenv("TZ","America/New_York",1); tzset();
+  for(int i=0;i<4;++i) {
+    previewNow={}; previewNow.tm_year=years[i]; previewNow.tm_mon=months[i]; previewNow.tm_mday=days[i];
+    CalendarEvent edge={}; edge.valid=true; edge.count=1;
+    event(edge,0,"Boundary",dates[i],dates[i],false);
+    std::ostringstream trace; auto* old=std::cout.rdbuf(trace.rdbuf());
+    Arduino_GFX gfx; drawAgendaPage(&gfx,s,edge,0); std::cout.rdbuf(old);
+    assert(trace.str().find("\tTomorrow\n")!=std::string::npos);
+  }
+  previewClockReady=false;
+  CalendarEvent edge={}; edge.valid=true; edge.count=1;
+  event(edge,0,"No clock","2026-10-08","2026-10-09",true);
+  std::ostringstream unsynced; auto* old=std::cout.rdbuf(unsynced.rdbuf());
+  Arduino_GFX gfx; drawAgendaPage(&gfx,s,edge,0); std::cout.rdbuf(old);
+  assert(unsynced.str().find("\tTh\n")!=std::string::npos);
+  assert(unsynced.str().find("\tToday\n")==std::string::npos);
 }
 '''
 host_source = output / "preview.cpp"
@@ -149,13 +173,16 @@ trace = subprocess.run([str(binary), str(output)], text=True, capture_output=Tru
 (output / "trace.tsv").write_text(trace)
 rows = [line.split("\t", 4) for line in trace.splitlines()]
 labels = [r[4] for r in rows]
-assert labels == ["Today", "R", "14:30", "Today meeting", "Oct 9", "F", "All-day holiday",
-                  "Oct 12-14", "M", "Same-month trip", "Oct 31-Nov 2", "S", "Cross-month trip",
-                  "Nov 4", "W", "09:30", "Future meeting", "Today", "R", "Today all-day"], labels
-for page, date in (("0", "Today"), ("0", "Oct 9"), ("0", "Oct 12-14"),
-                   ("1", "Oct 31-Nov 2"), ("1", "Nov 4"), ("1", "Today")):
+assert labels == ["Today", "14:30", "Today meeting", "Tomorrow", "09:30", "Tomorrow meeting",
+                  "Mo", "Oct 12-14", "Same-month trip", "Sa", "Oct 31-Nov 2", "Cross-month trip",
+                  "We", "Nov 4", "09:30", "Future meeting", "Th", "Nov 5", "Future all-day"], labels
+for page, date in (("0", "Oct 12-14"), ("1", "Oct 31-Nov 2"),
+                   ("1", "Nov 4"), ("1", "Nov 5")):
     i = next(i for i, r in enumerate(rows) if r[0] == page and r[4] == date)
-    assert int(rows[i+1][1]) == max(114, int(rows[i][1]) + len(date)*12 + 6)
+    assert int(rows[i-1][1]) == 20 and int(rows[i][1]) == 50
+for row in rows:
+    if row[4] in ("14:30", "09:30"):
+        assert int(row[1]) == 160
 assert all(int(r[1]) + len(r[4])*6*int(r[3]) <= 220 for r in rows)
 contact = Image.new("RGB", (480, 240))
 for page in (1, 2):
@@ -165,5 +192,5 @@ for page in (1, 2):
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
 with report.open("a") as file:
     file.write("PASS: exact print trace; six date/weekday pairs; two HH:MM labels only; no row overflows.\n")
-    file.write("PASS: Today timed, Today all-day, future all-day, same-month all-day range (exclusive end), cross-month timed range, future timed.\n")
+    file.write("PASS: Today/Tomorrow without weekday, future all-day, same-month all-day range (exclusive end), cross-month timed range, future timed.\n")
 print(output)

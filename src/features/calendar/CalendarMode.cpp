@@ -380,6 +380,15 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
 
   struct tm now;
   bool haveNow = clockNow(now);
+  struct tm tomorrow = {};
+  bool haveTomorrow = false;
+  if (haveNow) {
+    tomorrow = now;
+    tomorrow.tm_mday++;
+    tomorrow.tm_hour = 12;
+    tomorrow.tm_isdst = -1;
+    haveTomorrow = mktime(&tomorrow) != (time_t)-1;
+  }
 
   const int top0 = 6, gap = 6, bottom = 234;
   const int h = (bottom - top0 - gap * (n - 1)) / n;
@@ -400,8 +409,8 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     uint16_t overrideColor;
     if (calOverrideColor(s, ev.calId, &overrideColor)) eventColor = overrideColor;
 
-    // Date, left-aligned: "Today" when the event's START matches the device's
-    // local date, else "Mon DD". When the event spans multiple LOCAL calendar
+    // Date, left-aligned: "Today" or "Tomorrow" for the device's local date,
+    // otherwise a weekday prefix and "Mon DD". Multiple LOCAL calendar
     // days (start and effective-last-day differ on Y/M/D), the label becomes
     // a compact range "Mon DD-DD" instead. An event that merely starts today
     // but runs into tomorrow is NOT shown as "Today" -- that would imply a
@@ -416,6 +425,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     // the adjustment is applied (the stored `end` field stays raw, see
     // CalendarData.h), done once here at render time.
     char dateBuf[16];
+    bool relativeDay = false;
     bool multiDay = false;
     int sy = 0, sm = 0, sd = 0, ey = 0, em = 0, ed = 0;
     if (ev.hasEnd && parseIsoDate(ev.start, sy, sm, sd) && parseIsoDate(ev.end, ey, em, ed)) {
@@ -427,24 +437,29 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       }
     }
     if (!multiDay) {
-      if (haveNow && isSameLocalDay(ev.start, now)) strlcpy(dateBuf, "Today", sizeof(dateBuf));
-      else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
+      if (haveNow && isSameLocalDay(ev.start, now)) {
+        strlcpy(dateBuf, "Today", sizeof(dateBuf));
+        relativeDay = true;
+      } else if (haveTomorrow && isSameLocalDay(ev.start, tomorrow)) {
+        strlcpy(dateBuf, "Tomorrow", sizeof(dateBuf));
+        relativeDay = true;
+      } else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
     }
     gfx->setTextSize(2);
     gfx->setTextColor(eventColor, C_PANEL);
-    gfx->setCursor(x + 12, top + 8);
-    gfx->print(dateBuf);
-    int dateEndX = x + 12 + (int)strlen(dateBuf) * 12;
+    int dateX = x + 12;
     const char weekday = calendarStartWeekday(ev.start);
-    if (weekday) {
-      // Center the weekday on the screen; long ranges keep a gap after the
-      // date instead of drawing over it. Size-2 glyph advance is 12px.
-      int weekdayX = x + w / 2 - 6;
-      if (weekdayX < dateEndX + 6) weekdayX = dateEndX + 6;
-      gfx->setCursor(weekdayX, top + 8);
-      gfx->print(weekday);
-      dateEndX = weekdayX + 12;
+    if (weekday && !relativeDay) {
+      static const char* const labels[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
+      static const char codes[] = "UMTWRFS";
+      const char* day = strchr(codes, weekday);
+      gfx->setCursor(dateX, top + 8);
+      gfx->print(labels[day - codes]);
+      dateX += 30;  // Two 12px glyphs plus a 6px separator.
     }
+    gfx->setCursor(dateX, top + 8);
+    gfx->print(dateBuf);
+    int dateEndX = dateX + (int)strlen(dateBuf) * 12;
 
     // Only single-day timed events need a time label. All-day and multi-day
     // events leave the date and weekday alone on this row.
