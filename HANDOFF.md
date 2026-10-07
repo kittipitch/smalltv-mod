@@ -24,6 +24,14 @@ FW_VERSION remains 1.0.0-kitt27. No release or version bump is requested.
 Trap: time must not reserve the old rightmost weekday column after moving the
 weekday left. Its original right margin is restored, keeping Tomorrow readable.
 
+Independent final preflash audit returned conditional GO with no firmware
+defect or ESP8266/PROGMEM/partition hazard. Renderer SHA256 is
+`4bdf6198f9f36abdb34c018add366408794687aa029e025251d932ed20f9738e`;
+the reviewed firmware delta against home `7916aed` is unchanged. The auditor
+independently reran the preview, rotation, weekday and tomorrow-boundary checks.
+Its minor preview-report count correction is incorporated here. Final clean
+published rebuild/stamp/digest/live identity checks remain required before OTA.
+
 ## Centered weekday follow-up
 
 The owner saw `Today R` on the home unit and requested more separation. The
