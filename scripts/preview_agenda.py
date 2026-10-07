@@ -191,6 +191,6 @@ for page in (1, 2):
     contact.paste(image, ((page-1)*240, 0))
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
 with report.open("a") as file:
-    file.write("PASS: exact print trace; six date/weekday pairs; two HH:MM labels only; no row overflows.\n")
+    file.write("PASS: exact print trace; four weekday/date pairs and two relative dates; three HH:MM labels; no row overflows.\n")
     file.write("PASS: Today/Tomorrow without weekday, future all-day, same-month all-day range (exclusive end), cross-month timed range, future timed.\n")
 print(output)
