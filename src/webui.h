@@ -106,7 +106,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="openrouter">OpenRouter quota</option>
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
-    <option value="agenda2">Next event (page 2)</option>
     <option value="weather">Weather + air quality</option>
     <option value="forecast">3-day forecast</option>
     <option value="carousel">Carousel (rotate modes)</option>
@@ -500,7 +499,7 @@ var TZMAP={
  'Australia/Perth':'AWST-8','Australia/Sydney':'AEST-10AEDT,M10.1.0,M4.1.0/3',
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
-var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','agenda2','weather','forecast','zai','codex','antigravity','openrouter']};
+var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','antigravity','openrouter']};
 var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity','carouselOpenrouter']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
@@ -549,16 +548,15 @@ function rebuildModeSelect(){
  // Mode dropdown and the carousel checklist show the same feature set, so
  // build the dropdown from the SAME source (carOrder) instead of a second
  // hand-maintained list that silently desyncs (Pictures/forecast were both
- // missing before). agenda2 is nested under agenda in the checklist and
- // pinned right after it by the device (rebuildCarouselOrder()), so it is
- // injected there; carousel goes last (rotator, not a feature).
+ // missing before). Page 2 stays in the carousel checklist only; standalone
+ // agenda already rotates both pages. Carousel goes last.
  var sel=$('mode'); if(!sel)return;
- var ids=[]; (carOrder||[]).forEach(function(id){ids.push(id); if(id==='agenda')ids.push('agenda2');});
+ var ids=(carOrder||[]).slice();
  ids.push('carousel');
- var keep=sel.value;
+ var keep=sel.value==='agenda2'?'agenda':sel.value;
  sel.innerHTML=ids.map(function(id){
   var m=null; CAR_MODES.forEach(function(x){if(x.id===id)m=x});
-  var lbl=m?m.label:(id==='agenda2'?'Next event (page 2)':'Carousel (rotate modes)');
+  var lbl=m?m.label:'Carousel (rotate modes)';
   return '<option value="'+id+'">'+lbl+'</option>';
  }).join('');
  var has=[].some.call(sel.options,function(o){return o.value===keep});
@@ -607,8 +605,8 @@ function modeChanged(){if(!$('mode'))return;
  // The rotation interval applies to the carousel AND Pictures-only mode (each
  // photo dwells carouselSec -- main.cpp's albumSecsToNextSlot), so the row
  // shows for both, with a label that says which thing it times. The feature
- // checklist is carousel-only -- hidden in Pictures mode. Calendar-only pages
- // are static -- nothing rotates -- so the row hides there too.
+ // checklist is carousel-only. Standalone agenda uses the same per-page
+ // interval; other standalone calendar modes are static.
  var m=$('mode').value, rot=(m==='carousel'||m==='album'||m==='agenda');
  $('carouselRow').style.display=rot?'block':'none';
  $('carouselList').style.display=(m==='carousel')?'block':'none';

@@ -3,7 +3,7 @@
 //
 // Originally one auto-rotating "calendar" mode with 3 internal timed
 // sub-pages (agenda/weather/AQI); split into independent DisplayModes (own
-// carousel checkbox each, own Mode-dropdown entry each) per explicit
+// carousel checkbox each; agenda page 2 has no standalone dropdown entry) per explicit
 // request — "dont subpage it make each page independent" — then weather
 // and AQI were lumped back into one combined page ("make agenda separate
 // page and lump weather and pm together") since they're closely related
@@ -13,7 +13,7 @@
 // See CalendarClient.h for the two independent data paths (calendar
 // pushed by the daemon, weather/AQI also pushed by the daemon).
 //
-// Agenda's 2nd page (CalendarAgendaMode2) follows the same independent-mode
+// In the carousel, agenda's 2nd page (CalendarAgendaMode2) follows the independent-mode
 // pattern rather than an internal auto-flip timer within one mode -- tried
 // that first (a page_/PAGE_DWELL_MS timer inside CalendarAgendaMode) but it
 // needed PAGE_DWELL_MS < the carousel's own per-mode dwell (carouselSec) to
@@ -25,6 +25,8 @@
 // when there aren't more than 3 events (carouselHas() in main.cpp), same
 // "skip when there's nothing to show" pattern the z.ai and codex modes
 // already use.
+// Standalone "Next event" alternates both populated agenda pages at carouselSec,
+// independently of the carousel's page-2 checkbox (see activeMode in main.cpp).
 #pragma once
 #include "Mode.h"
 #include "config.h"
