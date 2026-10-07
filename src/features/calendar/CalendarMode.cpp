@@ -437,28 +437,23 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     int dateEndX = x + 12 + (int)strlen(dateBuf) * 12;
     const char weekday = calendarStartWeekday(ev.start);
     if (weekday) {
-      // The range's START weekday follows the date. A half-glyph gap keeps
-      // "Oct 10-11 S" plus HH:MM within the 200px header at text size 2.
+      // The range's START weekday follows the date with a half-glyph gap.
       gfx->setCursor(dateEndX + 6, top + 8);
       gfx->print(weekday);
       dateEndX += 18;
     }
 
-    // Time, right-aligned on the same row. Multi-day events show the START
-    // time same as single-day ones (still useful -- "when does it begin" --
-    // and there's usually room since the range label is short); only
-    // skipped if it would visually collide with the date/range text on the
-    // left, which the width check below catches for both cases alike (worst
-    // case cross-month range "Aug 31-Sep 30" leaves no room, so its time is
-    // correctly dropped, but the common same-month range "Aug 10-11" does).
-    char timeBuf[8];
-    if (ev.allDay) strlcpy(timeBuf, "All day", sizeof(timeBuf));
-    else extractTimeHHMM(ev.start, timeBuf, sizeof(timeBuf));
-    int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
-    if (timeX - dateEndX >= 12) {  // 12px min gap (one glyph width) so range and time never look adjacent/run-together
-      gfx->setTextColor(eventColor, C_PANEL);
-      gfx->setCursor(timeX, top + 8);
-      gfx->print(timeBuf);
+    // Only single-day timed events need a time label. All-day and multi-day
+    // events leave the date and weekday alone on this row.
+    if (!ev.allDay && !multiDay) {
+      char timeBuf[8];
+      extractTimeHHMM(ev.start, timeBuf, sizeof(timeBuf));
+      int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
+      if (timeX - dateEndX >= 12) {  // Keep one glyph width between date and time.
+        gfx->setTextColor(eventColor, C_PANEL);
+        gfx->setCursor(timeX, top + 8);
+        gfx->print(timeBuf);
+      }
     }
 
     // Card usable width is w-24 (12px margin each side) = 200px; size-2 glyphs
