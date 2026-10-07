@@ -1,5 +1,24 @@
 # Calendar weekday labels — 2026-10-08
 
+## Weekday/date gap follow-up
+
+Owner approved Astra's spacing recommendation: widen the weekday/date gap
+from 6px to 10px, without punctuation. Date moves from x50 to x54; time stays
+x160. The longest valid range ends at x210, within the x220 card margin.
+Today/Tomorrow and their times remain unchanged. Both pages share the change.
+The source-derived preview position check requires x54. Native visual check,
+independent flash audit and clean published Ultra build are required before
+the authorized home-only update. No version bump or office update is requested.
+
+Validation complete: both-page native preview and exact position/label/edge
+checks passed, rotation regression passed, and Ultra validation build passed.
+Independent preflash audit returned conditional GO with no source/platform
+finding. Reviewed renderer SHA256:
+`e0910a6a62a790a58bba95665737130dd817cf663e76369e5920da342d7dd308`.
+The one-constant firmware change adds no PROGMEM, allocation or partition risk.
+Final clean published build/stamp/size/digest and live post-OTA checks remain
+required; physical confirmation follows the owner-authorized home update.
+
 ## Final left-grouped header (supersedes the layouts below)
 
 Both independent visual readers, Fable and Astra, preferred the weekday before

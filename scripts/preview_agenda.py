@@ -179,7 +179,7 @@ assert labels == ["Today", "14:30", "Today meeting", "Tomorrow", "09:30", "Tomor
 for page, date in (("0", "Oct 12-14"), ("1", "Oct 31-Nov 2"),
                    ("1", "Nov 4"), ("1", "Nov 5")):
     i = next(i for i, r in enumerate(rows) if r[0] == page and r[4] == date)
-    assert int(rows[i-1][1]) == 20 and int(rows[i][1]) == 50
+    assert int(rows[i-1][1]) == 20 and int(rows[i][1]) == 54
 for row in rows:
     if row[4] in ("14:30", "09:30"):
         assert int(row[1]) == 160
