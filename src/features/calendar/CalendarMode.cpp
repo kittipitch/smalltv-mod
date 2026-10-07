@@ -455,7 +455,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       const char* day = strchr(codes, weekday);
       gfx->setCursor(dateX, top + 8);
       gfx->print(labels[day - codes]);
-      dateX += 30;  // Two 12px glyphs plus a 6px separator.
+      dateX += 34;  // Two 12px glyphs plus a 10px separator.
     }
     gfx->setCursor(dateX, top + 8);
     gfx->print(dateBuf);
