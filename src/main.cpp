@@ -192,6 +192,10 @@ static uint32_t g_soloSwitch = 0;
 static bool g_soloPage2 = false;
 
 static DisplayMode* activeMode(const Settings& s) {
+  if (s.mode != MODE_CAL_AGENDA) {
+    g_soloSwitch = 0;
+    g_soloPage2 = false;
+  }
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
     if (!carouselHas(s, kModes[g_carOrder[g_carIdx]])) carouselNext(s);   // settings changed
@@ -207,25 +211,27 @@ static DisplayMode* activeMode(const Settings& s) {
   }
   for (size_t i = 0; i < kModeCount; i++)
     if (kModes[i]->modeConst() == s.mode) {
-      // Standalone Agenda ("Next event") has a second page (events 4-6) that
-      // used to be reachable only in the carousel (where it sits right after
-      // agenda, see rebuildCarouselOrder). Flip between the two pages every
-      // carouselSec when page 2 is ticked and there is something on it, so
-      // "there are two pages" holds outside the carousel too.
-      if (s.mode == MODE_CAL_AGENDA && s.carouselAgenda2) {
+      // Standalone "Next event" shows both populated pages with equal dwell.
+      // The page-2 checkbox controls only the carousel, not this mode.
+      if (s.mode == MODE_CAL_AGENDA) {
         if (g_soloSwitch == 0) g_soloSwitch = millis();
-        if (calendarGet().count > 3) {
+        const bool wasPage2 = g_soloPage2;
+        if (calendarGet().valid && calendarGet().count > 3) {
           if (millis() - g_soloSwitch >= (uint32_t)s.carouselSec * 1000UL) {
             g_soloSwitch = millis();
             g_soloPage2 = !g_soloPage2;
           }
         } else {
           g_soloPage2 = false;              // page 2 empty: always answer page 1
+          g_soloSwitch = millis();          // new page-2 data gets a full first dwell
         }
+        DisplayMode* page = kModes[i];
         if (g_soloPage2) {
           for (size_t j = 0; j < kModeCount; j++)
-            if (kModes[j]->modeConst() == MODE_CAL_AGENDA2) return kModes[j];
+            if (kModes[j]->modeConst() == MODE_CAL_AGENDA2) { page = kModes[j]; break; }
         }
+        if (wasPage2 != g_soloPage2) page->wake(s);
+        return page;
       }
       return kModes[i];
     }
@@ -335,6 +341,8 @@ const char* appResetReason() { return g_resetReason.c_str(); }
 // Called by the web portal after settings are applied: re-init every mode and
 // force a fresh repaint so a mode/URL/symbol change takes effect immediately.
 void appInvalidate() {
+  g_soloSwitch = 0;
+  g_soloPage2 = false;
   // A settings save can rotate the panel or change the colour tone under a
   // notice that is currently on screen. The notice tracks its own "already
   // painted" state, so without this it would keep doing partial elapsed-line
@@ -577,6 +585,7 @@ void loop() {
       // has, which would skip a page the instant the link returned.
       g_offlineShown = false;
       g_carSwitch = millis();
+      g_soloSwitch = millis();
       DisplayMode* back = activeMode(g_settings);
       if (back) back->wake(g_settings);
     }

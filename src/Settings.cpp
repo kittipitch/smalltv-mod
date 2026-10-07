@@ -304,7 +304,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["mode"]              = (s.mode == MODE_RADAR)    ? "radar"
                             : (s.mode == MODE_USAGE)    ? "usage"
                             : (s.mode == MODE_CAL_AGENDA)  ? "agenda"
-                            : (s.mode == MODE_CAL_AGENDA2) ? "agenda2"
+                            : (s.mode == MODE_CAL_AGENDA2) ? "agenda"
                             : (s.mode == MODE_CAL_WEATHER) ? "weather"
                             : (s.mode == MODE_CAL_FORECAST) ? "forecast"
                             : (s.mode == MODE_ZAI)      ? "zai"
@@ -396,7 +396,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
     s.mode = m.equalsIgnoreCase("radar")    ? MODE_RADAR
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
            : m.equalsIgnoreCase("agenda")   ? MODE_CAL_AGENDA
-           : m.equalsIgnoreCase("agenda2")  ? MODE_CAL_AGENDA2
+           : m.equalsIgnoreCase("agenda2")  ? MODE_CAL_AGENDA  // Legacy standalone page 2 becomes rotating agenda.
            : m.equalsIgnoreCase("weather")  ? MODE_CAL_WEATHER
            : m.equalsIgnoreCase("forecast") ? MODE_CAL_FORECAST
            : m.equalsIgnoreCase("zai")      ? MODE_ZAI
