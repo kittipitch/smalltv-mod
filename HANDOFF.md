@@ -1,5 +1,47 @@
 # Calendar weekday labels — 2026-10-08
 
+## Weekday visibility checkbox
+
+The owner approved one saved Show weekday choice for both agenda pages. It
+defaults on and is stored as the boolean `calendar.showWeekday`. Existing
+configs retain the approved header; partial updates preserve the saved value,
+and non-boolean values are ignored. Disabling it removes only the absolute
+date/range prefix, restoring date x20 while time stays x160. Today/Tomorrow
+already omit the prefix and remain unchanged.
+
+The web UI uses one checkbox node: below the dwell field in standalone Next
+event, or below the nested page-2 toggle in the carousel's Next event row.
+Other standalone modes hide it. The node is moved outside the carousel list
+before rebuilding that list, preserving unsaved state through reorder and mode
+switches. Load and Save use the same nested calendar setting; a missing calendar
+feature omits that slice instead of resetting the preference.
+
+Verification: `python3 scripts/test_agenda_weekday_setting.py` compiles the
+actual CalendarSettings methods against installed ArduinoJson and checks
+defaults, missing/invalid values, explicit booleans and nested round-trip. It
+also runs actual UI functions for load, reorder, mode changes and Save while
+checking node identity and feature absence. `python3 scripts/preview_agenda.py`
+and `--no-weekday` pass both-page pixel/position/label checks; the off preview
+was visually inspected. Its check fails when the renderer guard is removed in
+a scratch-only negative control. Existing rotation regression passes.
+`pio run -e smalltv` passes: RAM 46,860 B; flash 676,521 B. Existing unrelated
+compiler warnings remain. Generated header and build outputs were backed up.
+
+Parent browser QC passed actual control placement in both modes, geometry,
+mode/reorder state preservation, one-node identity and checked-value collection.
+Screenshot CDP capture timed out; semantic browser and layout checks passed.
+Independent preflash audit returned conditional GO with no firmware defect,
+after independently rerunning JSON/UI, rotation and both renderer previews.
+Reviewed firmware delta from `4ceb637` SHA256:
+`a3fffe7d380af02d78cdcf1af552924644b9b9c131d4f694b21e9126ae0020d5`.
+Open: commit/push, clean published rebuild, authorized home-only OTA/live checks.
+No flash, push, version change, office update or release was performed here.
+This local validation image has a dirty stamp and is not a deployment image.
+
+Trap: replacing carouselList.innerHTML destroys nested inputs. Moving the
+single checkbox node out first avoids recreating it and losing an unsaved
+choice; no duplicate IDs or synchronization callbacks are needed.
+
 ## Weekday/date gap follow-up
 
 Owner approved Astra's spacing recommendation: widen the weekday/date gap

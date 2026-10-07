@@ -449,7 +449,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     gfx->setTextColor(eventColor, C_PANEL);
     int dateX = x + 12;
     const char weekday = calendarStartWeekday(ev.start);
-    if (weekday && !relativeDay) {
+    if (s.calendar.showWeekday && weekday && !relativeDay) {
       static const char* const labels[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
       static const char codes[] = "UMTWRFS";
       const char* day = strchr(codes, weekday);

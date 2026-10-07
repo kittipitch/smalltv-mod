@@ -112,6 +112,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </select>
    <div id="carouselRow">
     <label id="carouselLbl">Each page shows for (s)</label><input id="carouselSec" type="number" min="5" max="3600">
+    <div id="agendaWeekdayControl" class="chk"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div>
     <div id="carouselList"></div>
    </div>
    <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all four stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
@@ -564,11 +565,13 @@ function rebuildModeSelect(){
 }
 function renderCarouselList(cfg){
  var el=$('carouselList'); if(!el)return;
+ // Keep the shared checkbox alive when its containing agenda row is rebuilt.
+ var weekday=$('agendaWeekdayControl'); if(weekday)$('carouselRow').appendChild(weekday);
  el.innerHTML=carOrder.map(function(id,i){
   var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
-  var extra=id==='agenda'?renderAgenda2Toggle(cfg):'';
+  var extra=id==='agenda'?renderAgenda2Toggle(cfg)+'<div id="agendaWeekdaySlot"></div>':'';
   // Rows with `extra` (currently only agenda's page-2 toggle) are taller than
   // one line, so align-items:center would center the checkbox against the
   // whole 2-line block instead of the row label's own line -- flex-start
@@ -582,6 +585,7 @@ function renderCarouselList(cfg){
   '</div>';
  }).join('');
  rebuildModeSelect();
+ modeChanged();
 }
 function carMove(i,dir){
  var j=i+dir; if(j<0||j>=carOrder.length)return;
@@ -610,7 +614,12 @@ function modeChanged(){if(!$('mode'))return;
  var m=$('mode').value, rot=(m==='carousel'||m==='album'||m==='agenda');
  $('carouselRow').style.display=rot?'block':'none';
  $('carouselList').style.display=(m==='carousel')?'block':'none';
- $('carouselLbl').textContent=(m==='album')?'Each picture shows for (s)':'Each page shows for (s)';}
+ $('carouselLbl').textContent=(m==='album')?'Each picture shows for (s)':'Each page shows for (s)';
+ var weekday=$('agendaWeekdayControl'); if(weekday){
+  var slot=m==='carousel'?$('agendaWeekdaySlot'):null;
+  (slot||$('carouselRow')).appendChild(weekday);
+  weekday.style.display=$('calendar')&&(m==='agenda'||(m==='carousel'&&slot))?'flex':'none';
+ }}
 function loadConfig(){return j('/api/config').then(function(c){C=c;
  var f=c.features||{}; ['usage','radar','calendar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
  // CAR_MODES/carOrder are static id lists with no feature-awareness of
@@ -674,6 +683,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  renderAps(r.airports||[]);
  // calendar slice
  var cal=c.calendar||{};
+ sc('calendarShowWeekday',cal.showWeekday!==false);
  sv('calLat',cal.lat); sv('calLon',cal.lon);
  sv('calPlace',cal.place||''); sv('calPoll',cal.weatherPollSec||600);
  // A stored label was a deliberate choice once, so treat it as user-owned
@@ -746,7 +756,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
+  o.calendar={showWeekday:gc('calendarShowWeekday'), lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
  }
  return o;
 }

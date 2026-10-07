@@ -8,6 +8,7 @@ from pathlib import Path
 import hashlib
 import re
 import subprocess
+import sys
 import tempfile
 
 from PIL import Image
@@ -31,6 +32,7 @@ library = root / ".pio/libdeps/smalltv/GFX Library for Arduino/src"
 gfx_source = (library / "Arduino_GFX.cpp").read_text()
 output = Path(tempfile.mkdtemp(prefix="agenda-preview-", dir="/tmp"))
 report = output / "report.md"
+show_weekday = "--no-weekday" not in sys.argv
 report.write_text("# Agenda pixel preview\n\n" +
                   f"Source: {source_path}\nSHA256: {hashlib.sha256(source.encode()).hexdigest()}\n" +
                   "Renderer and date helpers extracted verbatim; GFX font and roundrect routines reused.\n")
@@ -61,7 +63,7 @@ struct String : std::string {
   }
   int toInt() const { return std::atoi(c_str()); }
 };
-struct Settings { struct { String ids, colorIds; } calendar; };
+struct Settings { struct { String ids, colorIds; bool showWeekday=true; } calendar; };
 tm previewNow = {};
 bool previewClockReady = true;
 bool clockNow(tm& now) { now = previewNow; return previewClockReady; }
@@ -134,6 +136,7 @@ int main(int argc,char** argv) {
   event(c,4,"Future meeting","2026-11-04T09:30:00","2026-11-04T10:30:00",false);
   event(c,5,"Future all-day","2026-11-05","2026-11-06",true);
   Settings s;
+  s.calendar.showWeekday=std::string(argv[2])!="off";
   for(int page=0;page<2;++page) {
     Arduino_GFX gfx; gfx.page=page;
     drawAgendaPage(&gfx,s,c,page);
@@ -161,7 +164,7 @@ int main(int argc,char** argv) {
   event(edge,0,"No clock","2026-10-08","2026-10-09",true);
   std::ostringstream unsynced; auto* old=std::cout.rdbuf(unsynced.rdbuf());
   Arduino_GFX gfx; drawAgendaPage(&gfx,s,edge,0); std::cout.rdbuf(old);
-  assert(unsynced.str().find("\tTh\n")!=std::string::npos);
+  assert((unsynced.str().find("\tTh\n")!=std::string::npos)==s.calendar.showWeekday);
   assert(unsynced.str().find("\tToday\n")==std::string::npos);
 }
 '''
@@ -169,17 +172,22 @@ host_source = output / "preview.cpp"
 host_source.write_text(cpp)
 binary = output / "preview"
 subprocess.run(["c++", "-std=c++14", "-Wall", "-Wextra", str(host_source), "-o", str(binary)], check=True)
-trace = subprocess.run([str(binary), str(output)], text=True, capture_output=True, check=True).stdout
+trace = subprocess.run([str(binary), str(output), "on" if show_weekday else "off"], text=True, capture_output=True, check=True).stdout
 (output / "trace.tsv").write_text(trace)
 rows = [line.split("\t", 4) for line in trace.splitlines()]
 labels = [r[4] for r in rows]
-assert labels == ["Today", "14:30", "Today meeting", "Tomorrow", "09:30", "Tomorrow meeting",
+expected = ["Today", "14:30", "Today meeting", "Tomorrow", "09:30", "Tomorrow meeting",
                   "Mo", "Oct 12-14", "Same-month trip", "Sa", "Oct 31-Nov 2", "Cross-month trip",
-                  "We", "Nov 4", "09:30", "Future meeting", "Th", "Nov 5", "Future all-day"], labels
+                  "We", "Nov 4", "09:30", "Future meeting", "Th", "Nov 5", "Future all-day"]
+if not show_weekday:
+    expected = [label for label in expected if label not in ("Mo", "Sa", "We", "Th")]
+assert labels == expected, labels
 for page, date in (("0", "Oct 12-14"), ("1", "Oct 31-Nov 2"),
                    ("1", "Nov 4"), ("1", "Nov 5")):
     i = next(i for i, r in enumerate(rows) if r[0] == page and r[4] == date)
-    assert int(rows[i-1][1]) == 20 and int(rows[i][1]) == 54
+    assert int(rows[i][1]) == (54 if show_weekday else 20)
+    if show_weekday:
+        assert int(rows[i-1][1]) == 20
 for row in rows:
     if row[4] in ("14:30", "09:30"):
         assert int(row[1]) == 160
@@ -191,6 +199,6 @@ for page in (1, 2):
     contact.paste(image, ((page-1)*240, 0))
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
 with report.open("a") as file:
-    file.write("PASS: exact print trace; four weekday/date pairs and two relative dates; three HH:MM labels; no row overflows.\n")
+    file.write(f"PASS: weekdays {'on' if show_weekday else 'off'}; exact print trace, absolute date positions, three unchanged HH:MM labels at x160; no row overflows.\n")
     file.write("PASS: Today/Tomorrow without weekday, future all-day, same-month all-day range (exclusive end), cross-month timed range, future timed.\n")
 print(output)
