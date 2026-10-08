@@ -34,9 +34,18 @@ Independent preflash audit returned conditional GO with no firmware defect,
 after independently rerunning JSON/UI, rotation and both renderer previews.
 Reviewed firmware delta from `4ceb637` SHA256:
 `a3fffe7d380af02d78cdcf1af552924644b9b9c131d4f694b21e9126ae0020d5`.
-Open: commit/push, clean published rebuild, authorized home-only OTA/live checks.
-No flash, push, version change, office update or release was performed here.
-This local validation image has a dirty stamp and is not a deployment image.
+Deployment complete: published `5198ba3` was clean-built and passed the Ultra
+preflash gate (680,640 B; 36,160 B headroom; MD5
+`fc86ab1caf1b9c560d931a551e9cbc40`). Home OTA returned OK. Live status confirmed
+the expected SHA/esp8266, connected and fresh clock, uptime 26→74 seconds,
+oom 0, resumed six-event daemon pushes, and the served checkbox UI. Live
+partial config updates saved false and true without reboot; the preference
+was restored to true. All previous configuration matched its backup after
+excluding the one new default-on field. The 10px gap is retained.
+Office was not updated; no firmware version or release changed. This follow-up
+documentation commit does not change the deployed firmware source. Owner's
+physical screen confirmation remains open. Dirty validation images remain
+forbidden; only the clean published deployment image was used.
 
 Trap: replacing carouselList.innerHTML destroys nested inputs. Moving the
 single checkbox node out first avoids recreating it and losing an unsaved
