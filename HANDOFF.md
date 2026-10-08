@@ -7,8 +7,12 @@ office SD PRO through ubuntu_office second, then owner-requested known Ultra
 2c21. Per-target independent audit and fresh mDNS/config/variant/digest gates
 passed. Clean builds: Ultra680720B/MD5e91072b922b718b2424d80ff6233cad3;
 SDPRO674192B/MD586cfe1c182d827b9c0652e97609de20d. Both below716800B.
-All uploads returned OK; live expectedSHA/boards, increasing uptime andoom0
-verified. Home/office daemons active with six events; 2c21 has no newly set-up
+All uploads returned OK; live expected SHA/boards and oom0 were verified.
+Home/office showed increasing uptime. 2c21 initially reported uptime19 and
+fresh clock, then stopped responding to ping/HTTP; continuing health is not
+confirmed while offline. Owner subsequently confirmed deliberately disconnecting
+2c21 after the successful flash; no recovery is needed or attempted.
+Home/office daemons active with six events; 2c21 has no newly set-up
 daemon. Office/2c21 configs add default-on weekday only; home mode observation
 changed agenda to carousel, owner confirmation pending. Physical screen
 confirmation remains open. This follow-up changes documentation only; deployed
