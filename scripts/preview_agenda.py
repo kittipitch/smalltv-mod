@@ -186,11 +186,11 @@ for day in ("12-14", "31-Nov", "4", "5"):
     i = next(i for i, r in enumerate(rows) if r[4] == day)
     month = rows[i-1]
     assert int(month[1]) == (56 if show_weekday else 20)
-    assert int(rows[i][1]) - (int(month[1]) + len(month[4])*12) == 8
+    assert int(rows[i][1]) - (int(month[1]) + len(month[4])*12) == 6
     if show_weekday:
         assert int(rows[i-2][1]) == 20
 i = next(i for i, r in enumerate(rows) if r[4] == "2")
-assert int(rows[i][1]) - (int(rows[i-1][1]) + len(rows[i-1][4])*12) == 8
+assert int(rows[i][1]) - (int(rows[i-1][1]) + len(rows[i-1][4])*12) == 6
 for row in rows:
     if row[4] in ("14:30", "09:30"):
         assert int(row[1]) == 160

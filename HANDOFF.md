@@ -1,5 +1,26 @@
 # Calendar weekday labels — 2026-10-08
 
+## Fleet spacing refinement — 12px / 6px
+
+Owner requested home first, then office SD PRO through ubuntu_office SSH,
+and narrowed month/day spacing from 8px to 6px before either update started.
+Weekday/month remains 12px. Only the shared renderer spacing constant and
+corresponding native gap assertions change; controls and relative dates remain
+unchanged. Both on/off previews, correct Ultra/SD PRO builds and a fresh
+independent per-board flash audit are required before sequential fleet OTA.
+Office starts from 059a04b; home starts from 84ef693. Configuration backups,
+mDNS identity, clean published stamp/size/digest gates and live health checks
+are required for each unit. No release/version change is requested.
+
+On/off native previews, JSON/UI and rotation regressions pass. Independent
+fleet audit reviewed the complete office source delta from059a04b and the
+home spacing delta from84ef693, including platform/PROGMEM and SD PRO CS/OTA
+hazards; conditional GO for home first, office after home verification.
+Final renderer SHA256:
+`02fa260a8c9dd6bd56d24c8b546d943da985e72bdd306ecba6aa9778bbd41dc6`.
+The final clean published per-board rebuilds/gates remain mandatory before
+uploads; earlier 8px images are not the requested source.
+
 ## Balanced date spacing
 
 Owner requested a 12px weekday/month gap and subsequently specified an 8px

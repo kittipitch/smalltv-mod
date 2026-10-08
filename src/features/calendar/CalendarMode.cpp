@@ -465,7 +465,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     while ((space = strchr(part, ' '))) {
       *space = '\0';
       gfx->print(part);
-      dateEndX += (int)strlen(part) * 12 + 8;
+      dateEndX += (int)strlen(part) * 12 + 6;
       gfx->setCursor(dateEndX, top + 8);
       part = space + 1;
     }
