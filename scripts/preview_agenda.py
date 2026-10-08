@@ -177,17 +177,20 @@ trace = subprocess.run([str(binary), str(output), "on" if show_weekday else "off
 rows = [line.split("\t", 4) for line in trace.splitlines()]
 labels = [r[4] for r in rows]
 expected = ["Today", "14:30", "Today meeting", "Tomorrow", "09:30", "Tomorrow meeting",
-                  "Mo", "Oct 12-14", "Same-month trip", "Sa", "Oct 31-Nov 2", "Cross-month trip",
-                  "We", "Nov 4", "09:30", "Future meeting", "Th", "Nov 5", "Future all-day"]
+                  "Mo", "Oct", "12-14", "Same-month trip", "Sa", "Oct", "31-Nov", "2", "Cross-month trip",
+                  "We", "Nov", "4", "09:30", "Future meeting", "Th", "Nov", "5", "Future all-day"]
 if not show_weekday:
     expected = [label for label in expected if label not in ("Mo", "Sa", "We", "Th")]
 assert labels == expected, labels
-for page, date in (("0", "Oct 12-14"), ("1", "Oct 31-Nov 2"),
-                   ("1", "Nov 4"), ("1", "Nov 5")):
-    i = next(i for i, r in enumerate(rows) if r[0] == page and r[4] == date)
-    assert int(rows[i][1]) == (54 if show_weekday else 20)
+for day in ("12-14", "31-Nov", "4", "5"):
+    i = next(i for i, r in enumerate(rows) if r[4] == day)
+    month = rows[i-1]
+    assert int(month[1]) == (56 if show_weekday else 20)
+    assert int(rows[i][1]) - (int(month[1]) + len(month[4])*12) == 8
     if show_weekday:
-        assert int(rows[i-1][1]) == 20
+        assert int(rows[i-2][1]) == 20
+i = next(i for i, r in enumerate(rows) if r[4] == "2")
+assert int(rows[i][1]) - (int(rows[i-1][1]) + len(rows[i-1][4])*12) == 8
 for row in rows:
     if row[4] in ("14:30", "09:30"):
         assert int(row[1]) == 160

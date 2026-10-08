@@ -455,11 +455,22 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       const char* day = strchr(codes, weekday);
       gfx->setCursor(dateX, top + 8);
       gfx->print(labels[day - codes]);
-      dateX += 34;  // Two 12px glyphs plus a 10px separator.
+      dateX += 36;  // Two 12px glyphs plus a 12px separator.
     }
     gfx->setCursor(dateX, top + 8);
-    gfx->print(dateBuf);
-    int dateEndX = dateX + (int)strlen(dateBuf) * 12;
+    // Keep month/day spaces narrower than the weekday/date separator.
+    int dateEndX = dateX;
+    char* part = dateBuf;
+    char* space;
+    while ((space = strchr(part, ' '))) {
+      *space = '\0';
+      gfx->print(part);
+      dateEndX += (int)strlen(part) * 12 + 8;
+      gfx->setCursor(dateEndX, top + 8);
+      part = space + 1;
+    }
+    gfx->print(part);
+    dateEndX += (int)strlen(part) * 12;
 
     // Only single-day timed events need a time label. All-day and multi-day
     // events leave the date and weekday alone on this row.

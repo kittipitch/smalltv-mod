@@ -1,5 +1,25 @@
 # Calendar weekday labels — 2026-10-08
 
+## Balanced date spacing
+
+Owner requested a 12px weekday/month gap and subsequently specified an 8px
+month/day gap. Agenda headers use 12px and 8px; ordinary size-2 glyph advances
+remain 12px. The existing local date buffer is printed in space-separated
+chunks, tracking the exact resulting end for the time collision guard. Cross-
+month ranges narrow both month/day spaces. Both pages and weekday-off mode
+share this path; relative Today/Tomorrow and right-aligned times are unchanged.
+Preview assertions check both exact gaps rather than only the date origin.
+Focused checks, build and independent preflash review precede another home OTA.
+No global date helper, setting, version, or office unit is changed.
+
+Final 12px/8px source-derived on/off previews, JSON/UI and rotation checks pass;
+native card image inspected. Ultra validation build passes. Independent final
+8px preflash review returned conditional GO without a firmware/platform finding.
+Renderer SHA256 `84e39519524882d3dacb850b62d662368e0cfd78f9d2cb4d5eb1fd1fd7899587`.
+Maximum legal 13-character cross-month range ends x204, within margin x220;
+ordinary dates end at most x124, leaving 36px before time. Clean publication,
+rebuild/stamp/size/digest and live identity remain gates before home OTA.
+
 ## Weekday visibility checkbox
 
 The owner approved one saved Show weekday choice for both agenda pages. It
