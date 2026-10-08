@@ -2,6 +2,18 @@
 
 ## Fleet spacing refinement — 12px / 6px
 
+Deployment complete: final clean published b2065d7/kitt27, home Ultra first,
+office SD PRO through ubuntu_office second, then owner-requested known Ultra
+2c21. Per-target independent audit and fresh mDNS/config/variant/digest gates
+passed. Clean builds: Ultra680720B/MD5e91072b922b718b2424d80ff6233cad3;
+SDPRO674192B/MD586cfe1c182d827b9c0652e97609de20d. Both below716800B.
+All uploads returned OK; live expectedSHA/boards, increasing uptime andoom0
+verified. Home/office daemons active with six events; 2c21 has no newly set-up
+daemon. Office/2c21 configs add default-on weekday only; home mode observation
+changed agenda to carousel, owner confirmation pending. Physical screen
+confirmation remains open. This follow-up changes documentation only; deployed
+source and public FW_VERSION1.0.0-kitt27 remain unchanged.
+
 Owner requested home first, then office SD PRO through ubuntu_office SSH,
 and narrowed month/day spacing from 8px to 6px before either update started.
 Weekday/month remains 12px. Only the shared renderer spacing constant and
