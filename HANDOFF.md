@@ -17,8 +17,16 @@ native card image inspected. Ultra validation build passes. Independent final
 8px preflash review returned conditional GO without a firmware/platform finding.
 Renderer SHA256 `84e39519524882d3dacb850b62d662368e0cfd78f9d2cb4d5eb1fd1fd7899587`.
 Maximum legal 13-character cross-month range ends x204, within margin x220;
-ordinary dates end at most x124, leaving 36px before time. Clean publication,
-rebuild/stamp/size/digest and live identity remain gates before home OTA.
+ordinary dates end at most x124, leaving 36px before time.
+
+Home deployment complete: `84ef693` clean published Ultra image passed the
+preflash gate (680,720 B; 36,080 B headroom; MD5
+`c9ee3b91b1acd5059abc20a6354c7793`, matched on flash host). OTA returned OK;
+status confirms SHA/esp8266, connected, fresh clock, oom0, uptime18 seconds.
+All configuration is identical to backup, including weekday on and 15s dwell;
+daemon resumed. The 12/10 candidate was never flashed. This post-deployment
+documentation commit leaves the deployed source unchanged. Office untouched;
+owner's physical spacing confirmation remains open.
 
 ## Weekday visibility checkbox
 
