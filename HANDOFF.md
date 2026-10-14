@@ -1,5 +1,32 @@
 # Calendar weekday labels — 2026-10-08
 
+## Home trial — rounded weekday outline, 2026-10-15
+
+The owner approved trying a thin, muted rounded square on the home unit first.
+One drawRoundRect call in the shared agenda renderer outlines visible two-letter
+weekdays: 28x28 pixels, radius4, existing C_DIM, no fill. Painted glyphs remain
+centered; date/time/title coordinates and 12px/6px spacing stay unchanged.
+The existing showWeekday setting hides both label and outline. Today/Tomorrow
+remain unboxed on both pages. No setting, version, bitmap, PROGMEM access,
+allocation, partition, pin, updater, or daemon change is introduced.
+
+The source-derived native preview now uses the installed GFX outline routines
+and checks four outline edges and a rounded corner per card, including hidden
+and relative-day cases. The enabled test failed against the old renderer and
+passed after the drawing call. On/off previews, settings/UI, rotation, and
+weekday checks pass; Ultra validation build passes (681200-byte upload image).
+Independent codex, Fable, zagent, gagent and zask reviews are in progress under
+/tmp/calendar-badge-review.hqLc71; no source defect has been reported so far.
+Final renderer SHA256:
+6781b9cfbb7a4e7e5f800f3dd9c77e1a56e78ded11f95b33a3845c764192274c.
+
+Only home f661 is authorized for this trial. It still runs b2065d7/kitt27;
+no new OTA has occurred. Before flashing: finish independent audit, obtain push
+permission, publish the commit, clean-rebuild Ultra and pass the published
+stamp/716800-byte/digest gate, then fresh mDNS identity/config checks. Private
+home config backup: ../firmware_backup/f661-before-weekday-badge-1792011840.json.
+Office and other units remain unchanged. Physical screen approval is pending.
+
 ## Fleet spacing refinement — 12px / 6px
 
 Deployment complete: final clean published b2065d7/kitt27, home Ultra first,

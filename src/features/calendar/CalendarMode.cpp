@@ -453,6 +453,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       static const char* const labels[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
       static const char codes[] = "UMTWRFS";
       const char* day = strchr(codes, weekday);
+      gfx->drawRoundRect(dateX - 3, top + 1, 28, 28, 4, C_DIM);
       gfx->setCursor(dateX, top + 8);
       gfx->print(labels[day - codes]);
       dateX += 36;  // Two 12px glyphs plus a 12px separator.

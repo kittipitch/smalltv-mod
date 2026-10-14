@@ -104,7 +104,7 @@ public:
 '''
 font = (library / "font/glcdfont.h").read_text()
 cpp = font + cpp
-for name in ("writeFillEllipseHelper", "fillRoundRect"):
+for name in ("writeFillEllipseHelper", "fillRoundRect", "writeEllipseHelper", "drawRoundRect"):
     cpp += function(gfx_source, f"void Arduino_GFX::{name}(").replace("Arduino_GFX::", "")
 draw_char = function(gfx_source, "void Arduino_GFX::drawChar(")
 default = draw_char[draw_char.index("  {", draw_char.index("else // glcdfont")):-2]
@@ -198,6 +198,13 @@ assert all(int(r[1]) + len(r[4])*6*int(r[3]) <= 220 for r in rows)
 contact = Image.new("RGB", (480, 240))
 for page in (1, 2):
     image = Image.open(output / f"page{page}.ppm")
+    # Removing/misplacing the outline or boxing relative/hidden weekdays fails here.
+    for card, top in enumerate((6, 84, 162)):
+        badge_visible = show_weekday and (page == 2 or card == 2)
+        border = (180, 174, 164)  # Existing C_DIM in RGB565.
+        points = ((30, top+1), (30, top+28), (17, top+14), (44, top+14))
+        assert all((image.getpixel(point) == border) == badge_visible for point in points), (page, card)
+        assert image.getpixel((17, top+1)) != border, "badge corner must be rounded"
     image.save(output / f"page{page}.png")
     contact.paste(image, ((page-1)*240, 0))
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
