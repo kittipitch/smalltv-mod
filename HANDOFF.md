@@ -15,14 +15,20 @@ and checks four outline edges and a rounded corner per card, including hidden
 and relative-day cases. The enabled test failed against the old renderer and
 passed after the drawing call. On/off previews, settings/UI, rotation, and
 weekday checks pass; Ultra validation build passes (681200-byte upload image).
-Independent codex, Fable, zagent, gagent and zask reviews are in progress under
-/tmp/calendar-badge-review.hqLc71; no source defect has been reported so far.
+Independent codex, Fable, zagent, gagent and zask reviews completed GO/DONE under
+/tmp/calendar-badge-review.hqLc71; no blocking source or platform finding.
+Fable also verified its actual model identity and preview geometry. The outline
+sits one pixel below the card top; this is an aesthetic trial, not a collision.
+The pixel checks do not explicitly detect a filled badge, but the reviewed
+outline primitive and inspected native pixels confirm no fill in this change.
 Final renderer SHA256:
 6781b9cfbb7a4e7e5f800f3dd9c77e1a56e78ded11f95b33a3845c764192274c.
 
 Only home f661 is authorized for this trial. It still runs b2065d7/kitt27;
-no new OTA has occurred. Before flashing: finish independent audit, obtain push
-permission, publish the commit, clean-rebuild Ultra and pass the published
+no new OTA has occurred. A clean rebuild of source commit71e6f89 passed:
+681168-byte image, 35632-byte headroom. Preflash refused only because the commit
+is not yet published; no dirty stamp or size issue. Before flashing: obtain push
+permission, publish this documentation follow-up, clean-rebuild Ultra and pass the published
 stamp/716800-byte/digest gate, then fresh mDNS identity/config checks. Private
 home config backup: ../firmware_backup/f661-before-weekday-badge-1792011840.json.
 Office and other units remain unchanged. Physical screen approval is pending.
