@@ -24,14 +24,24 @@ outline primitive and inspected native pixels confirm no fill in this change.
 Final renderer SHA256:
 6781b9cfbb7a4e7e5f800f3dd9c77e1a56e78ded11f95b33a3845c764192274c.
 
-Only home f661 is authorized for this trial. It still runs b2065d7/kitt27;
-no new OTA has occurred. A clean rebuild of source commit71e6f89 passed:
-681168-byte image, 35632-byte headroom. Preflash refused only because the commit
-is not yet published; no dirty stamp or size issue. Before flashing: obtain push
-permission, publish this documentation follow-up, clean-rebuild Ultra and pass the published
-stamp/716800-byte/digest gate, then fresh mDNS identity/config checks. Private
-home config backup: ../firmware_backup/f661-before-weekday-badge-1792011840.json.
-Office and other units remain unchanged. Physical screen approval is pending.
+Home-only deployment complete: f661 now runs clean published95fc6d1/kitt27.
+The owner confirmed the previously described publication/flash sequence and
+requested Astra before upload. gpt-6-astra directly inspected native baseline,
+on/off pages and enlarged contact sheets: GO, centered/readable/no clipping,
+modest grouping improvement with slight visual clutter. Physical TFT/runtime
+safety was not inferred from the PNG verdict.
+Final Ultra gate passed:681168B, headroom35632B,
+MD5e24eb5abed40aab46b6c18f0b61f2234, matched on pi5. Reviewed renderer and
+source-diff hashes remain unchanged. Fresh mDNS identity and private config
+backup preceded normal own /update OTA through pi5. Upload returned OK.
+Postboot SHA/esp8266 correct, uptime30->55->105, oom0, connected, fresh clock;
+configuration exactly preserved (carousel15s, weekday on). Daemon resumed,
+usage push OK and six calendar events fetched; initial reboot-window calendar
+push timed out, followed by later polls without another reported failure.
+Home-scoped fleet audit PASS: identified published95fc6d1.
+Office/2c21 and daemon source remain unchanged. Physical screen approval is
+pending. This follow-up changes documentation only; do not reflash solely to
+match a later documentation HEAD. FW_VERSION remains1.0.0-kitt27.
 
 ## Fleet spacing refinement — 12px / 6px
 
