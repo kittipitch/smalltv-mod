@@ -1,13 +1,13 @@
 # Calendar weekday labels — 2026-10-08
 
-## Interior padding revision — preview only, 2026-10-15
+## Interior padding revision — deployed, 2026-10-15
 
 The owner reports that the weekday letters in the deployed28x28 frame are too
 close to its inner left/right edges. A size1 text trial solved clearance but
 Astra rejected its native glance readability. That trial is not shipped.
-The revised candidate keeps original size2 text and uses a constant36x36
+The revised candidate keeps original size-2 text and uses a constant 36×36
 rounded square for every weekday, providing7px painted-ink clearance on both
-sides. Header text shifts down4px uniformly to center the glyphs and align
+sides. Header text shifts down 4px uniformly to center the glyphs and align
 dates/times; horizontal coordinates and title positions remain unchanged.
 Today/Tomorrow and weekday-off remain unboxed. No setting or asset is added.
 
@@ -22,17 +22,41 @@ for owner preview approval: readable, centered, useful padding; larger frames
 are more prominent and sit closer to titles, but no clipping is visible.
 The earlier small-font NO-GO is retained rather than hidden.
 
-No new flash or push occurred. Home remains95fc6d1; this is only a local
-candidate. Any later OTA needs owner approval, a fresh independent platform/
-PROGMEM/partition audit, clean published rebuild and all normal live gates.
-Private journal retains both reports and synthetic PNGs at
-journal/png/2026-10-15-weekday-padding/. Physical TFT appearance is unverified.
+The owner subsequently authorized renewed Astra PNG review, then home-first
+and office-second updates, and publication of the documentation. Both units
+now run clean published a1b0c83/kitt27, with the correct Ultra/SDPRO images.
+Astra directly inspected the exact retained on/off native PNGs: visual GO.
+Independent Astra, Codex, zagent, gagent and zask source/platform reviews all
+returned conditional GO/DONE with no blocker, including the full office delta
+from its pre-outline baseline. Balanced GFX transactions, bounded geometry,
+unchanged PROGMEM/assets/partitions/pins/settings/updater were checked.
+Fresh on/off previews, settings/UI, rotation and C++ weekday tests passed;
+both clean PlatformIO builds and published preflash gates passed:
+
+| Environment | Upload bytes / OTA headroom | MD5 |
+|---|---|---|
+| smalltv | 681168 / 35632 | f7c36234a5aa3a0c24b1e9ea02f933c4 |
+| smalltv_sdpro | 674656 / 42144 | 067f570a86949ad8dacd5c8fca6dae60 |
+
+Transferred MD5/SHA256 matched each local binary. Fresh mDNS identity, board,
+SHA/oom/connectivity and private configuration backups preceded both normal
+own/update uploads; both returned OK. Home verification passed before office
+upload. Postboot both report a1b0c83 with their correct boards, increasing
+uptime, oom 0, connected/link ok, fresh synced clocks and exact JSON configuration
+preservation. Both daemons active, usage pushes OK, six events fetched, and
+unit-scoped published-firmware fleet audits PASS. Brief reboot-window request
+failures recovered. No daemon code, new setting, release/version bump, filesystem
+or board-variant change. Rejected size1 text was never shipped.
+The private journal retains full independent reports, fixture PNGs, artifact
+SHA256s, transfer paths and private backup paths. Physical TFT appearance is
+still unverified. This completion commit is documentation-only; deployed SHA
+remains a1b0c83. Do not reflash solely to match a documentation-only HEAD.
 
 ## Home trial — rounded weekday outline, 2026-10-15
 
 The owner approved trying a thin, muted rounded square on the home unit first.
 One drawRoundRect call in the shared agenda renderer outlines visible two-letter
-weekdays: 28x28 pixels, radius4, existing C_DIM, no fill. Painted glyphs remain
+weekdays: 28x28 pixels, radius 4, existing C_DIM, no fill. Painted glyphs remain
 centered; date/time/title coordinates and 12px/6px spacing stay unchanged.
 The existing showWeekday setting hides both label and outline. Today/Tomorrow
 remain unboxed on both pages. No setting, version, bitmap, PROGMEM access,
