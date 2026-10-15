@@ -113,6 +113,7 @@ cpp += "int16_t block_w,block_h,curX,curY,curH;\n" + default + "\n}\n};\n"
 data = (root / "src/features/calendar/CalendarData.h").read_text()
 cpp += data[data.index("#define CAL_TITLE_LEN"):data.index("// Filled either by a daemon push")]
 cpp += (root / "src/features/calendar/CalendarWeekday.h").read_text().replace("#pragma once", "")
+cpp += next(line for line in (root / "src/Gfx.h").read_text().splitlines() if line.startswith("#define C_YELLOW")) + "\n"
 cpp += "\n#define C_BLACK 0x0000\n#define C_WHITE 0xffff\n#define C_ACCENT 0xDBAA\n#define C_DIM 0xB574\n#define C_PANEL 0x18E3\n#define EVENTS_PER_PAGE 3\n"
 cpp += source[source.index("static const uint16_t kGCalPalette"):source.index("// Muted 6-band US AQI")]
 cpp += source[source.index("static const char* MONTH3"):source.index("static void drawRow(")]
@@ -185,7 +186,7 @@ assert labels == expected, labels
 for day in ("12-14", "31-Nov", "4", "5"):
     i = next(i for i, r in enumerate(rows) if r[4] == day)
     month = rows[i-1]
-    assert int(month[1]) == (56 if show_weekday else 20)
+    assert int(month[1]) == (62 if show_weekday else 20)
     assert int(rows[i][1]) - (int(month[1]) + len(month[4])*12) == 6
     if show_weekday:
         assert int(rows[i-2][1]) == 20
@@ -204,22 +205,30 @@ for page in (1, 2):
     # Require a bold round separator, no frame, and no hidden/relative-day residue.
     for card, top in enumerate((6, 84, 162)):
         dot_visible = show_weekday and (page == 2 or card == 2)
-        expected_dot = {(px, top+dy) for dy in range(13, 18) for px in range(46, 51)
-                        if (px, dy) not in ((46, 13), (50, 13), (46, 17), (50, 17))} if dot_visible else set()
-        actual_dim = {(px, py) for py in range(top, top+72) for px in range(8, 232)
-                      if image.getpixel((px, py)) == (180, 174, 164)}
-        assert actual_dim == expected_dot, ("round 5px dot/no frame", page, card)
+        expected_dot = {(px, top+dy) for dy, left, right in
+                        ((12, 50, 53), (13, 49, 54), (14, 48, 55), (15, 48, 55),
+                         (16, 48, 55), (17, 49, 54), (18, 50, 53))
+                        for px in range(left, right)} if dot_visible else set()
+        actual_yellow = {(px, py) for py in range(top, top+72) for px in range(8, 232)
+                         if image.getpixel((px, py)) == (255, 255, 0)}
+        assert actual_yellow == expected_dot, ("solid round 7px subtitle-yellow dot", page, card)
+        assert not any(image.getpixel((px, py)) == (180, 174, 164)
+                       for py in range(top, top+72) for px in range(8, 232)), "old gray dot/frame residue"
         if dot_visible:
             weekday_ink = [(px, py) for py in range(top+8, top+22) for px in range(20, 42)
                            if image.getpixel((px, py)) == (222, 117, 82)]
             assert weekday_ink, "full-size weekday missing"
             assert max(px for px, _ in weekday_ink) == 41
             assert max(py for _, py in weekday_ink) - min(py for _, py in weekday_ink) + 1 == 14
+            assert min(px for px, _ in actual_yellow) - max(px for px, _ in weekday_ink) - 1 == 6
+            date_ink = [px for py in range(top+8, top+22) for px in range(62, 220)
+                        if image.getpixel((px, py)) == (222, 117, 82)]
+            assert min(date_ink) - max(px for px, _ in actual_yellow) - 1 == 7
     image.save(output / f"page{page}.png")
     contact.paste(image, ((page-1)*240, 0))
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
 with report.open("a") as file:
     file.write(f"PASS: weekdays {'on' if show_weekday else 'off'}; exact print trace, absolute date positions, three unchanged HH:MM labels at x160; no row overflows.\n")
     file.write("PASS: Today/Tomorrow without weekday, future all-day, same-month all-day range (exclusive end), cross-month timed range, future timed.\n")
-    file.write("PASS: original full-size header baseline; exact solid 5px circular separator, no frame, clean hidden states.\n")
+    file.write("PASS: original full-size header baseline; exact solid 7px subtitle-yellow circle, 6px/7px blank side gaps, no gray residue/frame, clean hidden states.\n")
 print(output)

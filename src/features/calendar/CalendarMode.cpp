@@ -454,10 +454,10 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       static const char* const labels[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
       static const char codes[] = "UMTWRFS";
       const char* day = strchr(codes, weekday);
-      gfx->fillCircle(dateX + 28, headerY + 7, 2, C_DIM);
+      gfx->fillCircle(dateX + 31, headerY + 7, 3, C_YELLOW);
       gfx->setCursor(dateX, headerY);
       gfx->print(labels[day - codes]);
-      dateX += 36;  // Reserve the same weekday/date slot for every label.
+      dateX += 42;  // Reserve the same weekday/date slot for every label.
     }
     gfx->setCursor(dateX, headerY);
     // Keep month/day spaces narrower than the weekday/date separator.
