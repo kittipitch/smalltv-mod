@@ -447,18 +447,19 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     }
     gfx->setTextSize(2);
     gfx->setTextColor(eventColor, C_PANEL);
+    const int headerY = top + 12;
     int dateX = x + 12;
     const char weekday = calendarStartWeekday(ev.start);
     if (s.calendar.showWeekday && weekday && !relativeDay) {
       static const char* const labels[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
       static const char codes[] = "UMTWRFS";
       const char* day = strchr(codes, weekday);
-      gfx->drawRoundRect(dateX - 3, top + 1, 28, 28, 4, C_DIM);
-      gfx->setCursor(dateX, top + 8);
+      gfx->drawRoundRect(dateX - 7, top + 1, 36, 36, 4, C_DIM);
+      gfx->setCursor(dateX, headerY);
       gfx->print(labels[day - codes]);
-      dateX += 36;  // Two 12px glyphs plus a 12px separator.
+      dateX += 36;  // Reserve the same weekday/date slot for every label.
     }
-    gfx->setCursor(dateX, top + 8);
+    gfx->setCursor(dateX, headerY);
     // Keep month/day spaces narrower than the weekday/date separator.
     int dateEndX = dateX;
     char* part = dateBuf;
@@ -467,7 +468,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       *space = '\0';
       gfx->print(part);
       dateEndX += (int)strlen(part) * 12 + 6;
-      gfx->setCursor(dateEndX, top + 8);
+      gfx->setCursor(dateEndX, headerY);
       part = space + 1;
     }
     gfx->print(part);
@@ -481,7 +482,7 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
       int timeX = x + w - 12 - (int)strlen(timeBuf) * 12;
       if (timeX - dateEndX >= 12) {  // Keep one glyph width between date and time.
         gfx->setTextColor(eventColor, C_PANEL);
-        gfx->setCursor(timeX, top + 8);
+        gfx->setCursor(timeX, headerY);
         gfx->print(timeBuf);
       }
     }
