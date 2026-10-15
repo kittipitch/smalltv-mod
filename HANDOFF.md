@@ -1,5 +1,33 @@
 # Calendar weekday labels — 2026-10-08
 
+## Interior padding revision — preview only, 2026-10-15
+
+The owner reports that the weekday letters in the deployed28x28 frame are too
+close to its inner left/right edges. A size1 text trial solved clearance but
+Astra rejected its native glance readability. That trial is not shipped.
+The revised candidate keeps original size2 text and uses a constant36x36
+rounded square for every weekday, providing7px painted-ink clearance on both
+sides. Header text shifts down4px uniformly to center the glyphs and align
+dates/times; horizontal coordinates and title positions remain unchanged.
+Today/Tomorrow and weekday-off remain unboxed. No setting or asset is added.
+
+The native preview now asserts at least7px inner side clearance, the fixed
+outline edges/corners and size2 text throughout. The old deployed layout
+failed the left-clearance assertion before implementation. Both candidate
+on/off previews, settings/UI, rotation, weekday tests and Ultra validation
+build pass. Renderer SHA256:
+46b2e7efbcb614a4195c704286c4ffcf353c6886b49c3673ddb493146b09bfe9.
+Astra directly compared native baseline/candidate/off PNGs and returned GO
+for owner preview approval: readable, centered, useful padding; larger frames
+are more prominent and sit closer to titles, but no clipping is visible.
+The earlier small-font NO-GO is retained rather than hidden.
+
+No new flash or push occurred. Home remains95fc6d1; this is only a local
+candidate. Any later OTA needs owner approval, a fresh independent platform/
+PROGMEM/partition audit, clean published rebuild and all normal live gates.
+Private journal retains both reports and synthetic PNGs at
+journal/png/2026-10-15-weekday-padding/. Physical TFT appearance is unverified.
+
 ## Home trial — rounded weekday outline, 2026-10-15
 
 The owner approved trying a thin, muted rounded square on the home unit first.

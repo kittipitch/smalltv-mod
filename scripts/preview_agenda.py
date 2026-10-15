@@ -192,6 +192,7 @@ for day in ("12-14", "31-Nov", "4", "5"):
 i = next(i for i, r in enumerate(rows) if r[4] == "2")
 assert int(rows[i][1]) - (int(rows[i-1][1]) + len(rows[i-1][4])*12) == 6
 for row in rows:
+    assert int(row[3]) == 2, row
     if row[4] in ("14:30", "09:30"):
         assert int(row[1]) == 160
 assert all(int(r[1]) + len(r[4])*6*int(r[3]) <= 220 for r in rows)
@@ -202,9 +203,15 @@ for page in (1, 2):
     for card, top in enumerate((6, 84, 162)):
         badge_visible = show_weekday and (page == 2 or card == 2)
         border = (180, 174, 164)  # Existing C_DIM in RGB565.
-        points = ((30, top+1), (30, top+28), (17, top+14), (44, top+14))
+        points = ((30, top+1), (30, top+36), (13, top+18), (48, top+18))
         assert all((image.getpixel(point) == border) == badge_visible for point in points), (page, card)
-        assert image.getpixel((17, top+1)) != border, "badge corner must be rounded"
+        assert image.getpixel((13, top+1)) != border, "badge corner must be rounded"
+        if badge_visible:
+            ink = [(px, py) for py in range(top+2, top+36) for px in range(14, 48)
+                   if image.getpixel((px, py)) == (222, 117, 82)]
+            assert ink, "weekday ink missing"
+            assert min(px for px, _ in ink) - 13 >= 7, "weekday too close to left frame"
+            assert 48 - max(px for px, _ in ink) >= 7, "weekday too close to right frame"
     image.save(output / f"page{page}.png")
     contact.paste(image, ((page-1)*240, 0))
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
