@@ -1,10 +1,10 @@
 # Calendar weekday labels — 2026-10-08
 
-## Round middle dot — implemented, deployment pending, 2026-10-15
+## Round middle dot — deployed, 2026-10-15
 
 The owner selected a frameless weekday/date separator after independent
 Astra/Fable comparisons, then required it to be round, bold and large enough.
-Replace the frame with the existing fillCircle primitive, radius2: solid
+Replace the frame with the existing fillCircle primitive, radius 2: solid
 5x5 bounds centered at x48/top+15, muted C_DIM. Original full-size text and
 header baseline top+8 are restored. Widest dot row leaves four/five blank
 columns between weekday ink and date; date/time/title x positions, existing
@@ -21,11 +21,34 @@ were not disabled to pass. On/off pages, settings/UI, rotation and C++ weekday
 tests pass. Renderer SHA256:
 8dc435e14682c3372831b52a676ad9d7d126963e53a02a26bd2764c0d22e19c3.
 
-The owner authorizes flashing after final visual/safety gates pass, retaining
-home-first then office sequence. Both devices still runa1b0c83. Clean per-board
-builds, renewed exact-PNG Astra/Fable verdicts and independent platform audits,
-publication/stamp/size/digest/live gates remain required before upload. No OTA
-clearance or physical TFT approval is claimed by the host tests.
+The owner authorized flashing after final visual/safety checks. Both Astra and
+Fable directly inspected the exact final native on/off PNGs and returned GO:
+visible, round, solid/bold, centered, on-theme, no contact/clipping or residue;
+no adjustment required. This is the final 5px round dot, not an earlier square
+prototype. Independent Astra/Codex/zagent/gagent/zask source/platform audits
+returned conditional per-unit GO/DONE with no blocker; graphics transactions,
+bounded geometry and unchanged PROGMEM/buffers/partitions/pins were checked.
+
+Both clean committed builds and published f3323b1 preflash gates passed:
+
+| Environment | Upload bytes / OTA headroom | MD5 |
+|---|---|---|
+| smalltv | 680736 / 36064 | bcc90c104a091937b1e63890b4c971fd |
+| smalltv_sdpro | 674208 / 42592 | cbb30447352c06a257adc4f1f2fca362 |
+
+Copied MD5/SHA256 matched. Fresh mDNS identity, correct board/SHA/oom and
+private configuration backup gates preceded normal own/update uploads, home
+first then office only after home health passed. Both returned OK. Both now
+report f3323b1/kitt27 with correct Ultra/SDPRO boards, increasing uptime, oom 0,
+connected/fresh synchronized clocks, active daemons and exact config retention.
+Usage pushes OK, six events fetched, both scoped fleet audits PASS. Office's
+first reboot-window calendar push timed out; later polling recovered.
+No source change followed the exact reviews/build. No release/version, daemon
+code, custom font/asset, settings, filesystem or board-variant change.
+Private journal retains complete native images/reports, artifact SHA256s and
+configuration backup/transfer paths. Physical TFT appearance remains unverified.
+This completion commit changes documentation only; deployed SHA stays f3323b1.
+Do not reflash solely to match a later documentation-only HEAD.
 
 ## Interior padding revision — deployed, 2026-10-15
 
