@@ -104,7 +104,7 @@ public:
 '''
 font = (library / "font/glcdfont.h").read_text()
 cpp = font + cpp
-for name in ("writeFillEllipseHelper", "fillRoundRect", "writeEllipseHelper", "drawRoundRect"):
+for name in ("writeFillEllipseHelper", "fillRoundRect", "writeEllipseHelper", "drawRoundRect", "fillCircle"):
     cpp += function(gfx_source, f"void Arduino_GFX::{name}(").replace("Arduino_GFX::", "")
 draw_char = function(gfx_source, "void Arduino_GFX::drawChar(")
 default = draw_char[draw_char.index("  {", draw_char.index("else // glcdfont")):-2]
@@ -193,29 +193,33 @@ i = next(i for i, r in enumerate(rows) if r[4] == "2")
 assert int(rows[i][1]) - (int(rows[i-1][1]) + len(rows[i-1][4])*12) == 6
 for row in rows:
     assert int(row[3]) == 2, row
+    if row[4] not in ("Today meeting", "Tomorrow meeting", "Same-month trip", "Cross-month trip", "Future meeting", "Future all-day"):
+        assert (int(row[2]) - 14) % 78 == 0, "restore original header baseline"
     if row[4] in ("14:30", "09:30"):
         assert int(row[1]) == 160
 assert all(int(r[1]) + len(r[4])*6*int(r[3]) <= 220 for r in rows)
 contact = Image.new("RGB", (480, 240))
 for page in (1, 2):
     image = Image.open(output / f"page{page}.ppm")
-    # Removing/misplacing the outline or boxing relative/hidden weekdays fails here.
+    # Require a bold round separator, no frame, and no hidden/relative-day residue.
     for card, top in enumerate((6, 84, 162)):
-        badge_visible = show_weekday and (page == 2 or card == 2)
-        border = (180, 174, 164)  # Existing C_DIM in RGB565.
-        points = ((30, top+1), (30, top+36), (13, top+18), (48, top+18))
-        assert all((image.getpixel(point) == border) == badge_visible for point in points), (page, card)
-        assert image.getpixel((13, top+1)) != border, "badge corner must be rounded"
-        if badge_visible:
-            ink = [(px, py) for py in range(top+2, top+36) for px in range(14, 48)
-                   if image.getpixel((px, py)) == (222, 117, 82)]
-            assert ink, "weekday ink missing"
-            assert min(px for px, _ in ink) - 13 >= 7, "weekday too close to left frame"
-            assert 48 - max(px for px, _ in ink) >= 7, "weekday too close to right frame"
+        dot_visible = show_weekday and (page == 2 or card == 2)
+        expected_dot = {(px, top+dy) for dy in range(13, 18) for px in range(46, 51)
+                        if (px, dy) not in ((46, 13), (50, 13), (46, 17), (50, 17))} if dot_visible else set()
+        actual_dim = {(px, py) for py in range(top, top+72) for px in range(8, 232)
+                      if image.getpixel((px, py)) == (180, 174, 164)}
+        assert actual_dim == expected_dot, ("round 5px dot/no frame", page, card)
+        if dot_visible:
+            weekday_ink = [(px, py) for py in range(top+8, top+22) for px in range(20, 42)
+                           if image.getpixel((px, py)) == (222, 117, 82)]
+            assert weekday_ink, "full-size weekday missing"
+            assert max(px for px, _ in weekday_ink) == 41
+            assert max(py for _, py in weekday_ink) - min(py for _, py in weekday_ink) + 1 == 14
     image.save(output / f"page{page}.png")
     contact.paste(image, ((page-1)*240, 0))
 contact.resize((960, 480), Image.Resampling.NEAREST).save(output / "both-pages.png")
 with report.open("a") as file:
     file.write(f"PASS: weekdays {'on' if show_weekday else 'off'}; exact print trace, absolute date positions, three unchanged HH:MM labels at x160; no row overflows.\n")
     file.write("PASS: Today/Tomorrow without weekday, future all-day, same-month all-day range (exclusive end), cross-month timed range, future timed.\n")
+    file.write("PASS: original full-size header baseline; exact solid 5px circular separator, no frame, clean hidden states.\n")
 print(output)

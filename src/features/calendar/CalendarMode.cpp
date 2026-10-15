@@ -447,14 +447,14 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     }
     gfx->setTextSize(2);
     gfx->setTextColor(eventColor, C_PANEL);
-    const int headerY = top + 12;
+    const int headerY = top + 8;
     int dateX = x + 12;
     const char weekday = calendarStartWeekday(ev.start);
     if (s.calendar.showWeekday && weekday && !relativeDay) {
       static const char* const labels[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
       static const char codes[] = "UMTWRFS";
       const char* day = strchr(codes, weekday);
-      gfx->drawRoundRect(dateX - 7, top + 1, 36, 36, 4, C_DIM);
+      gfx->fillCircle(dateX + 28, headerY + 7, 2, C_DIM);
       gfx->setCursor(dateX, headerY);
       gfx->print(labels[day - codes]);
       dateX += 36;  // Reserve the same weekday/date slot for every label.

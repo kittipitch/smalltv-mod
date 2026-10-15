@@ -1,5 +1,32 @@
 # Calendar weekday labels — 2026-10-08
 
+## Round middle dot — implemented, deployment pending, 2026-10-15
+
+The owner selected a frameless weekday/date separator after independent
+Astra/Fable comparisons, then required it to be round, bold and large enough.
+Replace the frame with the existing fillCircle primitive, radius2: solid
+5x5 bounds centered at x48/top+15, muted C_DIM. Original full-size text and
+header baseline top+8 are restored. Widest dot row leaves four/five blank
+columns between weekday ink and date; date/time/title x positions, existing
+12px/6px text spacing and all hidden/relative-day guards are unchanged.
+No font, bitmap, setting, version, allocation, partition, pin or updater change.
+
+The source-derived host harness reuses the installed fillCircle routine.
+Its new contract failed against the old baseline before implementation and
+now checks the exact 21-pixel filled-circle mask (not a square or undersized
+dot), absence of every other C_DIM pixel/frame, clean hidden/relative states,
+original header baseline and full-size14px weekday ink. This replaces frame-
+padding assertions because the owner explicitly removed the frame; checks
+were not disabled to pass. On/off pages, settings/UI, rotation and C++ weekday
+tests pass. Renderer SHA256:
+8dc435e14682c3372831b52a676ad9d7d126963e53a02a26bd2764c0d22e19c3.
+
+The owner authorizes flashing after final visual/safety gates pass, retaining
+home-first then office sequence. Both devices still runa1b0c83. Clean per-board
+builds, renewed exact-PNG Astra/Fable verdicts and independent platform audits,
+publication/stamp/size/digest/live gates remain required before upload. No OTA
+clearance or physical TFT approval is claimed by the host tests.
+
 ## Interior padding revision — deployed, 2026-10-15
 
 The owner reports that the weekday letters in the deployed28x28 frame are too
