@@ -1,5 +1,27 @@
 # Calendar weekday labels — 2026-10-08
 
+## Subtitle-yellow separator — implemented, deployment pending, 2026-10-15
+
+The owner requests more space on both sides and a bolder separator, clarifying
+the color as subtitle-style bright yellow rather than amber. Reuse C_YELLOW
+from Gfx.h (0xFFE0/#FFFF00), increase fillCircle radius2->3 (solid7px circle),
+move center x48->51 and date x56->62. The widest row now leaves six/seven
+blank columns around the dot, two more each side than the deployed version.
+Weekday x20, original font/header baseline, time x160, title positions and
+6px month/day gaps are unchanged. Hidden/relative-day guard is unchanged.
+No new font, asset, configuration, version, dependency, pin or partition.
+
+The source-derived test first failed on the old date slot. It now asserts
+the actual palette's exact yellow, literal37-pixel rounded7px mask, six/seven
+blank side gaps, no old gray residue/frame, original full-size ink/baseline,
+clean visibility states, spacing/trace/bounds and boundary-date behavior.
+Native on/off previews, settings/UI, rotation and C++ weekday checks pass.
+Renderer SHA256:
+9e990a9ed64addd7ad6877463a76eaeee321e484828b32dad7e01df6a4c84ca4.
+Both units still runf3323b1; new exact visual/source audits and clean published
+per-board artifacts/live gates remain required before conditional deployment.
+No physical TFT approval or OTA clearance follows from host rendering alone.
+
 ## Round middle dot — deployed, 2026-10-15
 
 The owner selected a frameless weekday/date separator after independent
