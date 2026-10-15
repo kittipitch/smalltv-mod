@@ -1,5 +1,27 @@
 # Calendar weekday labels — 2026-10-08
 
+## Yellow separator rollout — 2026-10-15
+
+Both home Ultra and office SD PRO received clean published db41888/kitt27,
+home first after exact-PNG Astra visual GO and independent source/platform
+GO. Existing C_YELLOW, radius3/37-pixel circle, six/seven blank side columns;
+no frame, original font/baseline, date x62, time x160, month/day gap6px.
+Native pixel/trace/settings/rotation/weekday checks and both clean builds
+passed. Widest cross-month date ends206, with14px content headroom.
+Ultra680736B/36064B headroom; SDPRO674208B/42592B headroom. Per-board
+published stamp and transferred MD5/SHA256 checks preceded fresh mDNS
+identity/config backups and normal own/update firmware-only uploads.
+Both returned OK. Correct SHA/boards, rising uptime, oom0, fresh clocks,
+unchanged configs and active daemons verified. Office had transient reboot
+mDNS/calendar timeout; later usage/calendar polling recovered. Both scoped
+fleet audits passed. Full recovery evidence remains in the private journal.
+Fable hit its session limit and supplied no verdict; other strong independent
+audits cleared source/platform gates. No new z.ai calls after quota notice.
+No source edits after review/build, no 2c21/version/daemon/partition change.
+Physical TFT appearance remains unverified. This documentation-only commit
+does not change the deployed db41888 image; do not reflash to match docs.
+Older deployment-pending and gray-dot entries below are historical.
+
 ## Subtitle-yellow separator — implemented, deployment pending, 2026-10-15
 
 The owner requests more space on both sides and a bolder separator, clarifying
