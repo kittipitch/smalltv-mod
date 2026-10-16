@@ -641,7 +641,11 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w, const Settin
   // malicious POST /api/weather {"tempC":1e10}, unauthenticated by default
   // with no secret key set) is undefined behavior on this platform, not
   // just a display glitch -- clamp first so the cast is always well-defined.
-  if (w.hasTemp) snprintf(tempPart, sizeof(tempPart), "%d\xF8" "C", (int)lroundf(constrain(w.tempC, -99.0f, 199.0f)));
+  if (w.hasTemp) {
+    float tc = constrain(w.tempC, -99.0f, 199.0f);
+    if (s.calendar.tempF) snprintf(tempPart, sizeof(tempPart), "%d\xF8" "F", (int)lroundf(tc * 9.0f / 5.0f + 32.0f));
+    else                  snprintf(tempPart, sizeof(tempPart), "%d\xF8" "C", (int)lroundf(tc));
+  }
   drawRow(gfx, 116, 3, wxOk ? C_WHITE : C_DIM, tempPart);
 
   char p[16] = "Rain --";
@@ -859,7 +863,7 @@ static void drawForecastEmpty(Arduino_GFX* gfx) {
 // make it visually bigger needs a new baked icon asset at a larger
 // resolution, not a coordinate change, and is deliberately not done
 // here.
-static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
+static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w, const Settings& s) {
   if (w.fcCount == 0) { drawForecastEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
   // Only draw the divider between two populated columns -- fcCount < 3
@@ -891,8 +895,10 @@ static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
 
     int hiC = d.hi; if (hiC < -99) hiC = -99; if (hiC > 199) hiC = 199;
     int loC = d.lo; if (loC < -99) loC = -99; if (loC > 199) loC = 199;
-    char hiBuf[6]; snprintf(hiBuf, sizeof(hiBuf), "%d", hiC);
-    char loBuf[6]; snprintf(loBuf, sizeof(loBuf), "%d", loC);
+    int hiV = s.calendar.tempF ? (int)lroundf(hiC * 9.0f / 5.0f + 32.0f) : hiC;
+    int loV = s.calendar.tempF ? (int)lroundf(loC * 9.0f / 5.0f + 32.0f) : loC;
+    char hiBuf[6]; snprintf(hiBuf, sizeof(hiBuf), "%d", hiV);
+    char loBuf[6]; snprintf(loBuf, sizeof(loBuf), "%d", loV);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(colX + (80 - gfxTextW(hiBuf, 3)) / 2, 97);
@@ -956,7 +962,7 @@ void CalendarForecastMode::service(const Settings& s) {
   if (w.renderGen != wxRenderedOk_) { wxRenderedOk_ = w.renderGen; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawForecastPage(gfx, w);
+    if (gfx) drawForecastPage(gfx, w, s);
     needRender_ = false;
   }
 }

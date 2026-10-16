@@ -55,6 +55,7 @@ struct ClockSettings {
 // push path. lat/lon + pollSec are for the device-direct weather+AQI fetch.
 struct CalendarSettings {
   bool     showWeekday;    // agenda weekday prefix; shared by both pages
+  bool     tempF;          // show temperatures in Fahrenheit instead of Celsius
   float    lat;            // weather/AQ location (0,0 = not set yet)
   float    lon;
   // User-facing label for that location, shown as the weather page header.

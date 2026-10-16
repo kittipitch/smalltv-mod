@@ -229,6 +229,9 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div><label>Place label</label><input id="calPlace" type="text" maxlength="24" placeholder="Chiang Mai"></div>
     <div><label>Refresh every (s)</label><input id="calPoll" type="number" min="60" max="65535" step="60" placeholder="600"></div>
    </div>
+   <div class="row">
+    <div><label>Temperature unit</label><select id="calTempF"><option value="false">&deg;C</option><option value="true">&deg;F</option></select></div>
+   </div>
    <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows <b>SET LOCATION</b> instead of data. <b>Place label</b> is the heading shown on the weather page &mdash; it is filled in for you when you set a location, and it is the only name a device with no daemon can display. <b>Refresh</b> applies to the device's own fetching. Weather/AQI is fetched by the daemon while one is pushing; when pushes stop for 3 minutes this device fetches <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> itself, so the screen keeps updating while your computer is off.</small>
   </div>
  </section>
@@ -684,6 +687,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // calendar slice
  var cal=c.calendar||{};
  sc('calendarShowWeekday',cal.showWeekday!==false);
+ sv('calTempF',cal.tempF?'true':'false');
  sv('calLat',cal.lat); sv('calLon',cal.lon);
  sv('calPlace',cal.place||''); sv('calPoll',cal.weatherPollSec||600);
  // A stored label was a deliberate choice once, so treat it as user-owned
@@ -756,7 +760,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={showWeekday:gc('calendarShowWeekday'), lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
+  o.calendar={showWeekday:gc('calendarShowWeekday'), tempF:gv('calTempF')==='true', lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
  }
  return o;
 }
