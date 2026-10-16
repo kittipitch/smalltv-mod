@@ -219,6 +219,42 @@ After the first flash, every board updates from the browser under the web UI's U
 
 The [First-time setup guide](https://kittipitch.github.io/smalltv-mod/getting-started/setup/) walks through the web UI tab by tab.
 
+## Keep your own notes in a third, private repo
+
+You end up with three repos: these two public ones, which you clone and pull
+updates from, and one of your own that you create and keep **private**.
+
+| Repo | Yours? | What it holds |
+|---|---|---|
+| [smalltv-mod](https://github.com/kittipitch/smalltv-mod) | public, clone it | The firmware. Flash it, pull updates, re-flash |
+| [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) | public, clone it | The service that feeds the device. Run it, pull updates, restart |
+| *your own setup repo* | **you create it, private** | Everything specific to *you* |
+
+Make the third one yourself (`gh repo create my-smalltv-setup --private`, or
+the **New repository** button with **Private** ticked). Put in it the things
+that are true only of your setup, and that must never land in a public repo:
+
+- Which boards you own, their hostnames, MAC addresses, and where each one sits
+- Your WiFi details, and which radio/SSID the 2.4 GHz-only ESP8266 actually joins
+- The exact daemon command line you run, your calendar IDs, your service-account
+  filename, your weather coordinates, your timezone
+- What broke, what fixed it, and which firmware version each unit is on
+
+Keep real secrets (service-account JSON, API tokens, `.env`) out of git entirely
+— even a private repo — and note in that repo only *where* on your machine they
+live. This split is the same one this project uses: the code is public, the
+setup notes are not.
+
+Pulling updates afterwards is just:
+
+```sh
+cd smalltv-mod          && git pull   # then re-flash, see "Flashing" above
+cd ../clawdmeter-daemon && git pull   # then restart the service
+```
+
+Watch the [releases page](https://github.com/kittipitch/smalltv-mod/releases)
+(**Watch → Custom → Releases**) to be told when there is something to pull.
+
 ## Documentation
 
 Full docs live at **[kittipitch.github.io/smalltv-mod](https://kittipitch.github.io/smalltv-mod/)**:
