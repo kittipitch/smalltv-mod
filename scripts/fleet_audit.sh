@@ -3,7 +3,7 @@
 # identify, and does that firmware correspond to a commit that is actually
 # published?
 #
-# Exists because of the "mysterious firmware" incident: an SD PRO was found running a
+# Exists because of the "mysterious firmware" incident: a unit was found running a
 # build nobody could name. FW_VERSION only moves at a release cut, so it can
 # never identify a build -- two units months apart both said "1.0.0-kitt23".
 # GIT_SHA fixed identification; this script is what makes anyone LOOK.

@@ -1,6 +1,6 @@
 // OomTrap.h -- records allocations that FAIL, including the closed SDK's own.
 //
-// The 2026-09-11 an Ultra crash was the SDK's ieee80211_setup_ratetable calling
+// The 2026-09-11 Ultra crash was the SDK's ieee80211_setup_ratetable calling
 // pvPortZalloc(212), getting NULL, and memcpy'ing into it. Nothing recorded that
 // the allocation failed: the core's own "last failed alloc" bookkeeping is
 // compiled out for pvPort* unless DEBUG_ESP_OOM is set (heap.cpp:207-217), and

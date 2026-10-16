@@ -141,7 +141,7 @@ void netLoop() {
   // and memcpy's into the result. On 2026-09-11 an Ultra flapped for two hours and
   // one of those allocations failed: exc 29, memcpy(NULL). The nudge could never
   // make an association succeed sooner; it only added attempts. Two retry loops
-  // fighting is now one. (journal/crashes/an Ultra_2026-09-11_exc29_beacon.md)
+  // fighting is now one.
   platformMdnsUpdate();
   uint32_t now = millis();
   if (WiFi.status() == WL_CONNECTED) {

@@ -74,7 +74,7 @@ static void sendJson(JsonDocument& doc, int code = 200) {
 }
 
 // Setup-hotspot page. Over the SmallTV-Setup AP the full UI (~58 KB) arrives
-// cut off at 2-8 KB (an Ultra 2026-09-14, an Ultra 2026-09-15), so its script never
+// cut off at 2-8 KB (two Ultra units, 2026-09-14 and 2026-09-15), so its script never
 // runs and WiFi cannot be saved. This page has no script and stays around
 // 1 KB (~1.4 KB with the scan list) -- a few 536-byte TCP segments (this build's
 // lwIP MSS; the header is written separately), which have arrived intact over

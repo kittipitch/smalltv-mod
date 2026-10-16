@@ -21,7 +21,7 @@ void platformOnTimeSync(void (*cb)()) {
 // This panel has no UART broken out, so the core's postmortem stack dump goes
 // nowhere and every crash we have ever seen is reduced to whatever fits on the
 // crash screen: epc + fault address. That was not enough to identify the caller
-// for the 2026-09-10 an Ultra crash (epc 0x4000df64 = ROM memcpy+0x1c, addr 0
+// for the 2026-09-10 Ultra crash (epc 0x4000df64 = ROM memcpy+0x1c, addr 0
 // -- 490 possible call sites once ets_memcpy's trampoline is counted), so this
 // keeps the exception cause AND the top of the crashed stack, where the return
 // addresses live, in RTC memory. RTC survives an exception reset (which is the
@@ -201,7 +201,7 @@ bool platformCrashLogRead(String& out) {
            (unsigned)c.oomCount, (unsigned)c.discCount);
   out += b;
   // Newest failure first. ra is the SDK/lwIP call site: addr2line it. On the
-  // an Ultra signature, ra inside ieee80211_setup_ratetable with size 212 is the
+  // That crash signature, ra inside ieee80211_setup_ratetable with size 212 is the
   // one-read proof that the allocation failed; oom 0 with this exc 29 falsifies it.
   // k < shown <= oomCount, so oomCount - 1 - k never underflows.
   uint32_t shown = c.oomCount < OOM_RING_LEN ? c.oomCount : OOM_RING_LEN;

@@ -28,7 +28,11 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 import re
 FONT='weathericons.ttf'
-H='src/features/calendar/WeatherIcons.h'
+# Resolved relative to this script, so it works in any checkout. It used to be an
+# absolute path from the author's machine, which both broke every other clone and
+# published a local username and a private repo name in a public repo.
+from pathlib import Path
+H=str(Path(__file__).resolve().parents[1] / 'src/features/calendar/WeatherIcons.h')
 def committed(n):
     s=open(H,encoding='utf-8').read()
     m=re.search(r'kWxIcon'+n+r'\[200\] PROGMEM = \{(.*?)\};',s,re.S)
@@ -105,7 +109,11 @@ if __name__ == '__main__':
             m = committed(n)
             if not m: continue
             i = ink(m)
-            flag = 'ok' if 16 <= i/1600*100 <= 25 else 'OUT OF BAND'
+            # Moon is a documented exception to the band: the designer drew
+            # wi-night-clear at 67% of the sun, so it ships in a 30px box, not
+            # the 36px house box. See the comment above kWxIconMoon.
+            lo, hi = (13, 25) if n == 'Moon' else (16, 25)
+            flag = 'ok' if lo <= i/1600*100 <= hi else 'OUT OF BAND'
             print(f"{n:6} {i:4} px  {i/1600*100:4.1f}%  {flag}")
     else:
         cp = chr(int(sys.argv[2], 16))
