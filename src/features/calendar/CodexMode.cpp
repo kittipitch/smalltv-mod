@@ -364,7 +364,9 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   // The label is painted only under `full`, so a change (a plan switch while running)
   // forces a card-local repaint, same trick as s_lastCard1 above.
   static int s_lastWeekDays = -1;
-  int weekDays = (c.hasWeekMins && c.weekMins >= 1440) ? (c.weekMins + 720) / 1440 : 7;
+  // 1440..527040 min (1..366 days): /api/codex is ungated, so a wild value must not overflow
+  // the +720 or print a long label; anything outside the range reads as the original "7d".
+  int weekDays = (c.hasWeekMins && c.weekMins >= 1440 && c.weekMins <= 527040) ? (c.weekMins + 720) / 1440 : 7;
   char weekLbl[8];
   snprintf(weekLbl, sizeof(weekLbl), "%dd", weekDays);
   bool card2Full = full || (s_lastWeekDays != weekDays);

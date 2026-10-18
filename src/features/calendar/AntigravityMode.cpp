@@ -83,7 +83,7 @@ static void truncateDots(const char* in, char* out, size_t outCap, int maxChars)
 // UNCHANGED from every other quota page (top=50/138, h=82) throughout
 // every revision of this card -- only the value's own font size and
 // digit-width vary.
-static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
+static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label, bool big,
                                   bool has, int pct, bool hasReset, int resetMins,
                                   bool full, bool growRight) {
   const int x = 8, w = 224, h = 82;
@@ -111,13 +111,12 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
   truncateDots((label && label[0]) ? label : "--", lblRaw, sizeof(lblRaw), 10);
   char lbl[11];
   snprintf(lbl, sizeof(lbl), "%-10s", lblRaw);
-  // A short label ("5h"/"7d", what the daemon sends now that agy reports its 5-hour and
-  // weekly windows) leaves room for the same size-5 value the Claude page uses. The old
-  // "3.6 Flash" style labels keep size 4. This block now runs BEFORE the value is drawn:
-  // at size 5 the value starts at x=128, inside this label's 10-char padding (to x=142),
-  // and the value's opaque background must win that overlap. At size 4 (x=146) the two
-  // never touched, so legacy labels render exactly as before.
-  const bool shortLbl = strlen(lblRaw) <= 4;
+  // `big` = the size-5 value the Claude page uses; otherwise the original size 4. The page
+  // decides it once for BOTH cards (see drawAntigravityPage) so a card can never flip size
+  // between pushes and strand digits of the other size. This label block now runs BEFORE
+  // the value is drawn: at size 5 the value starts at x=128, inside this label's 10-char
+  // padding (to x=142), and the value's opaque background must win that overlap. At size 4
+  // (x=146) the two never touched, so legacy labels render exactly as before.
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
   gfx->setCursor(x + 14, top + 12);
@@ -139,7 +138,7 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
   char pc[8];
   if (has) snprintf(pc, sizeof(pc), "%2d%%", dispPct);
   else     strlcpy(pc, " --", sizeof(pc));
-  uint8_t sz = gfxFitSize(pc, 150, shortLbl ? 5 : 4);
+  uint8_t sz = gfxFitSize(pc, 150, big ? 5 : 4);
   int pcw = gfxTextW(pc, sz);
   gfx->setTextSize(sz);
   // Red ONLY at the true-100% edge case ("99%" would otherwise be
@@ -199,10 +198,22 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
   // windows. Card 1: Gemini Pro family. Card 2: Gemini Flash family. Both
   // always drawn unconditionally (not gated on has*) -- same
   // both-cards-always-drawn fix already applied to CodexMode.cpp.
-  drawAntigravityMeter(gfx, 50,  a.hasLabelPro ? a.labelPro : "Pro",
-                        a.hasPctPro, a.pctPro, a.hasPctPro && a.hasRPro, a.rPro, full, growRight);
-  drawAntigravityMeter(gfx, 138, a.hasLabelFlash ? a.labelFlash : "Flash",
-                        a.hasPctFlash, a.pctFlash, a.hasPctFlash && a.hasRFlash, a.rFlash, full, growRight);
+  // Value size, decided once per page from what the daemon sent. "Big" (size 5, the Claude
+  // page's) only when it sent labels and every one of them is short ("5h"/"7d"): a daemon
+  // that sends none, or the old "3.6 Flash" labels, keeps size 4 exactly as before. A card
+  // with no label in big mode reads "--" rather than the default "Flash", which would be
+  // five characters of size-4 text. The cards' panels are only refilled under `full`, so a
+  // change of mode forces a repaint of both (same trick as CodexMode.cpp's s_lastCard1).
+  auto shortOrAbsent = [](bool hasLabel, const char* l) { return !hasLabel || strlen(l) <= 4; };
+  const bool big = (a.hasLabelPro || a.hasLabelFlash) &&
+                   shortOrAbsent(a.hasLabelPro, a.labelPro) && shortOrAbsent(a.hasLabelFlash, a.labelFlash);
+  static int8_t s_lastBig = -1;
+  const bool cardsFull = full || (s_lastBig != (int8_t)big);
+  s_lastBig = (int8_t)big;
+  drawAntigravityMeter(gfx, 50,  a.hasLabelPro ? a.labelPro : (big ? "--" : "Pro"), big,
+                        a.hasPctPro, a.pctPro, a.hasPctPro && a.hasRPro, a.rPro, cardsFull, growRight);
+  drawAntigravityMeter(gfx, 138, a.hasLabelFlash ? a.labelFlash : (big ? "--" : "Flash"), big,
+                        a.hasPctFlash, a.pctFlash, a.hasPctFlash && a.hasRFlash, a.rFlash, cardsFull, growRight);
 }
 
 // Same flip-clock overlay as UsageMode.cpp/CodexMode.cpp -- per the same
