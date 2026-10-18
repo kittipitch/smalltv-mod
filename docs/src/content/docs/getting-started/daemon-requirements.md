@@ -40,7 +40,7 @@ any of them; Calendar and Weather also read device-side settings from the first 
 |---|---|---|
 | Claude usage (on by default, no flag) | The **`claude` CLI** on `PATH` and logged in — **or** a long-lived `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (in the environment or `.env`) | No usage numbers; the device shows the mascot/stale page |
 | Codex quota (`--codex`) | The **`codex` CLI**, logged in. The daemon runs `codex app-server` briefly per poll — no API key, no cost | Codex page stays empty |
-| Antigravity (`--antigravity`) | The **`agy` CLI**, authenticated, a directory it trusts, and **`lsof`** on `PATH` (the daemon finds `agy`'s port with it). **Each poll is a real billable prompt** | Page empty; leave it off unless you want it |
+| Antigravity (`--antigravity`) | The **`agy` CLI**, authenticated, and a directory it trusts. With `agy` 1.1.11+ a poll is free. An older `agy` also needs **`lsof`** on `PATH` (the daemon finds its port with it) and **each poll is a real billable prompt** | Page empty; leave it off unless you want it |
 | z.ai (`--zai`) | Key via `--zai-key` or `CLAWDMETER_ZAI_KEY` (no file fallback) | Page empty |
 | OpenRouter (`--openrouter`) | Key via `--openrouter-key`, `CLAWDMETER_OPENROUTER_KEY`, or `~/.openrouter_dot_ai_key` | Page empty |
 | Pictures (`--album DIR`) | `Pillow` — already in the base install, and it **is** the converter (decode jpg/jpeg/png/bmp/gif/webp → letterbox-scale the whole picture to the panel → raw frame → disk cache). **No `convert`/`ffmpeg`/`sips` CLI needed** | `Album: Pillow not installed -- pip install -r requirements.txt` |

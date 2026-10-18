@@ -45,14 +45,14 @@ Antigravity) prints at most two digits: a quota that is fully used shows
   countdown
 - **Codex** — 5h and 7d quota % + reset countdowns, plus a small line inside
   the 7d card with free "rate-limit reset" credits and when the soonest one
-  expires unused
-- **Antigravity** — two cards: your Gemini Pro family's quota % + reset
-  countdown, and your Gemini Flash family's, each labeled with which
-  version is currently backing the number (e.g. "3.6 Flash" — picks the
-  newest version your account has, not just whichever is numerically
-  tightest). Non-Gemini models this account may also have access to
-  (Claude, GPT-OSS variants run through `agy`) aren't shown here — they
-  have their own dedicated pages already
+  expires unused. The lower card is labelled by its window's real length: a
+  free ChatGPT plan has one 30-day window, shown as "30d" (Plus and Pro: "7d")
+- **Antigravity** — the same two-card layout as the Claude page: your model
+  group's shortest window on top ("5h") and longest below ("7d"), each with %
+  used and a reset countdown. It shows the Gemini group (Gemini Flash and Pro
+  share one set of limits); other groups, such as Claude and GPT-OSS run through
+  `agy`, are not shown. Cards are labelled by each window's own length, so a
+  plan with different windows labels itself
 - **Agenda** — up to 6 upcoming Google Calendar events (3 per page, a
   second page auto-appears if you have more than 3), color-coded by which
   calendar each event came from
@@ -276,9 +276,10 @@ actually run anything. Install a real interpreter first:
    one-time prompts (data-sharing opt-out, trust this directory), then exit
    with `Ctrl+C` twice — the daemon starts its own `agy` process per poll,
    it doesn't need this session left running.
-3. Add `--antigravity` to your daemon command line. **Unlike Codex, this
-   isn't free** — every poll fires a real, cheap-model prompt, so the
-   default interval is kept long (30 minutes) on purpose
+3. Add `--antigravity` to your daemon command line. With `agy` 1.1.11 or
+   newer this is **free** (the daemon runs `agy -p "/quota"`, no model
+   prompt). On an older `agy` every poll fires a real, cheap-model prompt, so
+   run `agy update`; the default interval stays at 30 minutes either way
 
 See `clawdmeter-daemon`'s own `README.md` for the full detail/troubleshooting
 on any of the four (Claude, z.ai, Codex, Antigravity) if something above
@@ -313,10 +314,11 @@ that self-consumption roughly 5x, trading slightly slower on-screen updates.
 **Codex CLI quota**: free to check — it just reads state Codex's own CLI
 already caches locally, no model call at all.
 
-**Antigravity CLI quota**: the opposite of Codex — its local quota data only
-populates after a real prompt has run, so every poll fires one (the
-cheapest available model). Small real cost, which is why the default
-interval is 30 minutes rather than something short.
+**Antigravity CLI quota**: free on `agy` 1.1.11 or newer — the daemon runs
+`agy -p "/quota"`, which prints your quota locally with no model call. An
+older `agy` only reports quota after a real prompt has run, so each poll
+fires one (the cheapest available model, a small real cost); the default
+interval is 30 minutes for that case.
 
 **z.ai quota**: a plain HTTP GET against your account's own usage endpoint —
 no completion call, so effectively free like Codex.
@@ -326,7 +328,7 @@ no completion call, so effectively free like Codex.
 ```
 Claude Code (token via claude setup-token)  --\
 Codex CLI (codex login)                      --\
-Antigravity CLI (agy, real prompt per poll)   ---> clawdmeter-daemon --> GeekMagic screen
+Antigravity CLI (agy -p "/quota", free)         ---> clawdmeter-daemon --> GeekMagic screen
 z.ai (API key)                               --/     (always running)      (smalltv-mod)
 Google Calendar (service account key)        --/
 Open-Meteo (weather, no key needed)         --/
