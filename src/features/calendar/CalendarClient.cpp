@@ -300,7 +300,7 @@ bool zaiApply(const String& body) {
 // account/plan tier is simply absent, not a fake 0).
 static void codexFilter(JsonDocument& f) {
   f["ok"] = true; f["pct5h"] = true; f["r5h"] = true;
-  f["pctWeek"] = true; f["rWeek"] = true;
+  f["pctWeek"] = true; f["rWeek"] = true; f["weekMins"] = true;
   f["resetCredits"] = true; f["resetCreditExpireMins"] = true;
 }
 
@@ -338,6 +338,8 @@ bool codexApply(const String& body) {
   g_codex.r5h     = doc["r5h"] | 0;
   g_codex.hasRWeek = doc["rWeek"].is<int>();
   g_codex.rWeek    = doc["rWeek"] | 0;
+  g_codex.hasWeekMins = doc["weekMins"].is<int>();
+  g_codex.weekMins    = doc["weekMins"] | 0;
   g_codex.hasResetCredits = doc["resetCredits"].is<int>();
   g_codex.resetCredits    = doc["resetCredits"] | 0;
   g_codex.hasResetCreditExpireMins = doc["resetCreditExpireMins"].is<int>();

@@ -89,35 +89,6 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
-  // Displayed value is capped at 2 digits (99% max), NOT the real `pct`
-  // used for the bar fill/color below -- per explicit live feedback
-  // ("the percentage is 2 number max"). This is a deliberate display-only
-  // clamp (a common "don't print 100% until truly done" UI convention),
-  // not a data-accuracy compromise: the bar itself, and pctColor()'s red
-  // threshold, still use the real unclamped `pct`, so a genuinely
-  // exhausted quota still reads as a full red bar even though the number
-  // reads "99%" instead of "100%". This is what makes size4 (not size3)
-  // fit the full label: a fixed 3-char "NN%"/" --" is 72px at size4 --
-  // identical width to a fixed 4-char "%3d%%" at size3 -- so this trades
-  // one digit of display precision at the true-100% edge case for a
-  // visibly bigger value everywhere else.
-  int dispPct = has ? (pct > 99 ? 99 : (pct < 0 ? 0 : pct)) : 0;
-  char pc[8];
-  if (has) snprintf(pc, sizeof(pc), "%2d%%", dispPct);
-  else     strlcpy(pc, " --", sizeof(pc));
-  uint8_t sz = gfxFitSize(pc, 150, 4);
-  int pcw = gfxTextW(pc, sz);
-  gfx->setTextSize(sz);
-  // Red ONLY at the true-100% edge case ("99%" would otherwise be
-  // indistinguishable from a real 99), white everywhere else -- first
-  // asked for this page only, since 2026-09-12 the rule on every quota
-  // page (see UsageMode.cpp drawMeter()). Not a severity threshold (that's
-  // what the bar's pctColor() already is) -- this is a correctness flag:
-  // red means "the number shown is capped, the real value is higher."
-  gfx->setTextColor((has && pct >= 100) ? C_RED : C_WHITE, C_PANEL);
-  gfx->setCursor(x + w - pcw - 14, top + 10);
-  gfx->print(pc);
-
   // Label drawn UNCONDITIONALLY (not gated on `full`), opaque, fixed-width
   // padded -- unlike z.ai's "5h"/"MCP" (static, safe to gate on `full`
   // since they never change), this label is the daemon-reported string
@@ -140,10 +111,46 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label,
   truncateDots((label && label[0]) ? label : "--", lblRaw, sizeof(lblRaw), 10);
   char lbl[11];
   snprintf(lbl, sizeof(lbl), "%-10s", lblRaw);
+  // A short label ("5h"/"7d", what the daemon sends now that agy reports its 5-hour and
+  // weekly windows) leaves room for the same size-5 value the Claude page uses. The old
+  // "3.6 Flash" style labels keep size 4. This block now runs BEFORE the value is drawn:
+  // at size 5 the value starts at x=128, inside this label's 10-char padding (to x=142),
+  // and the value's opaque background must win that overlap. At size 4 (x=146) the two
+  // never touched, so legacy labels render exactly as before.
+  const bool shortLbl = strlen(lblRaw) <= 4;
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
   gfx->setCursor(x + 14, top + 12);
   gfx->print(lbl);
+
+  // Displayed value is capped at 2 digits (99% max), NOT the real `pct`
+  // used for the bar fill/color below -- per explicit live feedback
+  // ("the percentage is 2 number max"). This is a deliberate display-only
+  // clamp (a common "don't print 100% until truly done" UI convention),
+  // not a data-accuracy compromise: the bar itself, and pctColor()'s red
+  // threshold, still use the real unclamped `pct`, so a genuinely
+  // exhausted quota still reads as a full red bar even though the number
+  // reads "99%" instead of "100%". This is what makes size4 (not size3)
+  // fit the full label: a fixed 3-char "NN%"/" --" is 72px at size4 --
+  // identical width to a fixed 4-char "%3d%%" at size3 -- so this trades
+  // one digit of display precision at the true-100% edge case for a
+  // visibly bigger value everywhere else.
+  int dispPct = has ? (pct > 99 ? 99 : (pct < 0 ? 0 : pct)) : 0;
+  char pc[8];
+  if (has) snprintf(pc, sizeof(pc), "%2d%%", dispPct);
+  else     strlcpy(pc, " --", sizeof(pc));
+  uint8_t sz = gfxFitSize(pc, 150, shortLbl ? 5 : 4);
+  int pcw = gfxTextW(pc, sz);
+  gfx->setTextSize(sz);
+  // Red ONLY at the true-100% edge case ("99%" would otherwise be
+  // indistinguishable from a real 99), white everywhere else -- first
+  // asked for this page only, since 2026-09-12 the rule on every quota
+  // page (see UsageMode.cpp drawMeter()). Not a severity threshold (that's
+  // what the bar's pctColor() already is) -- this is a correctness flag:
+  // red means "the number shown is capped, the real value is higher."
+  gfx->setTextColor((has && pct >= 100) ? C_RED : C_WHITE, C_PANEL);
+  gfx->setCursor(x + w - pcw - 14, top + 10);
+  gfx->print(pc);
 
   int bx = x + 14, by = top + 52, bw = w - 28, bh = 12;
   gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);

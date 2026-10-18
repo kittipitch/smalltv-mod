@@ -212,6 +212,8 @@ struct CodexData {
   bool hasPctWeek;
   int  rWeek;           // minutes until the weekly window resets
   bool hasRWeek;
+  int  weekMins;        // true length of that long window: 10080 on Plus/Pro, 43200 on
+  bool hasWeekMins;     // free. Absent from an older daemon, which means "call it 7d".
 
   int  resetCredits;              // count of available free rate-limit resets
   bool hasResetCredits;
@@ -227,6 +229,7 @@ struct CodexData {
     r5h = 0; hasR5h = false;
     pctWeek = 0; hasPctWeek = false;
     rWeek = 0; hasRWeek = false;
+    weekMins = 0; hasWeekMins = false;
     resetCredits = 0; hasResetCredits = false;
     resetCreditExpireMins = 0; hasResetCreditExpireMins = false;
     valid = false;

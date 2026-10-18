@@ -358,7 +358,18 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
                        c.hasResetCreditExpireMins, c.resetCreditExpireMins,
                        card1Full, growRight);
   }
-  drawCodexMeter(gfx, 138, "7d", c.hasPctWeek, c.pctWeek, c.hasPctWeek && c.hasRWeek, c.rWeek, full, growRight);
+  // The long window's label comes from its real length. Plus/Pro report 10080 min and
+  // an older daemon reports nothing: both keep the original "7d", pixel for pixel. A free
+  // account's only window is 43200 min and used to be drawn as "7d" too, which was a lie.
+  // The label is painted only under `full`, so a change (a plan switch while running)
+  // forces a card-local repaint, same trick as s_lastCard1 above.
+  static int s_lastWeekDays = -1;
+  int weekDays = (c.hasWeekMins && c.weekMins >= 1440) ? (c.weekMins + 720) / 1440 : 7;
+  char weekLbl[8];
+  snprintf(weekLbl, sizeof(weekLbl), "%dd", weekDays);
+  bool card2Full = full || (s_lastWeekDays != weekDays);
+  s_lastWeekDays = weekDays;
+  drawCodexMeter(gfx, 138, weekLbl, c.hasPctWeek, c.pctWeek, c.hasPctWeek && c.hasRWeek, c.rWeek, card2Full, growRight);
   // Suffix only when the credit is NOT already the headline of card 1 --
   // otherwise the same credit would be drawn twice on one screen. It still
   // clears its own slot when suppressed, so switching between the two layouts
