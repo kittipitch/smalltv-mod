@@ -238,34 +238,43 @@ struct CodexData {
 };
 
 // Antigravity CLI (`agy`) quota -- {ok,pctPro?,labelPro?,rPro?,pctFlash?,
-// labelFlash?,rFlash?}. Two-window shape, same as Codex/z.ai: the daemon's
-// poll_antigravity() splits this account's real model configs into a
-// Gemini Pro family and a Gemini Flash family (non-Gemini models this
-// account also has -- Claude Sonnet/Opus, GPT-OSS -- aren't surfaced here,
-// they have their own dedicated pages already) and reports each family's
-// LATEST version's tightest-constrained variant separately -- version
-// wins over quota (a numerically tighter but older-generation entry, e.g.
-// 3.5 Flash, is not picked over a newer one, e.g. 3.6 Flash) -- see that
-// function's docstring for the full reasoning. `labelPro`/`labelFlash`
-// are "<version> <family>" strings (e.g. "3.6 Flash") -- shown on each
-// card since which reasoning-tier variant backs the number can change
-// poll to poll. Wide enough that AntigravityMode.cpp's two cards use a
-// smaller value font (size3, not every other quota card's size5) to
-// leave room for it -- see that file's drawAntigravityMeter() comment.
+// labelFlash?,rFlash?}. Two-window shape, same as Codex/z.ai. The daemon
+// (parse_agy_quota()) reads `agy -p "/quota"` groups: the TOP card is the
+// chosen group's (Gemini preferred) shortest window -- the shared 5h; the
+// BOTTOM card is its longest window ("7d"). When the account also has a
+// Gemini 4 Argon group (live 2026-10-19 it is the quota that runs out
+// first), the daemon adds pctArgon/labelArgon/rArgon and the BOTTOM card is
+// split into two half cards side by side, 7d on the left and Argon on the
+// right; each half card's label row reads the window at the left and the
+// model tag at the right ("7d ... Fl", "7d ... Ar"). Without those keys (old daemon, or no Argon group) the bottom
+// card stays whole. The per-page value size decision lives in
+// AntigravityMode.cpp's drawAntigravityPage().
 struct AntigravityData {
   int  pctPro;
   bool hasPctPro;
-  char labelPro[16];     // e.g. "3.1 Pro"
+  char labelPro[16];     // e.g. "5h"
   bool hasLabelPro;
-  int  rPro;             // minutes until the Pro family's quota resets
+  int  rPro;             // minutes until the top card's window resets
   bool hasRPro;
 
   int  pctFlash;
   bool hasPctFlash;
-  char labelFlash[16];   // e.g. "3.6 Flash"
+  char labelFlash[16];   // e.g. "7d"
   bool hasLabelFlash;
-  int  rFlash;           // minutes until the Flash family's quota resets
+  int  rFlash;           // minutes until the bottom card's window resets
   bool hasRFlash;
+
+  int  pctArgon;         // Gemini 4 Argon group's long window; bottom-right half card
+  bool hasPctArgon;
+  char labelArgon[16];   // the window, "7d"
+  bool hasLabelArgon;
+  int  rArgon;
+  bool hasRArgon;
+
+  char tagFlash[8];      // model tag at the right of the left half card's label row ("Fl")
+  bool hasTagFlash;
+  char tagArgon[8];      // ... and of the right half card ("Ar")
+  bool hasTagArgon;
 
   bool     valid;      // populated at least once by a successful push
   uint32_t lastOkMs;
@@ -277,6 +286,11 @@ struct AntigravityData {
     pctFlash = 0; hasPctFlash = false;
     labelFlash[0] = 0; hasLabelFlash = false;
     rFlash = 0; hasRFlash = false;
+    pctArgon = 0; hasPctArgon = false;
+    labelArgon[0] = 0; hasLabelArgon = false;
+    rArgon = 0; hasRArgon = false;
+    tagFlash[0] = 0; hasTagFlash = false;
+    tagArgon[0] = 0; hasTagArgon = false;
     valid = false;
     lastOkMs = 0;
   }

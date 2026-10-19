@@ -52,7 +52,11 @@ Antigravity) prints at most two digits: a quota that is fully used shows
   used and a reset countdown. It shows the Gemini group (Gemini Flash and Pro
   share one set of limits); other groups, such as Claude and GPT-OSS run through
   `agy`, are not shown. Cards are labelled by each window's own length, so a
-  plan with different windows labels itself
+  plan with different windows labels itself. When the account also has a Gemini 4
+  Argon limit (it can run out while Gemini is almost untouched), the lower card is
+  split into two halves, `7d ... Fl` for Gemini and `7d ... Ar` for Argon. The
+  header shows the Antigravity logo. "Resets in" is right-aligned on every quota
+  card; the small halves show just the countdown
 - **Agenda** — up to 6 upcoming Google Calendar events (3 per page, a
   second page auto-appears if you have more than 3), color-coded by which
   calendar each event came from

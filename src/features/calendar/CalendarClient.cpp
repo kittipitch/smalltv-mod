@@ -360,6 +360,8 @@ static void antigravityFilter(JsonDocument& f) {
   f["ok"] = true;
   f["pctPro"] = true; f["labelPro"] = true; f["rPro"] = true;
   f["pctFlash"] = true; f["labelFlash"] = true; f["rFlash"] = true;
+  f["pctArgon"] = true; f["labelArgon"] = true; f["rArgon"] = true;
+  f["tagFlash"] = true; f["tagArgon"] = true;
 }
 
 bool antigravityApply(const String& body) {
@@ -396,6 +398,28 @@ bool antigravityApply(const String& body) {
     g_antigravity.labelFlash[0] = 0;
   g_antigravity.hasRFlash = doc["rFlash"].is<int>();
   g_antigravity.rFlash    = doc["rFlash"] | 0;
+
+  // Argon (bottom-right half card). Unconditional like the rest: a daemon that stops sending it
+  // (no Argon group any more) must make the bottom card whole again, not freeze the last number.
+  g_antigravity.hasPctArgon = doc["pctArgon"].is<int>();
+  g_antigravity.pctArgon    = doc["pctArgon"] | 0;
+  g_antigravity.hasLabelArgon = doc["labelArgon"].is<const char*>();
+  if (g_antigravity.hasLabelArgon)
+    strlcpy(g_antigravity.labelArgon, jstr(doc["labelArgon"]), sizeof(g_antigravity.labelArgon));
+  else
+    g_antigravity.labelArgon[0] = 0;
+  g_antigravity.hasRArgon = doc["rArgon"].is<int>();
+  g_antigravity.rArgon    = doc["rArgon"] | 0;
+  g_antigravity.hasTagFlash = doc["tagFlash"].is<const char*>();
+  if (g_antigravity.hasTagFlash)
+    strlcpy(g_antigravity.tagFlash, jstr(doc["tagFlash"]), sizeof(g_antigravity.tagFlash));
+  else
+    g_antigravity.tagFlash[0] = 0;
+  g_antigravity.hasTagArgon = doc["tagArgon"].is<const char*>();
+  if (g_antigravity.hasTagArgon)
+    strlcpy(g_antigravity.tagArgon, jstr(doc["tagArgon"]), sizeof(g_antigravity.tagArgon));
+  else
+    g_antigravity.tagArgon[0] = 0;
 
   g_antigravity.valid = true;
   g_antigravity.lastOkMs = millis();

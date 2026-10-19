@@ -3,7 +3,7 @@
 #include "Gfx.h"
 #include "CalendarClient.h"
 #include "Clock.h"
-#include "AntigravityIcon.h"
+#include "AgyLogo.h"
 
 AntigravityMode g_antigravityMode;
 
@@ -85,7 +85,7 @@ static void truncateDots(const char* in, char* out, size_t outCap, int maxChars)
 // digit-width vary.
 static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label, bool big,
                                   bool has, int pct, bool hasReset, int resetMins,
-                                  bool full, bool growRight) {
+                                  bool full, bool growRight, bool resetPrefix) {
   const int x = 8, w = 224, h = 82;
   if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
 
@@ -163,16 +163,110 @@ static void drawAntigravityMeter(Arduino_GFX* gfx, int top, const char* label, b
 
   // Row is always drawn, same as UsageMode.cpp's/CodexMode.cpp's meter --
   // when hasReset is false, it prints "--" rather than a fake "now", but
-  // still occupies the row so nothing else needs to clear it.
+  // still occupies the row so nothing else needs to clear it. Owner
+  // (2026-10-19): "Resets in" on the TOP card only; every other card on
+  // this page shows the bare duration ("5d 18h"). Both forms are padded
+  // to a fixed width: the panel is only refilled under `full`, so a
+  // shorter text ("now") must overwrite every pixel of a longer one.
   char rs[16], line[10 + sizeof(rs) + 1];
   if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
   else          strlcpy(rs, "--", sizeof(rs));
-  snprintf(line, sizeof(line), "Resets in %-7s", rs);
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
+  if (resetPrefix) {
+    // "Resets in 4h 57m" right-aligned in a fixed 17-char field (the longest text, "Resets in 29d 23h"),
+    // ending 14 px inside the card -- the same right edge as the big value and the bar (owner
+    // 2026-10-19: right-align "Resets in" on every card, every page). The padding blanks on the left
+    // overwrite a longer previous text.
+    char tmp[10 + sizeof(rs)];
+    snprintf(tmp, sizeof(tmp), "Resets in %s", rs);
+    snprintf(line, sizeof(line), "%17s", tmp);
+  } else {
+    // Bare form, right-aligned in a fixed 7-char field ending at the SAME right edge, so its last
+    // character sits exactly under the last character of the top card's text (the h under the m).
+    snprintf(line, sizeof(line), "%7s", rs);
+  }
   // top+66, not +64 -- see UsageMode.cpp's drawMeter() comment
-  gfx->setCursor(x + 14, top + 66);
+  gfx->setCursor(x + w - 14 - gfxTextW(line, 2), top + 66);
   gfx->print(line);
+}
+
+// Half-width card for the bottom row when the account also has an Argon group: 7d on the left,
+// Argon on the right. Same look as drawAntigravityMeter() (panel, dim label, white value, bar, bare
+// reset) stacked in a 110 px column: label row (window left, model tag right), value (size 4, right
+// aligned), bar, reset. The label is
+// drawn before the value like the full card, both with opaque panel backgrounds, so a changed
+// label or value never leaves old pixels behind.
+static void drawAntigravityHalf(Arduino_GFX* gfx, int x, int top, const char* label, const char* tag,
+                                bool has, int pct, bool hasReset, int resetMins,
+                                bool full, bool growRight) {
+  const int w = 110, h = 82;
+  if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+
+  char lblRaw[8];
+  truncateDots((label && label[0]) ? label : "--", lblRaw, sizeof(lblRaw), 4);
+  char lbl[9];
+  snprintf(lbl, sizeof(lbl), "%-4s", lblRaw);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 6);
+  gfx->print(lbl);
+  // Model tag at the right end of the same row ("7d ... Fl"). Fixed 4 chars, right-aligned, so a
+  // changed or removed tag fully overwrites the old one. Drawn after the label with its own opaque
+  // background; labels are <= 3 chars ("5h", "7d", "30d"), so its blank padding never clips ink.
+  char tagRaw[8], tagPad[8];
+  truncateDots((tag && tag[0]) ? tag : "", tagRaw, sizeof(tagRaw), 4);
+  snprintf(tagPad, sizeof(tagPad), "%4s", tagRaw);
+  gfx->setCursor(x + w - gfxTextW(tagPad, 2) - 14, top + 6);
+  gfx->print(tagPad);
+
+  // Same display rule as the full card: at most 2 digits ("99%"), red only at a true 100%, a fixed
+  // 3-char "NN%" / " --" so a shorter value fully overwrites a longer one, and right-aligned to the
+  // card's inner edge like the whole cards' value (owner 2026-10-19: "the number should align right").
+  int dispPct = has ? (pct > 99 ? 99 : (pct < 0 ? 0 : pct)) : 0;
+  char pc[8];
+  if (has) snprintf(pc, sizeof(pc), "%2d%%", dispPct);
+  else     strlcpy(pc, " --", sizeof(pc));
+  gfx->setTextSize(4);
+  gfx->setTextColor((has && pct >= 100) ? C_RED : C_WHITE, C_PANEL);
+  gfx->setCursor(x + w - gfxTextW(pc, 4) - 14, top + 24);
+  gfx->print(pc);
+
+  int bx = x + 14, by = top + 56, bw = w - 28, bh = 8;  // 14 px margins, like the whole cards
+  gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
+  int fw = has ? (int)(bw * constrain(pct, 0, 100) / 100.0f) : 0;
+  int fx = growRight ? (bx + bw - fw) : bx;
+  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pct));
+
+  char rs[16];
+  if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
+  else          strlcpy(rs, "--", sizeof(rs));
+  char rsPad[16];  // rs is up to 15 chars; sized so the compiler can prove no truncation
+  snprintf(rsPad, sizeof(rsPad), "%7s", rs);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  // Right-aligned like the whole card's bare row: the same 14 px right margin in BOTH half cards, which
+  // puts the right card's last character under the top card's last one (owner 2026-10-19).
+  gfx->setCursor(x + w - 14 - gfxTextW(rsPad, 2), top + 66);
+  gfx->print(rsPad);
+}
+
+// The header logo: a pixel-art grid (AgyLogo.h) scaled to exactly w x h pixels, nearest neighbour, so
+// cells are 2 or 3 px (no distortion beyond that). RGB bytes come out of PROGMEM with pgm_read_byte
+// only; an all-zero triple is transparent (the screen is black there).
+static void drawAgyLogo(Arduino_GFX* gfx, int x0, int y0, int w, int h) {
+  for (int r = 0; r < AGY_LOGO_ROWS; r++) {
+    for (int c = 0; c < AGY_LOGO_COLS; c++) {
+      const int i = (r * AGY_LOGO_COLS + c) * 3;
+      const uint8_t R = pgm_read_byte(&kAgyLogo[i]);
+      const uint8_t G = pgm_read_byte(&kAgyLogo[i + 1]);
+      const uint8_t B = pgm_read_byte(&kAgyLogo[i + 2]);
+      if (!(R | G | B)) continue;
+      const int cx = x0 + c * w / AGY_LOGO_COLS, cy = y0 + r * h / AGY_LOGO_ROWS;
+      gfx->fillRect(cx, cy, x0 + (c + 1) * w / AGY_LOGO_COLS - cx, y0 + (r + 1) * h / AGY_LOGO_ROWS - cy,
+                    (uint16_t)(((R & 0xF8) << 8) | ((G & 0xFC) << 3) | (B >> 3)));
+    }
+  }
 }
 
 static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool full, bool growRight) {
@@ -187,7 +281,10 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
     // y=4+8=12. Per live feedback ("the claude mascot has some head room
     // from the screen edge... apply that to all logos"), superseding an
     // earlier y=8 chosen for text-baseline centering.
-    gfx->drawBitmap(6, 12, kAntigravityIcon, ANTIGRAVITY_ICON_SIZE, ANTIGRAVITY_ICON_SIZE, C_SKY);
+    // Owner (2026-10-19): the rainbow pixel-art logo, "the same size as the old one". The old 1-bit
+    // icon's ink was 30 x 28 px at x 7..36, y 12..39; the logo's 12 x 13 grid fitted to that height is
+    // 26 x 28, centred in the old box (x 9..34, y 12..39): same top margin, same height, same bottom.
+    drawAgyLogo(gfx, 9, 12, 26, 28);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(56, 16);  // y=16 centers the text against the y=12 icon
@@ -207,13 +304,27 @@ static void drawAntigravityPage(Arduino_GFX* gfx, const AntigravityData& a, bool
   auto shortOrAbsent = [](bool hasLabel, const char* l) { return !hasLabel || strlen(l) <= 4; };
   const bool big = (a.hasLabelPro || a.hasLabelFlash) &&
                    shortOrAbsent(a.hasLabelPro, a.labelPro) && shortOrAbsent(a.hasLabelFlash, a.labelFlash);
-  static int8_t s_lastBig = -1;
-  const bool cardsFull = full || (s_lastBig != (int8_t)big);
+  // The bottom row is split into two half cards (7d | Argon) when the daemon sent an Argon reading,
+  // and is one whole card otherwise. A change of either layout fact repaints the cards, and the
+  // bottom row is blanked first: the whole card's panel would otherwise leave its colour in the
+  // 4 px gap between the halves.
+  const bool split = a.hasPctArgon;
+  static int8_t s_lastBig = -1, s_lastSplit = -1;
+  const bool cardsFull = full || (s_lastBig != (int8_t)big) || (s_lastSplit != (int8_t)split);
   s_lastBig = (int8_t)big;
+  s_lastSplit = (int8_t)split;
   drawAntigravityMeter(gfx, 50,  a.hasLabelPro ? a.labelPro : (big ? "--" : "Pro"), big,
-                        a.hasPctPro, a.pctPro, a.hasPctPro && a.hasRPro, a.rPro, cardsFull, growRight);
-  drawAntigravityMeter(gfx, 138, a.hasLabelFlash ? a.labelFlash : (big ? "--" : "Flash"), big,
+                        a.hasPctPro, a.pctPro, a.hasPctPro && a.hasRPro, a.rPro, cardsFull, growRight, true);
+  if (cardsFull) gfx->fillRect(8, 138, 224, 82, C_BLACK);
+  if (!split) {
+    drawAntigravityMeter(gfx, 138, a.hasLabelFlash ? a.labelFlash : (big ? "--" : "Flash"), big,
+                          a.hasPctFlash, a.pctFlash, a.hasPctFlash && a.hasRFlash, a.rFlash, cardsFull, growRight, false);
+  } else {
+    drawAntigravityHalf(gfx, 8, 138, a.hasLabelFlash ? a.labelFlash : "--", a.hasTagFlash ? a.tagFlash : "",
                         a.hasPctFlash, a.pctFlash, a.hasPctFlash && a.hasRFlash, a.rFlash, cardsFull, growRight);
+    drawAntigravityHalf(gfx, 122, 138, a.hasLabelArgon ? a.labelArgon : "--", a.hasTagArgon ? a.tagArgon : "",
+                        a.hasPctArgon, a.pctArgon, a.hasPctArgon && a.hasRArgon, a.rArgon, cardsFull, growRight);
+  }
 }
 
 // Same flip-clock overlay as UsageMode.cpp/CodexMode.cpp -- per the same

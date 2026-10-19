@@ -97,11 +97,18 @@ static void drawZaiMeter(Arduino_GFX* gfx, int top, const char* label,
   char rs[16], line[10 + sizeof(rs) + 1];
   if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
   else          strlcpy(rs, "--", sizeof(rs));
-  snprintf(line, sizeof(line), "Resets in %-7s", rs);
+  // Right-aligned in a fixed 17-char field ("Resets in 29d 23h" is the longest), ending 14 px inside the
+  // card: the same right edge as the value and the bar (owner 2026-10-19, every quota page). The blank
+  // padding on the left overwrites a longer previous text, since the panel is only refilled under `full`.
+  {
+    char tmp[10 + sizeof(rs)];
+    snprintf(tmp, sizeof(tmp), "Resets in %s", rs);
+    snprintf(line, sizeof(line), "%17s", tmp);
+  }
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
   // top+66, not +64 -- see UsageMode.cpp's drawMeter() comment
-  gfx->setCursor(x + 14, top + 66);
+  gfx->setCursor(x + w - 14 - gfxTextW(line, 2), top + 66);
   gfx->print(line);
 }
 

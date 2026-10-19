@@ -133,14 +133,21 @@ static void drawMeter(Arduino_GFX* gfx, int top, const char* label,
   // window's end) — pad to that so a shorter new string (e.g. "now") still
   // overwrites every pixel the longest previous string could have touched.
   // 204px at size 2 from x=22, well inside the 232px card edge.
-  snprintf(line, sizeof(line), "Resets in %-7s", rs);
+  // Right-aligned in a fixed 17-char field ("Resets in 29d 23h" is the longest), ending 14 px inside the
+  // card: the same right edge as the value and the bar (owner 2026-10-19, every quota page). The blank
+  // padding on the left overwrites a longer previous text, since the panel is only refilled under `full`.
+  {
+    char tmp[10 + sizeof(rs)];
+    snprintf(tmp, sizeof(tmp), "Resets in %s", rs);
+    snprintf(line, sizeof(line), "%17s", tmp);
+  }
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
   // top+66, not +64 -- was flush against the bar's bottom edge (by+bh=64),
   // zero gap ("bar too close to text"). Text draws opaque per-glyph
   // (setTextColor(fg, C_PANEL)), so it self-clears at the new position --
   // no separate clear needed, unlike touching the bar itself would require.
-  gfx->setCursor(x + 14, top + 66);
+  gfx->setCursor(x + w - 14 - gfxTextW(line, 2), top + 66);
   gfx->print(line);
 }
 
