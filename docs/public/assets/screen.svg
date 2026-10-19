@@ -36,14 +36,14 @@
       <text x="218" y="72" fill="#b0aea5" font-size="16" text-anchor="end">5h</text>
       <rect x="22" y="102" width="196" height="12" rx="6" fill="#2a2a28"/>
       <rect x="22" y="102" width="57" height="12" rx="6" fill="#788c5d"/>
-      <text x="22" y="126" fill="#b0aea5" font-size="15">Resets in 2h 22m</text>
+      <text x="218" y="126" fill="#b0aea5" font-size="15" text-anchor="end">Resets in 2h 22m</text>
       <!-- 7d meter -->
       <rect x="8" y="138" width="224" height="82" rx="8" fill="#1f1f1e"/>
       <text x="22" y="180" fill="#faf9f5" font-size="40" font-weight="700">82%</text>
       <text x="218" y="160" fill="#b0aea5" font-size="16" text-anchor="end">7d</text>
       <rect x="22" y="190" width="196" height="12" rx="6" fill="#2a2a28"/>
       <rect x="22" y="190" width="161" height="12" rx="6" fill="#d97757"/>
-      <text x="22" y="214" fill="#b0aea5" font-size="15">Resets in 6d 19h</text>
+      <text x="218" y="214" fill="#b0aea5" font-size="15" text-anchor="end">Resets in 6d 19h</text>
     </g>
     <text x="130" y="290" fill="#8b96a5" font-size="14" text-anchor="middle">Claude usage</text>
   </g>

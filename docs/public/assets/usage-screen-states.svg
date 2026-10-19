@@ -33,7 +33,7 @@
   <text x="386" y="90" text-anchor="end" fill="#ffffff" style="font: 700 26px system-ui">12%</text>
   <rect x="268" y="98" width="118" height="10" rx="5" fill="#2b3444"/>
   <rect x="268" y="98" width="26" height="10" rx="5" fill="#2e9367"/>
-  <text x="268" y="126" fill="#8b96a8" style="font: 11px system-ui">Resets in 2h 14m</text>
+  <text x="386" y="126" text-anchor="end" fill="#8b96a8" style="font: 11px system-ui">Resets in 2h 14m</text>
   <text x="268" y="152" fill="#8b96a8" style="font: 11px system-ui">7d</text>
   <text x="386" y="156" text-anchor="end" fill="#ffffff" style="font: 700 26px system-ui">76%</text>
   <rect x="268" y="164" width="118" height="10" rx="5" fill="#2b3444"/>
