@@ -201,18 +201,20 @@ def expect_logo_px():
     for r in range(10):
         for c in range(12):
             if any(logo_bytes[(r * 12 + c) * 3:(r * 12 + c) * 3 + 3]):
-                n += (34 * (c + 1) // 12 - 34 * c // 12) * (28 * (r + 1) // 10 - 28 * r // 10)
+                n += (30 * (c + 1) // 12 - 30 * c // 12) * (28 * (r + 1) // 10 - 28 * r // 10)
     return n
 def ink_box(im, region=(0, 0, 45, 50)):
     pts = [(x, y) for x in region[0:1] and range(region[0], region[2]) for y in range(region[1], region[3]) if im.getpixel((x, y)) != BLACK]
     return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts)) if pts else None
 for im in cand_imgs:
     box = ink_box(im, (0, 0, 45, 50))
-    assert box == (6, 12, 39, 39), ("logo ink box", box)
+    assert box == (7, 12, 36, 39), ("logo ink box", box)
     colored = sum(1 for x in range(0, 45) for y in range(0, 50) if im.getpixel((x, y)) != BLACK)
     assert colored == expect_logo_px(), ("logo pixel count", colored, expect_logo_px())
+# baseline is git HEAD, which already carries the first logo revision: only require it to be a
+# helmet-sized ink box too (the grid bytes themselves are asserted on the candidate)
 bbox = ink_box(base_imgs[0], (0, 0, 45, 50))
-assert bbox and bbox[0] >= 16, ("baseline must have wordmark only, no logo left of it", bbox)
+assert bbox == (6, 12, 39, 39), ("baseline logo box", bbox)
 wordmark = [r for r in cand_rows if r[0] == "0" and int(r[2]) == 16]
 assert wordmark and wordmark[0][4] == "Copilot" and int(wordmark[0][1]) == 46, wordmark
 
