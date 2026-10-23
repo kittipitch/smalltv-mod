@@ -49,8 +49,8 @@ static DisplayMode* kModes[] = {
 #if WITH_CALENDAR
   &g_zaiMode,
   &g_codexMode,
-  &g_copilotMode,
   &g_antigravityMode,
+  &g_copilotMode,
   &g_openrouterMode,
 #endif
 #if WITH_RADAR
