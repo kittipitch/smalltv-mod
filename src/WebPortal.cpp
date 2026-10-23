@@ -39,7 +39,7 @@ static void scheduleReboot(uint32_t inMs) {
 }
 
 // Source-IP filter for the daemon's data-push endpoints only (/api/usage,
-// /api/calendar, /api/weather, /api/zai, /api/codex, /api/antigravity,
+// /api/calendar, /api/weather, /api/zai, /api/codex, /api/copilot, /api/antigravity,
 // /api/openrouter).
 // NOT a security boundary (plaintext HTTP, no auth) — just catches a daemon
 // accidentally pointed at the wrong device. Empty stored IP (the default)
@@ -560,6 +560,18 @@ static void handleCodexPush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+static void handleCopilotPush() {
+  if (!checkDaemonIp()) { sendWrongSource(); return; }
+  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
+#if WITH_CALENDAR
+  bool ok = copilotApply(server.arg("plain"));
+#else
+  bool ok = false;
+#endif
+  server.send(ok ? 200 : 400, "application/json",
+              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
 static void handleAntigravityPush() {
   if (!checkDaemonIp()) { sendWrongSource(); return; }
   if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
@@ -690,6 +702,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/weather", HTTP_POST, handleWeatherPush);      // daemon pushes weather/AQI here
   server.on("/api/zai", HTTP_POST, handleZaiPush);               // daemon pushes z.ai quota here
   server.on("/api/codex", HTTP_POST, handleCodexPush);           // daemon pushes Codex quota here
+  server.on("/api/copilot", HTTP_POST, handleCopilotPush);       // daemon pushes Copilot quota here
   server.on("/api/antigravity", HTTP_POST, handleAntigravityPush); // daemon pushes Antigravity quota here
   server.on("/api/openrouter", HTTP_POST, handleOpenrouterPush); // daemon pushes OpenRouter spend here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);

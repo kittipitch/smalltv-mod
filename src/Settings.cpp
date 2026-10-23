@@ -214,7 +214,7 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselAntigravity = carouselOpenrouter = true;
+  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselCopilot = carouselAntigravity = carouselOpenrouter = true;
   // Off by default: an empty album page is a black screen in the rotation, and
   // nothing shows until the owner points the daemon at a folder.
   carouselAlbum = false;
@@ -312,6 +312,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_CAL_FORECAST) ? "forecast"
                             : (s.mode == MODE_ZAI)      ? "zai"
                             : (s.mode == MODE_CODEX)    ? "codex"
+                            : (s.mode == MODE_COPILOT)  ? "copilot"
                             : (s.mode == MODE_ANTIGRAVITY) ? "antigravity"
                             : (s.mode == MODE_OPENROUTER) ? "openrouter"
                             : (s.mode == MODE_ALBUM)       ? "album"
@@ -326,6 +327,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselZai"]       = s.carouselZai;
   root["carouselAlbum"]     = s.carouselAlbum;
   root["carouselCodex"]     = s.carouselCodex;
+  root["carouselCopilot"]   = s.carouselCopilot;
   root["carouselAntigravity"] = s.carouselAntigravity;
   root["carouselOpenrouter"] = s.carouselOpenrouter;
   root["carouselOrder"]     = s.carouselOrder;
@@ -404,6 +406,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("forecast") ? MODE_CAL_FORECAST
            : m.equalsIgnoreCase("zai")      ? MODE_ZAI
            : m.equalsIgnoreCase("codex")    ? MODE_CODEX
+           : m.equalsIgnoreCase("copilot")  ? MODE_COPILOT
            : m.equalsIgnoreCase("antigravity") ? MODE_ANTIGRAVITY
            : m.equalsIgnoreCase("openrouter") ? MODE_OPENROUTER
            : m.equalsIgnoreCase("album")      ? MODE_ALBUM
@@ -419,6 +422,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
   if (root["carouselAlbum"].is<bool>())   s.carouselAlbum = root["carouselAlbum"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
+  if (root["carouselCopilot"].is<bool>()) s.carouselCopilot = root["carouselCopilot"];
   if (root["carouselAntigravity"].is<bool>()) s.carouselAntigravity = root["carouselAntigravity"];
   if (root["carouselOpenrouter"].is<bool>()) s.carouselOpenrouter = root["carouselOpenrouter"];
   if (root["carouselOrder"].is<const char*>()) s.carouselOrder = root["carouselOrder"].as<String>();

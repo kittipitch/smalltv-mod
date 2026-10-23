@@ -29,7 +29,7 @@ requirement, and a missing one degrades that page only — the daemon keeps runn
   `.venv/bin/python clawdmeter_daemon.py …` (Windows: `.venv\Scripts\python …`).
 
 :::caution[`--push` discovery only carries the usage page]
-Calendar, Weather/AQI, z.ai, OpenRouter, Codex and Antigravity all push to the
+Calendar, Weather/AQI, z.ai, OpenRouter, Codex, Copilot and Antigravity all push to the
 **explicit** `--push-to` targets only. Give at least one `--push-to <host>` if you use
 any of them; Calendar and Weather also read device-side settings from the first one.
 :::
@@ -40,6 +40,7 @@ any of them; Calendar and Weather also read device-side settings from the first 
 |---|---|---|
 | Claude usage (on by default, no flag) | The **`claude` CLI** on `PATH` and logged in — **or** a long-lived `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (in the environment or `.env`) | No usage numbers; the device shows the mascot/stale page |
 | Codex quota (`--codex`) | The **`codex` CLI**, logged in. The daemon runs `codex app-server` briefly per poll — no API key, no cost | Codex page stays empty |
+| Copilot quota (`--copilot`) | The **`gh` CLI**, authenticated with `gh auth login` for an account with Copilot access. The daemon makes one read-only GitHub request per poll — no model call | Copilot page stays empty |
 | Antigravity (`--antigravity`) | The **`agy` CLI**, authenticated, and a directory it trusts. With `agy` 1.1.11+ a poll is free. An older `agy` also needs **`lsof`** on `PATH` (the daemon finds its port with it) and **each poll is a real billable prompt** | Page empty; leave it off unless you want it |
 | z.ai (`--zai`) | Key via `--zai-key` or `CLAWDMETER_ZAI_KEY` (no file fallback) | Page empty |
 | OpenRouter (`--openrouter`) | Key via `--openrouter-key`, `CLAWDMETER_OPENROUTER_KEY`, or `~/.openrouter_dot_ai_key` | Page empty |

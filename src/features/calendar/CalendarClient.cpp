@@ -6,6 +6,7 @@ static CalendarEvent g_cal;
 static WeatherData   g_weather;
 static ZaiData        g_zai;
 static CodexData      g_codex;
+static CopilotData    g_copilot;
 static AntigravityData g_antigravity;
 static OpenRouterData g_openrouter;
 static bool          g_inited = false;
@@ -20,6 +21,7 @@ void calendarInit(const Settings& s) {
   g_weather.clear();
   g_zai.clear();
   g_codex.clear();
+  g_copilot.clear();
   g_antigravity.clear();
   g_openrouter.clear();
   g_inited = true;
@@ -29,6 +31,7 @@ const CalendarEvent& calendarGet() { return g_cal; }
 const WeatherData&   weatherGet()  { return g_weather; }
 const ZaiData&        zaiGet()      { return g_zai; }
 const CodexData&      codexGet()    { return g_codex; }
+const CopilotData&    copilotGet()  { return g_copilot; }
 const AntigravityData& antigravityGet() { return g_antigravity; }
 const OpenRouterData& openrouterGet() { return g_openrouter; }
 
@@ -346,6 +349,43 @@ bool codexApply(const String& body) {
   g_codex.resetCreditExpireMins    = doc["resetCreditExpireMins"] | 0;
   g_codex.valid = true;
   g_codex.lastOkMs = millis();
+  return true;
+}
+
+// ---- GitHub Copilot quota: pushed payload ---------------------------------
+// { "ok":true, "pctChat":12, "rChat":1234, "pctCompletions":3,
+//   "rCompletions":1234 }
+// GitHub's account-wide monthly reset is shared by the independently metered
+// Chat and Completions snapshots. Missing snapshot keys mean that allowance is
+// unavailable, not zero percent used.
+static void copilotFilter(JsonDocument& f) {
+  f["ok"] = true;
+  f["pctChat"] = true; f["rChat"] = true;
+  f["pctCompletions"] = true; f["rCompletions"] = true;
+}
+
+bool copilotApply(const String& body) {
+  JsonDocument filter; copilotFilter(filter);
+  JsonDocument doc;
+  if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
+  if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
+
+  bool gotChat = doc["pctChat"].is<int>();
+  bool gotCompletions = doc["pctCompletions"].is<int>();
+  if (!gotChat && !gotCompletions) return false;
+
+  // Every daemon payload is a complete quota snapshot. Clear a category which
+  // GitHub has stopped entitling rather than leaving stale data on the screen.
+  g_copilot.hasPctChat = gotChat;
+  g_copilot.pctChat = doc["pctChat"] | 0;
+  g_copilot.hasRChat = doc["rChat"].is<int>();
+  g_copilot.rChat = doc["rChat"] | 0;
+  g_copilot.hasPctCompletions = gotCompletions;
+  g_copilot.pctCompletions = doc["pctCompletions"] | 0;
+  g_copilot.hasRCompletions = doc["rCompletions"].is<int>();
+  g_copilot.rCompletions = doc["rCompletions"] | 0;
+  g_copilot.valid = true;
+  g_copilot.lastOkMs = millis();
   return true;
 }
 

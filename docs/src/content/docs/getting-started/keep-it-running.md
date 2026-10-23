@@ -139,8 +139,8 @@ Four things that decide whether this survives:
   and add `EnvironmentFile=%h/.config/clawdmeter/token.env` under `[Service]` — the unit
   fails to start if you name a file that does not exist.
 - **`systemd --user` runs with a minimal `PATH`** that excludes `~/.local/bin` and npm's
-  global directory. If you enable `--codex`, `--antigravity` or non-English calendar
-  titles, run `command -v codex agy lsof trans`, then list those directories explicitly —
+  global directory. If you enable `--codex`, `--copilot`, `--antigravity` or non-English calendar
+  titles, run `command -v codex gh agy lsof trans`, then list those directories explicitly —
   literal paths, no `~` or `$HOME`:
   `Environment="PATH=%h/.local/bin:%h/.npm-global/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"`.
   A missing tool does say so in the journal, so check there before guessing.

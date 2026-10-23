@@ -68,6 +68,7 @@ const CalendarEvent& calendarGet();
 const WeatherData&   weatherGet();
 const ZaiData&        zaiGet();
 const CodexData&      codexGet();
+const CopilotData&    copilotGet();
 const AntigravityData& antigravityGet();
 const OpenRouterData& openrouterGet();
 
@@ -76,5 +77,6 @@ bool calendarApply(const String& body);   // {ok,events:[{summary,start,end?,all
 bool weatherApply(const String& body);    // {ok,tempC?,precipPct?,weatherCode?,pm25?,aqi?}
 bool zaiApply(const String& body);        // {ok,pct5h?,pctTokens?}
 bool codexApply(const String& body);      // {ok,pct5h?,r5h?,pctWeek?,rWeek?}
+bool copilotApply(const String& body);    // {ok,pctChat?,rChat?,pctCompletions?,rCompletions?}
 bool antigravityApply(const String& body); // {ok,pctPro?,labelPro?,rPro?,pctFlash?,labelFlash?,rFlash?}
 bool openrouterApply(const String& body); // {ok,usd_daily?,usd_weekly?,usd_total?,free_tier?}

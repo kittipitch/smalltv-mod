@@ -34,7 +34,7 @@
 >   is plaintext HTTP, LAN-only)
 > - **Display color correction** — per-channel R/G/B gain + saturation sliders
 > - All fed by a companion daemon ([`clawdmeter-daemon`](https://github.com/kittipitch/clawdmeter-daemon))
->   that pushes usage/calendar/weather/z.ai/Codex/Antigravity data over WiFi —
+>   that pushes usage/calendar/weather/z.ai/Codex/Copilot/Antigravity data over WiFi —
 >   the device itself never calls any of those APIs directly.
 >
 > Start with **[CLAUDE-USAGE-GUIDE.md](CLAUDE-USAGE-GUIDE.md)** for the full

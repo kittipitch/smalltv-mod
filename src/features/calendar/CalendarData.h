@@ -237,6 +237,32 @@ struct CodexData {
   }
 };
 
+// Pushed by clawdmeter-daemon's --copilot feature (POST /api/copilot). GitHub
+// Copilot exposes independent Chat and Completions allowances, not Claude-like
+// rolling windows. rChat/rCompletions therefore carry the same next billing
+// cycle reset from the account-wide quota_reset_date_utc field.
+struct CopilotData {
+  int  pctChat;
+  bool hasPctChat;
+  int  rChat;
+  bool hasRChat;
+  int  pctCompletions;
+  bool hasPctCompletions;
+  int  rCompletions;
+  bool hasRCompletions;
+  bool     valid;
+  uint32_t lastOkMs;
+
+  void clear() {
+    pctChat = 0; hasPctChat = false;
+    rChat = 0; hasRChat = false;
+    pctCompletions = 0; hasPctCompletions = false;
+    rCompletions = 0; hasRCompletions = false;
+    valid = false;
+    lastOkMs = 0;
+  }
+};
+
 // Antigravity CLI (`agy`) quota -- {ok,pctPro?,labelPro?,rPro?,pctFlash?,
 // labelFlash?,rFlash?}. Two-window shape, same as Codex/z.ai. The daemon
 // (parse_agy_quota()) reads `agy -p "/quota"` groups: the TOP card is the

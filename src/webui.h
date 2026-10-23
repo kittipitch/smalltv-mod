@@ -102,6 +102,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="zai">Z.AI quota</option>
     <option value="album">Pictures</option>
     <option value="codex">Codex quota</option>
+    <option value="copilot">Copilot quota</option>
     <option value="antigravity">Antigravity quota</option>
     <option value="openrouter">OpenRouter quota</option>
     <option value="radar">Plane radar</option>
@@ -115,7 +116,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div id="agendaWeekdayControl" class="chk"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div>
     <div id="carouselList"></div>
    </div>
-   <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all four stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
+   <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Copilot quota needs <code>--copilot</code> plus <code>gh auth login</code> with Copilot access on the daemon's machine (one read-only GitHub quota request per poll, no model call); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex and Copilot, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all five stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -500,8 +501,8 @@ var TZMAP={
  'Australia/Perth':'AWST-8','Australia/Sydney':'AEST-10AEDT,M10.1.0,M4.1.0/3',
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
-var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','antigravity','openrouter']};
-var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselAntigravity','carouselOpenrouter']};
+var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','copilot','antigravity','openrouter']};
+var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselOpenrouter']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -519,6 +520,7 @@ var CAR_MODES=[
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
  {id:'album',chk:'carouselAlbum',label:'Pictures'},
  {id:'codex',chk:'carouselCodex',label:'Codex quota'},
+ {id:'copilot',chk:'carouselCopilot',label:'Copilot quota'},
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'openrouter',chk:'carouselOpenrouter',label:'OpenRouter quota'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},

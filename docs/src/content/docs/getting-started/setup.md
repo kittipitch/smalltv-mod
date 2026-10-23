@@ -55,7 +55,7 @@ then the daemon's
 (it has a Linux section too).
 
 
-Open the **Usage** tab and point the device at the [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) running on your PC — either by setting the daemon's URL here (pull), or by leaving it blank and running the daemon with `--push-to <hostname>.local` (push). The quota pages for z.ai, Codex, Antigravity and OpenRouter come from the same daemon and appear in the carousel once it has actually pushed data for them. For an agenda and weather panel instead, fill in the **Agenda & weather** tab.
+Open the **Usage** tab and point the device at the [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) running on your PC — either by setting the daemon's URL here (pull), or by leaving it blank and running the daemon with `--push-to <hostname>.local` (push). The quota pages for z.ai, Codex, Copilot, Antigravity and OpenRouter come from the same daemon and appear in the carousel once it has actually pushed data for them. For an agenda and weather panel instead, fill in the **Agenda & weather** tab.
 
 ## Web UI reference
 

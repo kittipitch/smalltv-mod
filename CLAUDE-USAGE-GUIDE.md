@@ -21,13 +21,13 @@ A tiny desk display showing:
   support (that's PRO-model-only)
 - **This firmware fork ([`kittipitch/smalltv-mod`](https://github.com/kittipitch/smalltv-mod))**
   — community firmware (originally by giovi321) adding a Claude usage mode,
-  then extended in this fork with z.ai/Codex/Antigravity quota pages, an
+  then extended in this fork with z.ai/Codex/Copilot/Antigravity quota pages, an
   Agenda + Weather/AQI mode, plane radar, an optional daemon source-IP
   filter, display color correction, user-configurable carousel order, and a
   usage-bar direction option
 - **[`clawdmeter-daemon`](https://github.com/kittipitch/clawdmeter-daemon)**
   — a small program that runs on a computer you control (Mac, Linux, or
-  Windows), reads your Claude/Codex/Antigravity/z.ai quota (and optionally
+  Windows), reads your Claude/Codex/Copilot/Antigravity/z.ai quota (and optionally
   your Google Calendar and local weather), and pushes it all over WiFi to
   the device
 
@@ -69,7 +69,7 @@ Antigravity) prints at most two digits: a quota that is fully used shows
   any symbols
 - A small clock overlay (top-right) on every quota page
 
-All data (usage, agenda, weather, z.ai, Codex, Antigravity) is **pushed** to
+All data (usage, agenda, weather, z.ai, Codex, Copilot, Antigravity) is **pushed** to
 the device by the daemon running on your computer — the device itself never
 talks to any of those APIs directly. Plane radar is the one exception: the
 device fetches aircraft data itself, directly from the free adsb.fi feed.
@@ -173,7 +173,7 @@ works everywhere regardless of platform.
 ### 3. Set the device's modes
 
 In the web UI: pick which modes to include in the carousel (Usage, z.ai,
-Codex, Antigravity, Radar, Agenda & weather), drag them into
+Codex, Copilot, Antigravity, Radar, Agenda & weather), drag them into
 whatever rotation order you want, or pin one mode permanently. This can be
 done anytime from `http://<device-ip>/`, no reflash needed.
 
@@ -262,6 +262,14 @@ actually run anything. Install a real interpreter first:
 3. Add `--codex` to your daemon command line. Free to poll — it just reads
    Codex's own already-cached rate-limit state, no model call
 
+**Optional: GitHub Copilot quota**
+1. Install the [GitHub CLI](https://cli.github.com/) on the daemon's machine
+2. Run `gh auth login` there for the GitHub account that has Copilot access
+3. Add `--copilot` to the daemon command line. It reads Chat and Completions
+   allowances with one read-only GitHub request per poll, not a model call.
+   These are monthly allowances, so both cards share the next billing-cycle
+   reset rather than using 5-hour and 7-day windows.
+
 **Optional: Antigravity CLI quota**
 1. Install `agy` on the daemon's own machine (native binary, no Node/npm):
    ```
@@ -286,7 +294,7 @@ actually run anything. Install a real interpreter first:
    run `agy update`; the default interval stays at 30 minutes either way
 
 See `clawdmeter-daemon`'s own `README.md` for the full detail/troubleshooting
-on any of the four (Claude, z.ai, Codex, Antigravity) if something above
+on any of the five (Claude, z.ai, Codex, Copilot, Antigravity) if something above
 doesn't work.
 
 **Optional: daemon source IP**
@@ -318,6 +326,10 @@ that self-consumption roughly 5x, trading slightly slower on-screen updates.
 **Codex CLI quota**: free to check — it just reads state Codex's own CLI
 already caches locally, no model call at all.
 
+**GitHub Copilot quota**: one authenticated, read-only GitHub CLI request per
+poll, with no model call. Chat and Completions are independent monthly
+allowances and share the account's next billing-cycle reset.
+
 **Antigravity CLI quota**: free on `agy` 1.1.11 or newer — the daemon runs
 `agy -p "/quota"`, which prints your quota locally with no model call. An
 older `agy` only reports quota after a real prompt has run, so each poll
@@ -332,6 +344,7 @@ no completion call, so effectively free like Codex.
 ```
 Claude Code (token via claude setup-token)  --\
 Codex CLI (codex login)                      --\
+GitHub CLI (gh auth login)                   --\
 Antigravity CLI (agy -p "/quota", free)         ---> clawdmeter-daemon --> GeekMagic screen
 z.ai (API key)                               --/     (always running)      (smalltv-mod)
 Google Calendar (service account key)        --/
@@ -342,7 +355,7 @@ Plane radar is the one exception — the device fetches aircraft data itself,
 directly from adsb.fi, not through the daemon.
 
 Each data source is independent and optional — run with just `--push` for
-usage only, or add `--calendar`/`--weather`/`--zai`/`--codex`/`--antigravity`
+usage only, or add `--calendar`/`--weather`/`--zai`/`--codex`/`--copilot`/`--antigravity`
 for the rest.
 
 ---

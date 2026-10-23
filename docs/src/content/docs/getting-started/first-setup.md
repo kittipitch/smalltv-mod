@@ -359,13 +359,15 @@ Each is independent, off by default, and remembered once enabled — turn one of
 
 Google Calendar needs a service-account key and a shared calendar first; Weather needs
 lat/lon saved on the device's **Agenda & weather** tab; Codex needs the `codex` CLI logged
-signed in with your ChatGPT plan (`codex login`, not an API key — no extra cost). Run the
-one you want once, on macOS or Linux:
+signed in with your ChatGPT plan (`codex login`, not an API key — no extra cost); Copilot
+needs the `gh` CLI logged in with an account that has Copilot access (`gh auth login`).
+Run the one you want once, on macOS or Linux:
 
 ```sh
 .venv/bin/python clawdmeter_daemon.py --calendar --calendar-id you@gmail.com --push-to smalltv-3fa2.local
 .venv/bin/python clawdmeter_daemon.py --weather --push-to smalltv-3fa2.local
 .venv/bin/python clawdmeter_daemon.py --codex --push-to smalltv-3fa2.local
+.venv/bin/python clawdmeter_daemon.py --copilot --push-to smalltv-3fa2.local
 ```
 
 or on Windows:
@@ -374,6 +376,7 @@ or on Windows:
 .venv\Scripts\python clawdmeter_daemon.py --calendar --calendar-id you@gmail.com --push-to smalltv-3fa2.local
 .venv\Scripts\python clawdmeter_daemon.py --weather --push-to smalltv-3fa2.local
 .venv\Scripts\python clawdmeter_daemon.py --codex --push-to smalltv-3fa2.local
+.venv\Scripts\python clawdmeter_daemon.py --copilot --push-to smalltv-3fa2.local
 ```
 
 That one run saves the feature. **A daemon already running does not pick it up** — restart
