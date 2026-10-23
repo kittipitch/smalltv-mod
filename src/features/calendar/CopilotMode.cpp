@@ -3,6 +3,7 @@
 #include "Gfx.h"
 #include "CalendarClient.h"
 #include "Clock.h"
+#include "CopilotLogo.h"
 
 CopilotMode g_copilotMode;
 
@@ -100,13 +101,37 @@ static void drawCopilotClockOverlay(uint32_t& nextRedrawMs, int& lastMinute) {
   }
 }
 
+// The header logo: a pixel-art grid (CopilotLogo.h) scaled to exactly w x h pixels, nearest
+// neighbour, so cells are 2 or 3 px. RGB bytes come out of PROGMEM with pgm_read_byte only; an
+// all-zero triple is transparent (the screen is black there). Near-copy of AntigravityMode.cpp's
+// drawAgyLogo, per the file-by-file convention of these mode sources.
+static void drawCopilotLogo(Arduino_GFX* gfx, int x0, int y0, int w, int h) {
+  for (int r = 0; r < COPILOT_LOGO_ROWS; r++) {
+    for (int c = 0; c < COPILOT_LOGO_COLS; c++) {
+      const int i = (r * COPILOT_LOGO_COLS + c) * 3;
+      const uint8_t R = pgm_read_byte(&kCOPILOT_LOGO[i]);
+      const uint8_t G = pgm_read_byte(&kCOPILOT_LOGO[i + 1]);
+      const uint8_t B = pgm_read_byte(&kCOPILOT_LOGO[i + 2]);
+      if (!(R | G | B)) continue;
+      const int cx = x0 + c * w / COPILOT_LOGO_COLS, cy = y0 + r * h / COPILOT_LOGO_ROWS;
+      gfx->fillRect(cx, cy, x0 + (c + 1) * w / COPILOT_LOGO_COLS - cx, y0 + (r + 1) * h / COPILOT_LOGO_ROWS - cy,
+                    (uint16_t)(((R & 0xF8) << 8) | ((G & 0xFC) << 3) | (B >> 3)));
+    }
+  }
+}
+
 static void drawCopilotPage(Arduino_GFX* gfx, const CopilotData& c,
                             bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
+    // Header: the Copilot helmet logo (owner 2026-10-23) + the wordmark. The logo is 34x28 at
+    // (6,12) -- the old 1-bit icons' height, aspect-true to the mark (432x352 source, 12x10
+    // cells); the wordmark moves right of it and still clears the clock (it ends at x=172, the
+    // clock overlay starts at x=173).
+    drawCopilotLogo(gfx, 6, 12, 34, 28);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
-    gfx->setCursor(16, 16);
+    gfx->setCursor(46, 16);
     gfx->print("Copilot");
   }
   drawCopilotMeter(gfx, 50, "Chat", c.hasPctChat, c.pctChat,
