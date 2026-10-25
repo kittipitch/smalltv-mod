@@ -1019,7 +1019,9 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
 
     // condition icon (cx,cy are the icon's CENTRE) + its word, centred on x=112
     WxCat cat = wxCategory(h.code, true);
-    drawWeatherIcon(gfx, 112, top + 26, cat);
+    // clear sky after dark = the moon, exactly like the current-conditions page (the API's own
+    // per-hour is_day; an absent value keeps the sun)
+    drawWeatherIcon(gfx, 112, top + 26, cat, h.hasIsDay && !h.isDay);
     if (cat != WX_UNKNOWN) {   // an unknown code has no word ("--" would read as a second AQI gap)
       char wordBuf[10];
       snprintf(wordBuf, sizeof(wordBuf), "%s%s", wxLabel(cat), wxHeavy(h.code, true) ? "+" : "");

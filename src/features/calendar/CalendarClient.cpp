@@ -159,7 +159,7 @@ static void weatherFilter(JsonDocument& f) {
   fc["precip"] = true; fc["aqi"] = true;
   JsonObject hh = f["hourly"].add<JsonObject>();
   hh["time"] = true; hh["code"] = true; hh["temp"] = true;
-  hh["precip"] = true; hh["aqi"] = true;
+  hh["precip"] = true; hh["aqi"] = true; hh["isDay"] = true;
 }
 
 bool weatherApply(const String& body) {
@@ -229,6 +229,8 @@ bool weatherApply(const String& body) {
       } else {
         g_weather.hc[n].hasAqi = false;
       }
+      g_weather.hc[n].hasIsDay = hour["isDay"].is<int>() || hour["isDay"].is<bool>();
+      g_weather.hc[n].isDay = g_weather.hc[n].hasIsDay ? (hour["isDay"].as<int>() != 0) : true;
       n++;
     }
     g_weather.hcCount = n;
@@ -819,7 +821,7 @@ static void wxStepForecast(const Settings& s) {
            "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,precipitation_probability,weather_code,uv_index"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-           "&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=6"
+           "&hourly=temperature_2m,weather_code,precipitation_probability,is_day&forecast_hours=6"
            "&forecast_days=4&timezone=auto",
            s.calendar.lat, s.calendar.lon);
   {
@@ -831,6 +833,7 @@ static void wxStepForecast(const Settings& s) {
     JsonObject hsel = filter["hourly"].to<JsonObject>();
     hsel["time"] = true; hsel["temperature_2m"] = true;
     hsel["weather_code"] = true; hsel["precipitation_probability"] = true;
+    hsel["is_day"] = true;
     JsonObject day = filter["daily"].to<JsonObject>();
     // 4 short date strings (~44 B). The HOURLY series is still excluded for the
     // heap reason documented below -- that one is 96 timestamps.
@@ -907,6 +910,7 @@ static void wxStepForecast(const Settings& s) {
       JsonArray hte = doc["hourly"]["temperature_2m"];
       JsonArray hco = doc["hourly"]["weather_code"];
       JsonArray hpp = doc["hourly"]["precipitation_probability"];
+      JsonArray hid = doc["hourly"]["is_day"];
       JsonObject cAnchor = doc["current"];
       const char* anchor = cAnchor["time"].is<const char*>() ? cAnchor["time"].as<const char*>() : "";
       size_t hLim = hts.size();
@@ -923,6 +927,8 @@ static void wxStepForecast(const Settings& s) {
           hh.temp = (int)lroundf(hte[i] | 0.0f);
           hh.precip = (i < hpp.size() && (hpp[i].is<float>() || hpp[i].is<int>()))
                           ? (int)hpp[i].as<float>() : -1;
+          hh.hasIsDay = (i < hid.size() && (hid[i].is<int>() || hid[i].is<float>()));
+          hh.isDay = hh.hasIsDay ? (hid[i].as<int>() != 0) : true;
           hh.hasAqi = false;   // the AQF step fills these from its own fetch
           strlcpy(g_wxHourKeys[hn], t, sizeof(g_wxHourKeys[hn]));
           if (g_wxHourKeys[hn][strlen(g_wxHourKeys[hn])-2] == ':')

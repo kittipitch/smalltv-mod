@@ -79,6 +79,8 @@ struct HourFc {
   int  precip;    // precipitation probability for that hour, %
   int  aqi;       // US AQI from that hour's PM2.5 (same algorithm as aqiNow)
   bool hasAqi;    // independently optional: an hour with no PM2.5 reading omits it
+  bool isDay;     // Open-Meteo's own per-hour daylight answer (same source as
+  bool hasIsDay;  // WeatherData.isDay); absent = draw the sun, never a clock guess
 };
 
 struct ForecastDay {

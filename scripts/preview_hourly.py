@@ -125,6 +125,7 @@ static void hour(WeatherData& w, int i, const char* t, int code, int temp, int p
   HourFc& h = w.hc[i];
   strlcpy(h.time, t, sizeof(h.time)); h.code = code; h.temp = temp; h.precip = precip;
   h.aqi = aqi; h.hasAqi = aqi >= 0;
+  h.hasIsDay = true; h.isDay = (t[0]=='0' && t[1]>='6') || (t[0]=='1' && t[1]<'9');
 }
 int main(int, char** argv) {
   std::string dir = argv[1];
