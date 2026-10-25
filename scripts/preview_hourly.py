@@ -129,8 +129,8 @@ static void hour(WeatherData& w, int i, const char* t, int code, int temp, int p
 }
 int main(int, char** argv) {
   std::string dir = argv[1];
-  const char* names[4] = {"hourly-live", "hourly-mixed", "hourly-noaqi", "forecast"};
-  for (int i = 0; i < 4; i++) {
+  const char* names[5] = {"hourly-live", "hourly-mixed", "hourly-noaqi", "forecast", "hourly-worst"};
+  for (int i = 0; i < 5; i++) {
     WeatherData w; w.clear(); w.valid = true;
     if (i == 0) { w.hcCount = 3; hour(w,0,"19:00",1,30,25,54); hour(w,1,"20:00",1,29,17,62); hour(w,2,"21:00",1,28,8,66); }
     if (i == 1) { w.hcCount = 3; hour(w,0,"06:00",95,24,94,112); hour(w,1,"07:00",63,23,100,155); hour(w,2,"08:00",3,-5,40,34); }
@@ -140,8 +140,9 @@ int main(int, char** argv) {
       const char* dn[3] = {"Tmr","Tue","Wed"}; int cd[3] = {95,1,63}; int hi[3]={30,33,31}; int lo[3]={24,25,24}; int pr[3]={94,20,100}; int aq[3]={71,66,58};
       for (int k = 0; k < 3; k++) { strlcpy(w.fc[k].day, dn[k], 6); w.fc[k].code=cd[k]; w.fc[k].hi=hi[k]; w.fc[k].lo=lo[k]; w.fc[k].precip=pr[k]; w.fc[k].aqi=aq[k]; w.fc[k].hasAqi=true; }
     }
+    if (i == 4) { w.hcCount = 3; hour(w,0,"10:00",3,-99,100,500); hour(w,1,"11:00",99,199,100,500); hour(w,2,"12:00",75,-5,100,500); }
     Arduino_GFX gfx; gfx.page = i;
-    if (i < 3) drawHourlyPage(&gfx, w); else drawForecastPage(&gfx, w);
+    if (i == 3) drawForecastPage(&gfx, w); else drawHourlyPage(&gfx, w);
     emit(gfx, dir + "/" + names[i] + ".ppm");
   }
   return 0;
@@ -178,14 +179,54 @@ work = output
 subprocess.run(["c++", "-std=c++14", "-Wall", "-Wextra", "-Wno-unused-function", "-Wno-unused-const-variable",
                 "-Wno-unused-parameter", str(work / "preview.cpp"), "-o", str(work / "preview")], check=True)
 subprocess.run([str(work / "preview"), str(work)], capture_output=True, check=True)
-names = ["hourly-live", "hourly-mixed", "hourly-noaqi", "forecast"]
+names = ["hourly-live", "hourly-mixed", "hourly-noaqi", "forecast", "hourly-worst"]
 imgs = []
 for n in names:
     im = Image.open(work / f"{n}.ppm")
     im.save(work / f"{n}.png")
     imgs.append(im)
-sheet = Image.new("RGB", (960, 240))
+
+def grey(p):   # condition word: C_DIM warm grey
+    return p[0] > 90 and p[1] > 90 and p[2] > 90 and abs(p[0] - p[1]) < 30 and abs(p[1] - p[2]) < 30
+
+def blue(p):   # rain %: C_SKY blue
+    return p[2] > p[0] + 40 and p[2] > p[1]
+
+def word_xs(im, top):
+    px = im.load()
+    return [x for y in range(top + 52, top + 69) for x in range(0, 175) if grey(px[x, y])]
+
+def rain_xs(im, top):
+    px = im.load()
+    return [x for y in range(top + 45, top + 71) for x in range(0, 240) if blue(px[x, y])]
+
+# hourly-worst: 6-char words next to rain "100%" must keep >= 6px of ink gap
+worst = imgs[names.index("hourly-worst")]
+for i in range(3):
+    top = 11 + i * 74
+    wxs, rxs = word_xs(worst, top), rain_xs(worst, top)
+    assert wxs, f"hourly-worst row {i}: no word ink"
+    assert rxs, f"hourly-worst row {i}: no rain ink"
+    gap = min(rxs) - max(wxs) - 1
+    print(f"hourly-worst row {i}: word ink x {min(wxs)}..{max(wxs)}, rain ink starts {min(rxs)}, gap {gap}px")
+    assert gap >= 6, f"hourly-worst row {i}: word/rain ink gap {gap}px < 6px"
+
+# hourly-live rows must stay exactly where they were: icon ~119.5 / word ~118.5
+live = imgs[names.index("hourly-live")]
+px = live.load()
+for i in range(3):
+    top = 11 + i * 74
+    ixs = [x for y in range(top + 4, top + 49) for x in range(95, 146) if px[x, y] != (0, 0, 0)]
+    wxs = word_xs(live, top)
+    assert ixs and wxs, f"hourly-live row {i}: no icon/word ink"
+    icon_c = (min(ixs) + max(ixs)) / 2
+    word_c = (min(wxs) + max(wxs)) / 2
+    print(f"hourly-live row {i}: icon ink centre {icon_c}, word ink centre {word_c}")
+    assert abs(icon_c - 119.5) <= 0.5, f"hourly-live row {i}: icon ink centre {icon_c} != 119.5"
+    assert abs(word_c - 118.5) <= 0.5, f"hourly-live row {i}: word ink centre {word_c} != 118.5"
+
+sheet = Image.new("RGB", (1200, 240))
 for i, im in enumerate(imgs):
     sheet.paste(im, (i * 240, 0))
-sheet.resize((1920, 480), Image.Resampling.NEAREST).save(work / "hourly-vs-forecast-2x.png")
+sheet.resize((2400, 480), Image.Resampling.NEAREST).save(work / "hourly-vs-forecast-2x.png")
 print(work)
