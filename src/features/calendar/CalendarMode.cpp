@@ -548,6 +548,102 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
   }
 }
 
+// ---- 30s-push flicker fix -----------------------------------------------
+// The daemon pushes a full weather snapshot every ~30 s and every push does
+// g_weather.renderGen++ (CalendarClient.cpp), so the old
+// `renderGen != wxRenderedOk_` dirty test made each weather page repaint
+// wholesale twice a minute even when the pushed values were bit-identical --
+// on the real panel that reads as constant flashing. Each page now keeps an
+// FNV-1a 32-bit signature over exactly the fields that page DRAWS (plus the
+// state flags its drawing branches on) and repaints only when the signature
+// moves; begin()/invalidate() still force one repaint via needRender_.
+// Hashed field-by-field, never over the struct: no pointers, no padding, and
+// a change in fields this page never draws doesn't force its repaint.
+// Floats are hashed at display precision (same clamp/round the renderer
+// applies) so sub-degree daemon jitter doesn't repaint unchanged pixels.
+static const uint32_t kFnvBasis = 2166136261u;
+static uint32_t sigByte(uint32_t h, uint8_t b) { return (h ^ b) * 16777619u; }
+static uint32_t sigStr(uint32_t h, const char* s) {
+  while (*s) h = sigByte(h, (uint8_t)*s++);
+  return sigByte(h, 0);   // terminator: "1" must hash differently from "10"
+}
+static uint32_t sigInt(uint32_t h, int v) {
+  uint32_t u = (uint32_t)v;
+  for (int i = 0; i < 4; i++) h = sigByte(h, (uint8_t)(u >> (i * 8)));
+  return h;
+}
+static uint32_t sigBool(uint32_t h, bool b) { return sigByte(h, b ? 1 : 0); }
+// Clamp+round a daemon float EXACTLY the way drawWeatherPage displays it, so
+// the hash tracks what's on screen, not raw float bits (a 30.4 -> 30.6 push
+// paints identical pixels and must not repaint).
+static int wxSigTemp(float t) { return (int)lroundf(constrain(t, -99.0f, 199.0f)); }
+static int wxSigUv(float u)   { return (int)lroundf(constrain(u, 0.0f, 20.0f)); }
+static int wxSigPm(float p)   { return (int)lroundf(constrain(p, 0.0f, 999.9f) * 10.0f); }  // 0.1 steps = the format's own precision
+// Precip/AQI post-clamp exactly as the rows draw them (negative precip =
+// "not drawn at all", which is itself part of the page's look).
+static int wxSigPrecip(int p) { return p >= 0 ? (p > 100 ? 100 : p) : -1; }
+static int wxSigAqi(const int& a, bool has) { return has ? (a < 0 ? 0 : (a > 500 ? 500 : a)) : 0; }
+
+// current-conditions page: every field drawWeatherPage() branches on or
+// prints (header city, icon, condition+UV row, temp, rain, AQI(+now),
+// PM 2.5). Settings-driven text (place/lat/lon) is NOT hashed: a settings
+// save calls invalidate(), which forces one repaint anyway.
+static uint32_t weatherPageSig(const WeatherData& w) {
+  uint32_t h = kFnvBasis;
+  h = sigBool(h, w.valid); h = sigBool(h, w.forecastError); h = sigBool(h, w.aqError);
+  h = sigStr(h, w.hasCity ? w.city : "");
+  h = sigBool(h, w.hasTemp);        h = sigInt(h, wxSigTemp(w.tempC));
+  h = sigBool(h, w.hasPrecip);      h = sigInt(h, w.precipPct);
+  h = sigBool(h, w.hasWeatherCode); h = sigInt(h, w.weatherCode);
+  h = sigBool(h, w.hasUvIndex);     h = sigInt(h, wxSigUv(w.uvIndex));
+  h = sigBool(h, w.hasIsDay);       h = sigBool(h, w.isDay);
+  h = sigBool(h, w.hasAqi);         h = sigInt(h, wxSigAqi(w.aqi, w.hasAqi));
+  h = sigBool(h, w.hasAqiNow);      h = sigInt(h, wxSigAqi(w.aqiNow, w.hasAqiNow));
+  h = sigBool(h, w.hasPm25);        h = sigInt(h, wxSigPm(w.pm25));
+  h = sigBool(h, w.hasForecast);
+  return h;
+}
+
+// hourly page: hcCount + the rows drawHourlyPage() prints (the empty-page
+// branch flips on hcCount, isDay/hasIsDay pick sun vs moon per row).
+static uint32_t hourlyPageSig(const WeatherData& w) {
+  uint32_t h = kFnvBasis;
+  h = sigBool(h, w.valid); h = sigBool(h, w.forecastError); h = sigBool(h, w.aqError);
+  h = sigBool(h, w.hasHourly);
+  h = sigInt(h, w.hcCount);
+  for (uint8_t i = 0; i < w.hcCount && i < WX_HR_DAYS; i++) {
+    const HourFc& r = w.hc[i];
+    h = sigStr(h, r.time);
+    h = sigInt(h, r.code);
+    h = sigInt(h, r.temp < -99 ? -99 : (r.temp > 199 ? 199 : r.temp));
+    h = sigInt(h, wxSigPrecip(r.precip));
+    h = sigInt(h, wxSigAqi(r.aqi, r.hasAqi));
+    h = sigBool(h, r.hasAqi); h = sigBool(h, r.isDay); h = sigBool(h, r.hasIsDay);
+  }
+  return h;
+}
+
+// 3-day forecast page: fcCount + the per-day fields drawForecastPage()
+// prints (the empty-page branch flips on fcCount, hasAqi flips the AQI
+// row's "--" placeholder).
+static uint32_t forecastPageSig(const WeatherData& w) {
+  uint32_t h = kFnvBasis;
+  h = sigBool(h, w.valid); h = sigBool(h, w.forecastError); h = sigBool(h, w.aqError);
+  h = sigBool(h, w.hasForecast);
+  h = sigInt(h, w.fcCount);
+  for (uint8_t i = 0; i < w.fcCount && i < WX_FC_DAYS; i++) {
+    const ForecastDay& d = w.fc[i];
+    h = sigStr(h, d.day);
+    h = sigInt(h, d.code);
+    h = sigInt(h, d.hi < -99 ? -99 : (d.hi > 199 ? 199 : d.hi));
+    h = sigInt(h, d.lo < -99 ? -99 : (d.lo > 199 ? 199 : d.lo));
+    h = sigInt(h, wxSigPrecip(d.precip));
+    h = sigInt(h, wxSigAqi(d.aqi, d.hasAqi));
+    h = sigBool(h, d.hasAqi);
+  }
+  return h;
+}
+
 // Combined weather + air quality on one screen (was 2 separate sub-pages,
 // lumped together per explicit request). Compact layout to fit both in the
 // 240px screen height: label, smaller icon, temp+rain on one line, then
@@ -810,6 +906,10 @@ void CalendarAgendaMode::invalidate(const Settings& s) {
 // started): the bell/frame appear at 59 minutes and clear after the start even if nothing else
 // repaints the page (standalone Next-event mode never wake()s). Idle otherwise: no timer, no
 // extra redraws when nothing is near. `lastMinute` is the caller's state.
+// Lower bound is -3, not -1: the main loop can spend the single m == -1 minute inside a long
+// blocking fetch and never call service() for it, so a window that closes at -1 could skip the
+// only tick that would have cleared the stale bell -- audit finding, real. -3 gives that minute
+// two more chances to run.
 static bool agendaSoonTick(const CalendarEvent& c, uint8_t page, int& lastMinute) {
   struct tm now;
   if (!clockNow(now)) return false;
@@ -823,7 +923,7 @@ static bool agendaSoonTick(const CalendarEvent& c, uint8_t page, int& lastMinute
   const uint8_t start = page * EVENTS_PER_PAGE;
   for (uint8_t i = 0; i < EVENTS_PER_PAGE && start + i < c.count; i++) {
     const int m = agendaMinutesToStart(c.items[start + i], now, true, tomorrow, haveTomorrow);
-    if (m >= -1 && m <= 61) return true;
+    if (m >= -3 && m <= 61) return true;
   }
   return false;
 }
@@ -878,7 +978,12 @@ void CalendarWeatherMode::invalidate(const Settings& s) {
 
 void CalendarWeatherMode::service(const Settings& s) {
   const WeatherData& w = weatherGet();
-  if (w.renderGen != wxRenderedOk_) { wxRenderedOk_ = w.renderGen; needRender_ = true; }
+  // Repaint only when this page's DRAWN content changed (weatherPageSig());
+  // renderGen alone fires on every ~30 s daemon push, identical data or
+  // not, which the panel shows as constant flicker. wxRenderedOk_ is kept
+  // (updated, no longer load-bearing) as a record of the last gen seen.
+  const uint32_t sig = weatherPageSig(w);
+  if (sig != wxSig_) { wxSig_ = sig; wxRenderedOk_ = w.renderGen; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
     if (gfx) drawWeatherPage(gfx, w, s);
@@ -916,7 +1021,9 @@ static void drawForecastEmpty(Arduino_GFX* gfx) {
 // Worst-case width per element (fixed 6*size px/char font), all must
 // clear the 80px column:
 //   day    "Tmr"/3-letter abbr, 3 chars * 6*2=12     = 36px
-//   hi/lo  "-99"/"199", 3 chars * 6*3=18             = 54px
+//   hi/lo  "-99\xF8"/"199\xF8", 4 chars * 6*3=18     = 72px -- tight (4px margin
+//          each side) but legal, same as precip; digits-only stay optically
+//          centred, see drawDegreeTemp()
 //   precip "100%" (clamped 0-100), 4 chars * 6*3=18  = 72px -- tight
 //          (4px margin each side) but legal, bumped to size 3 on request
 //   aqi    "500" (clamped 0-500) or "--", 3 chars * 6*3=18 = 54px --
@@ -932,6 +1039,29 @@ static void drawForecastEmpty(Arduino_GFX* gfx) {
 // make it visually bigger needs a new baked icon asset at a larger
 // resolution, not a coordinate change, and is deliberately not done
 // here.
+// Optically centred temperature for the 3-day page's hi/lo rows: the DIGITS
+// (minus sign included) sit on the same column centre they had before the
+// degree sign existed, and the degree glyph hangs just to the right of the
+// digits (owner 2026-10-25: centring the whole digit+glyph string made the
+// numbers look off-centre -- the number is centred, the degree is not
+// counted). x = colX + (80 - w)/2 keeps digit centre at colX+40 for every
+// width, so 1- and 2-digit values keep their exact pre-degree position; a
+// 3-char value ("-12", or the clamped "-99"/"199" extremes) would push the
+// glyph past the 80px column edge, so just those shift left the minimum
+// needed to keep the glyph inside (digits land 5px left of the old centre).
+static void drawDegreeTemp(Arduino_GFX* gfx, int colX, int y, uint16_t color, int degC) {
+  char num[6];
+  snprintf(num, sizeof(num), "%d", degC);
+  const int w = gfxTextW(num, 3);
+  int x = colX + (80 - w) / 2;
+  if (x + w + 18 > colX + 80) x = colX + 80 - 18 - w;   // 18px = one size-3 glyph cell
+  gfx->setTextSize(3);
+  gfx->setTextColor(color);
+  gfx->setCursor(x, y);
+  gfx->print(num);
+  gfx->print("\xF8");
+}
+
 static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
   if (w.fcCount == 0) { drawForecastEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
@@ -964,15 +1094,11 @@ static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
 
     int hiC = d.hi; if (hiC < -99) hiC = -99; if (hiC > 199) hiC = 199;
     int loC = d.lo; if (loC < -99) loC = -99; if (loC > 199) loC = 199;
-    char hiBuf[6]; snprintf(hiBuf, sizeof(hiBuf), "%d", hiC);
-    char loBuf[6]; snprintf(loBuf, sizeof(loBuf), "%d", loC);
-    gfx->setTextSize(3);
-    gfx->setTextColor(C_WHITE);
-    gfx->setCursor(colX + (80 - gfxTextW(hiBuf, 3)) / 2, 97);
-    gfx->print(hiBuf);
-    gfx->setTextColor(C_DIM);
-    gfx->setCursor(colX + (80 - gfxTextW(loBuf, 3)) / 2, 127);
-    gfx->print(loBuf);
+    // Degree sign (0xF8, same glyph as the current-weather page), no "C"
+    // (the white-over-dim pair reads as hi/lo from context). Optically
+    // centred -- see drawDegreeTemp().
+    drawDegreeTemp(gfx, colX, 97, C_WHITE, hiC);
+    drawDegreeTemp(gfx, colX, 127, C_DIM, loC);
 
     if (d.precip >= 0) {
       int precipV = d.precip; if (precipV > 100) precipV = 100;
@@ -1031,7 +1157,11 @@ void CalendarHourlyMode::invalidate(const Settings& s) {
 void CalendarHourlyMode::service(const Settings& s) {
   (void)s;
   const WeatherData& w = weatherGet();
-  if (w.renderGen != wxRenderedOk_) { wxRenderedOk_ = w.renderGen; needRender_ = true; }
+  // Same flicker fix as the current-weather page: repaint only when this
+  // page's drawn content (hourlyPageSig()) moves, not on every renderGen
+  // bump the daemon's 30 s push cycle produces.
+  const uint32_t sig = hourlyPageSig(w);
+  if (sig != wxSig_) { wxSig_ = sig; wxRenderedOk_ = w.renderGen; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
     if (gfx) drawHourlyPage(gfx, w);
@@ -1053,14 +1183,17 @@ static void drawHourlyEmpty(Arduino_GFX* gfx) {
 // separators sit at y=85 and y=159 and the ink spans ~17..225.
 // Per row (owner's layout, then an Opus pixel QC against the 3-day page's standard):
 //   left   hour only, no ":00", size 2, vertically centred on the temp's axis
-//   middle the 40x40 condition icon, its word under it (+ for heavy), centred on x=112
-//   right  temp (size 3), right-aligned at x=226
+//   middle the 40x40 condition icon, its word under it (+ for heavy), centred on x=120
+//          (was 112, shifted right 2026-10-25 per owner's "go 120" -- measured ink
+//          centres icon ~119.5 / word ~118.5 on the live fixture)
+//   right  temp (size 3, degree sign included), right-aligned at x=226
 //   bottom ONE shared line: AQI (left, severity colour) / condition word / rain % (right)
 //          -- AQI and rain % are size 3 like every number on the 3-day page (and the
 //          dark-maroon "hazardous" step is legible there), the word stays size 2.
 // Column slots at the worst case (no value can run into its neighbour):
-//   AQI "500" size 3  x=14..68     word "Storm+"/"Cloudy" size 2 x=76..148
-//   rain "100%" size 3 x=154..226  temp "-99" size 3 x=172..226 (above the bottom line)
+//   AQI "500" size 3  x=14..68     word "Storm+"/"Cloudy" size 2 x=84..156
+//   rain "100%" size 3 x=154..226  temp "-99\xF8" size 3 x=154..226 (above the bottom
+//   line) -- word/temp advance boxes graze 2px at this joint extreme, ink stays ~7px apart
 static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
   if (w.hcCount == 0) { drawHourlyEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
@@ -1082,25 +1215,34 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
     gfx->setCursor(14, top + 16);
     gfx->print(hBuf);
 
-    // temp (size 3), right-aligned at x=226
+    // temp (size 3), right-aligned at x=226 -- the right edge STAYS at 226
+    // including the degree glyph (0xF8, no trailing "C", same glyph as the
+    // current-weather page). Worst case "-99\xF8" = 4 chars * 18px = 72px
+    // starts at x=154; against the word's worst-case advance end (x=156 at
+    // centre 120) the boxes graze by 2px, but the end glyphs are '+' and
+    // '-', narrow and centred in their cells -- real ink stays ~7px apart
+    // even at that joint worst case (clamp-extreme temp AND 6-char word).
     int tC = h.temp; if (tC < -99) tC = -99; if (tC > 199) tC = 199;
-    char tBuf[6]; snprintf(tBuf, sizeof(tBuf), "%d", tC);
+    char tBuf[6]; snprintf(tBuf, sizeof(tBuf), "%d\xF8", tC);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(226 - gfxTextW(tBuf, 3), top + 12);
     gfx->print(tBuf);
 
-    // condition icon (cx,cy are the icon's CENTRE) + its word, centred on x=112
+    // condition icon (cx,cy are the icon's CENTRE) + its word, centred on x=120
+    // (was 112; owner 2026-10-25 approved the shift after eyeballing both --
+    // 120 puts the icon/word pair under the temp's optical centre on the
+    // 240px panel)
     WxCat cat = wxCategory(h.code, true);
     // clear sky after dark = the moon, exactly like the current-conditions page (the API's own
     // per-hour is_day; an absent value keeps the sun)
-    drawWeatherIcon(gfx, 112, top + 26, cat, h.hasIsDay && !h.isDay);
+    drawWeatherIcon(gfx, 120, top + 26, cat, h.hasIsDay && !h.isDay);
     if (cat != WX_UNKNOWN) {   // an unknown code has no word ("--" would read as a second AQI gap)
       char wordBuf[10];
       snprintf(wordBuf, sizeof(wordBuf), "%s%s", wxLabel(cat), wxHeavy(h.code, true) ? "+" : "");
       gfx->setTextSize(2);
       gfx->setTextColor(C_DIM);
-      gfx->setCursor(112 - gfxTextW(wordBuf, 2) / 2, top + 52);
+      gfx->setCursor(120 - gfxTextW(wordBuf, 2) / 2, top + 52);
       gfx->print(wordBuf);
     }
 
@@ -1152,7 +1294,11 @@ void CalendarForecastMode::invalidate(const Settings& s) {
 void CalendarForecastMode::service(const Settings& s) {
   (void)s;
   const WeatherData& w = weatherGet();
-  if (w.renderGen != wxRenderedOk_) { wxRenderedOk_ = w.renderGen; needRender_ = true; }
+  // Same flicker fix as the current-weather page: repaint only when this
+  // page's drawn content (forecastPageSig()) moves, not on every renderGen
+  // bump the daemon's 30 s push cycle produces.
+  const uint32_t sig = forecastPageSig(w);
+  if (sig != wxSig_) { wxSig_ = sig; wxRenderedOk_ = w.renderGen; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
     if (gfx) drawForecastPage(gfx, w);

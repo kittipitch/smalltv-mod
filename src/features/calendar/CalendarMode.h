@@ -75,7 +75,11 @@ class CalendarWeatherMode : public DisplayMode {
 
  private:
   bool     needRender_ = true;
-  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.lastOkMs drawn (covers AQI too)
+  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last renderGen seen (record only; not load-bearing)
+  uint32_t wxSig_ = 0;                   // FNV-1a of the fields this page draws -- the
+                                         // 30 s daemon push bumps renderGen every time, so
+                                         // the page repaints only when DRAWN content moves
+                                         // (weatherPageSig, CalendarMode.cpp)
 };
 
 class CalendarForecastMode : public DisplayMode {
@@ -90,7 +94,8 @@ class CalendarForecastMode : public DisplayMode {
 
  private:
   bool     needRender_ = true;
-  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.lastOkMs drawn
+  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last renderGen seen (record only; not load-bearing)
+  uint32_t wxSig_ = 0;                   // FNV-1a of the fields this page draws (forecastPageSig)
 };
 
 extern CalendarAgendaMode   g_calendarAgendaMode;
@@ -107,7 +112,8 @@ class CalendarHourlyMode : public DisplayMode {
 
  private:
   bool     needRender_ = true;
-  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.renderGen drawn
+  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last renderGen seen (record only; not load-bearing)
+  uint32_t wxSig_ = 0;                   // FNV-1a of the fields this page draws (hourlyPageSig)
 };
 
 extern CalendarWeatherMode  g_calendarWeatherMode;

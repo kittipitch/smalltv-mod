@@ -170,7 +170,7 @@ cpp += data_h[start:end] + "\n"
 cpp += cm[cm.index("enum WxCat"):cm.index("enum WxCat") + cm[cm.index("enum WxCat"):].index("\n") + 1]
 for sig in ("static const char* wxLabel(", "static bool wxHeavy(", "static WxCat wxCategory(", "static void drawWeatherIcon(",
             "static void drawHourlyEmpty(", "static void drawHourlyPage(", "static void drawForecastEmpty(",
-            "static void drawForecastPage("):
+            "static void drawDegreeTemp(", "static void drawForecastPage("):
     cpp += function(cm, sig) + "\n"
 cpp += MAIN
 work = output
