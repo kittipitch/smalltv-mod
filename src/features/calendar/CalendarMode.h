@@ -44,6 +44,7 @@ class CalendarAgendaMode : public DisplayMode {
  private:
   bool     needRender_ = true;
   uint32_t calRenderedOk_ = 0xFFFFFFFF;   // last CalendarEvent.lastOkMs drawn
+  int      soonMinute_ = -1;               // last wall-clock minute the soon-tick looked at
 };
 
 class CalendarAgendaMode2 : public DisplayMode {
@@ -59,6 +60,7 @@ class CalendarAgendaMode2 : public DisplayMode {
  private:
   bool     needRender_ = true;
   uint32_t calRenderedOk_ = 0xFFFFFFFF;   // last CalendarEvent.lastOkMs drawn
+  int      soonMinute_ = -1;               // last wall-clock minute the soon-tick looked at
 };
 
 class CalendarWeatherMode : public DisplayMode {

@@ -34,6 +34,7 @@ CalendarForecastMode g_calendarForecastMode;
                             // muted tones (see C_DIM/C_SKY/C_ACCENT) -- explicit request to read
                             // as a caution/warning color, not the dark theme's normal restraint.
 #define C_PANEL   0x18E3   // card fill 0x1f1f1e -- same gray card UsageMode's meters use
+#define C_FRAME   0xDEDA   // 1px "starting within the hour" frame: light warm grey ~#dedbd6 (owner: grey-white, not yellow)
 
 // Google's real 24-color CALENDAR palette (colorId 1-24), captured live via
 // an authenticated GET https://www.googleapis.com/calendar/v3/colors --
@@ -354,6 +355,38 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat,
 // guaranteed) and was replaced with a real second mode instead.
 #define EVENTS_PER_PAGE 3
 
+// Minutes from `now` until a single-day TIMED event's displayed start ("HH:MM", the same wall
+// clock the card shows), for an event today or tomorrow; a large sentinel (never "soon") when it
+// is an all-day/date-only event, on another day, or the clock is unsynced. Compared on the
+// displayed wall-clock minutes on purpose: the card prints the event's own HH:MM, so "soon" must
+// agree with what the owner reads. Tomorrow counts so 00:15 at 23:30 still highlights.
+static const int kAgendaFar = 100000;
+static int agendaMinutesToStart(const CalendarEventItem& ev, const struct tm& now, bool haveNow,
+                                const struct tm& tomorrow, bool haveTomorrow) {
+  if (!haveNow || ev.allDay) return kAgendaFar;
+  if (strlen(ev.start) < 16 || ev.start[10] != 'T') return kAgendaFar;   // date-only, no time
+  const char* t = ev.start + 11;
+  if (t[0] < '0' || t[0] > '2' || t[1] < '0' || t[1] > '9' || t[2] != ':' ||
+      t[3] < '0' || t[3] > '5' || t[4] < '0' || t[4] > '9') return kAgendaFar;
+  int evMin = ((t[0] - '0') * 10 + (t[1] - '0')) * 60 + (t[3] - '0') * 10 + (t[4] - '0');
+  int dayOff;
+  if (isSameLocalDay(ev.start, now)) dayOff = 0;
+  else if (haveTomorrow && isSameLocalDay(ev.start, tomorrow)) dayOff = 1;
+  else return kAgendaFar;
+  return dayOff * 1440 + evMin - (now.tm_hour * 60 + now.tm_min);
+}
+
+// Bell for "starts within the hour": 7x7 cells drawn at 2px = 14x14, the grain and height of the
+// size-2 text beside it. Bytes in PROGMEM, read with pgm_read_byte only (bit 6 = leftmost cell).
+static const uint8_t kAgendaBell[7] PROGMEM = { 0x08, 0x1C, 0x3E, 0x3E, 0x3E, 0x7F, 0x1C };
+static void drawAgendaBell(Arduino_GFX* gfx, int x, int y) {
+  for (int r = 0; r < 7; r++) {
+    const uint8_t bits = pgm_read_byte(&kAgendaBell[r]);
+    for (int c = 0; c < 7; c++)
+      if (bits & (0x40 >> c)) gfx->fillRect(x + c * 2, y + r * 2, 2, 2, C_YELLOW);
+  }
+}
+
 static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEvent& c, uint8_t page) {
   gfx->fillScreen(C_BLACK);
   const int x = 8, w = 224;
@@ -446,6 +479,13 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
         relativeDay = true;
       } else extractMonthDay(ev.start, dateBuf, sizeof(dateBuf));
     }
+    // "Starts within the hour" (0 <= minutes < 60): the bell is always drawn (below, beside the
+    // time); the 1px frame follows the web-UI checkbox. Multi-day events carry no time label,
+    // so they never qualify.
+    const int minsToStart = multiDay ? kAgendaFar
+                                     : agendaMinutesToStart(ev, now, haveNow, tomorrow, haveTomorrow);
+    const bool soon = minsToStart >= 0 && minsToStart < 60;
+    if (soon && s.calendar.soonFrame) gfx->drawRoundRect(x, top, w, h, 8, C_FRAME);
     gfx->setTextSize(2);
     gfx->setTextColor(eventColor, C_PANEL);
     const int headerY = top + 8;
@@ -485,6 +525,10 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
         gfx->setTextColor(eventColor, C_PANEL);
         gfx->setCursor(timeX, headerY);
         gfx->print(timeBuf);
+        // bell in the free gap left of the time (6px clear of it), only when it fits clear of
+        // the date text too; the frame (if on) still marks the card either way
+        const int bellX = timeX - 6 - 14;
+        if (soon && bellX - dateEndX >= 6) drawAgendaBell(gfx, bellX, headerY);
       }
     }
 
@@ -758,9 +802,32 @@ void CalendarAgendaMode::invalidate(const Settings& s) {
   calRenderedOk_ = 0xFFFFFFFF;
 }
 
+// True once per wall-clock minute while a card on this page starts within the next ~hour (or just
+// started): the bell/frame appear at 59 minutes and clear after the start even if nothing else
+// repaints the page (standalone Next-event mode never wake()s). Idle otherwise: no timer, no
+// extra redraws when nothing is near. `lastMinute` is the caller's state.
+static bool agendaSoonTick(const CalendarEvent& c, uint8_t page, int& lastMinute) {
+  struct tm now;
+  if (!clockNow(now)) return false;
+  const int curMinute = now.tm_hour * 60 + now.tm_min;
+  if (curMinute == lastMinute) return false;
+  lastMinute = curMinute;
+  if (!c.valid) return false;
+  struct tm tomorrow = now;
+  tomorrow.tm_mday++; tomorrow.tm_hour = 12; tomorrow.tm_isdst = -1;
+  const bool haveTomorrow = mktime(&tomorrow) != (time_t)-1;
+  const uint8_t start = page * EVENTS_PER_PAGE;
+  for (uint8_t i = 0; i < EVENTS_PER_PAGE && start + i < c.count; i++) {
+    const int m = agendaMinutesToStart(c.items[start + i], now, true, tomorrow, haveTomorrow);
+    if (m >= -1 && m <= 61) return true;
+  }
+  return false;
+}
+
 void CalendarAgendaMode::service(const Settings& s) {
   const CalendarEvent& c = calendarGet();
   if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
+  if (agendaSoonTick(c, 0, soonMinute_)) needRender_ = true;
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
     if (gfx) drawAgendaPage(gfx, s, c, 0);
@@ -784,6 +851,7 @@ void CalendarAgendaMode2::invalidate(const Settings& s) {
 void CalendarAgendaMode2::service(const Settings& s) {
   const CalendarEvent& c = calendarGet();
   if (c.lastOkMs != calRenderedOk_) { calRenderedOk_ = c.lastOkMs; needRender_ = true; }
+  if (agendaSoonTick(c, 1, soonMinute_)) needRender_ = true;
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
     if (gfx) drawAgendaPage(gfx, s, c, 1);

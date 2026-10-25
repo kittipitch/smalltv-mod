@@ -153,6 +153,7 @@ void RadarSettings::fromJson(JsonObjectConst o) {
 // ===========================================================================
 void CalendarSettings::setDefaults() {
   showWeekday = true;
+  soonFrame = true;
   lat = DEFAULT_CAL_LAT;
   lon = DEFAULT_CAL_LON;
   place = "";
@@ -163,6 +164,7 @@ void CalendarSettings::setDefaults() {
 
 void CalendarSettings::toJson(JsonObject o) const {
   o["showWeekday"] = showWeekday;
+  o["soonFrame"] = soonFrame;
   o["lat"] = lat;
   o["lon"] = lon;
   o["place"] = place;
@@ -173,6 +175,7 @@ void CalendarSettings::toJson(JsonObject o) const {
 
 void CalendarSettings::fromJson(JsonObjectConst o) {
   if (o["showWeekday"].is<bool>()) showWeekday = o["showWeekday"].as<bool>();
+  if (o["soonFrame"].is<bool>()) soonFrame = o["soonFrame"].as<bool>();
   if (o["lat"].is<float>() || o["lat"].is<int>()) lat = o["lat"].as<float>();
   if (o["lon"].is<float>() || o["lon"].is<int>()) lon = o["lon"].as<float>();
   if (o["place"].is<const char*>()) {

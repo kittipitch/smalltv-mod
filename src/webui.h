@@ -114,7 +114,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </select>
    <div id="carouselRow">
     <label id="carouselLbl">Each page shows for (s)</label><input id="carouselSec" type="number" min="5" max="3600">
-    <div id="agendaWeekdayControl" class="chk"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div>
+    <div id="agendaWeekdayControl" class="chk" style="flex-direction:column;align-items:flex-start;gap:0;margin:0"><div class="chk"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div><div class="chk"><input id="calendarSoonFrame" type="checkbox" checked><label for="calendarSoonFrame">Frame events starting within the hour</label></div></div>
     <div id="carouselList"></div>
    </div>
    <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Copilot quota needs <code>--copilot</code> plus <code>gh auth login</code> with Copilot access on the daemon's machine (one read-only GitHub quota request per poll, no model call); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex and Copilot, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all five stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
@@ -699,7 +699,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  renderAps(r.airports||[]);
  // calendar slice
  var cal=c.calendar||{};
- sc('calendarShowWeekday',cal.showWeekday!==false);
+ sc('calendarShowWeekday',cal.showWeekday!==false); sc('calendarSoonFrame',cal.soonFrame!==false);
  sv('calLat',cal.lat); sv('calLon',cal.lon);
  sv('calPlace',cal.place||''); sv('calPoll',cal.weatherPollSec||600);
  // A stored label was a deliberate choice once, so treat it as user-owned
@@ -772,7 +772,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={showWeekday:gc('calendarShowWeekday'), lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
+  o.calendar={showWeekday:gc('calendarShowWeekday'), soonFrame:gc('calendarSoonFrame'), lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
  }
  return o;
 }
