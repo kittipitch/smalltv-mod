@@ -195,11 +195,17 @@ static void carouselNext(const Settings& s) {
 // for the logic inside activeMode(); see the comment there.
 static uint32_t g_soloSwitch = 0;
 static bool g_soloPage2 = false;
+static uint8_t g_soloWx = 0;        // standalone Weather trio index: 0=now 1=hourly 2=forecast
+static uint32_t g_soloWxMs = 0;
 
 static DisplayMode* activeMode(const Settings& s) {
   if (s.mode != MODE_CAL_AGENDA) {
     g_soloSwitch = 0;
     g_soloPage2 = false;
+  }
+  if (s.mode != MODE_CAL_WEATHER) {
+    g_soloWx = 0;
+    g_soloWxMs = 0;
   }
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
@@ -237,6 +243,35 @@ static DisplayMode* activeMode(const Settings& s) {
         }
         if (wasPage2 != g_soloPage2) page->wake(s);
         return page;
+      }
+      // Standalone "Weather + air quality" rotates its own trio with equal
+      // dwell -- current, then the next-3-hours page, then the 3-day
+      // forecast -- mirroring the agenda solo flip. Each subpage honours
+      // its own carousel toggle; with only weather ticked the mode simply
+      // stays put.
+      if (s.mode == MODE_CAL_WEATHER) {
+        DisplayMode* trio[3] = { kModes[i], nullptr, nullptr };
+        uint8_t n = 1;
+        for (size_t j = 0; j < kModeCount && n < 3; j++) {
+          uint8_t mc = kModes[j]->modeConst();
+          if (mc == MODE_CAL_HOURLY && s.carouselHourly) trio[n++] = kModes[j];
+          if (mc == MODE_CAL_FORECAST && s.carouselForecast) trio[n++] = kModes[j];
+        }
+        if (n > 1) {
+          if (g_soloWxMs == 0) g_soloWxMs = millis();
+          if (millis() - g_soloWxMs >= (uint32_t)s.carouselSec * 1000UL) {
+            g_soloWxMs = millis();
+            g_soloWx = (uint8_t)((g_soloWx + 1) % n);
+          }
+          DisplayMode* page = trio[g_soloWx];
+          if (page != kModes[i] && g_soloWx != 0) {
+            // wake() only when the delivered page changes is hard to see from
+            // here; the hourly/forecast modes repaint on any renderGen or
+            // wake, so waking each flip is cheap and always correct.
+          }
+          if (g_soloWx != 0) page->wake(s);
+          return page;
+        }
       }
       return kModes[i];
     }
