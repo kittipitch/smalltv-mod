@@ -941,9 +941,9 @@ static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
 // ---- DisplayMode: Hourly (next 3 hours) ----------------------------------
 static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w);
 
-// Three agenda-style horizontal cards, one per hour: time, icon, temp,
-// precip%, AQI. Same dirty tracking as the forecast mode (renderGen), and
-// the same independent-optional data contract.
+// Three thin-line-separated rows, one per hour (see drawHourlyPage). Same dirty
+// tracking as the forecast mode (renderGen), and the same independent-optional
+// data contract.
 void CalendarHourlyMode::begin(const Settings& s) {
   calendarInit(s);
   needRender_ = true;
@@ -975,47 +975,61 @@ static void drawHourlyEmpty(Arduino_GFX* gfx) {
   gfx->print("No hourly forecast yet");
 }
 
-// Three horizontal cards, agenda style: fillRoundRect x=8 w=224 r=8 C_PANEL,
-// 6px gaps. Per card, left to right: HH:MM (size 3), the 40x40 weather icon,
-// temp (size 4), precip% (size 3, sky), AQI (size 3, severity colour,
-// right-aligned) -- the same info column as the 3-day forecast page, one row
-// per hour instead of a column per day.
+// Three horizontal rows divided by thin lines, like the 3-day forecast page's
+// column dividers (owner 2026-10-25: "maybe dont do card but thin line separator").
+// No card fills, black background; rows 74px with the block starting at y=11, so the
+// separators sit at y=85 and y=159 and the ink spans ~17..225.
+// Per row (owner's layout, then an Opus pixel QC against the 3-day page's standard):
+//   left   hour only, no ":00", size 2, vertically centred on the temp's axis
+//   middle the 40x40 condition icon, its word under it (+ for heavy), centred on x=112
+//   right  temp (size 3), right-aligned at x=226
+//   bottom ONE shared line: AQI (left, severity colour) / condition word / rain % (right)
+//          -- AQI and rain % are size 3 like every number on the 3-day page (and the
+//          dark-maroon "hazardous" step is legible there), the word stays size 2.
+// Column slots at the worst case (no value can run into its neighbour):
+//   AQI "500" size 3  x=14..68     word "Storm+"/"Cloudy" size 2 x=76..148
+//   rain "100%" size 3 x=154..226  temp "-99" size 3 x=172..226 (above the bottom line)
 static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
   if (w.hcCount == 0) { drawHourlyEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
-  const int top0 = 8, cardH = 70, gap = 6;
+  const int top0 = 11, rowH = 74;
+  // Only draw a separator between two populated rows (a direct push can carry < 3 hours).
+  for (uint8_t i = 1; i < w.hcCount; i++)
+    gfx->drawFastHLine(14, top0 + i * rowH, 212, C_PANEL);
   for (uint8_t i = 0; i < w.hcCount; i++) {
     const HourFc& h = w.hc[i];
-    const int top = top0 + i * (cardH + gap);
-    gfx->fillRoundRect(8, top, 224, cardH, 8, C_PANEL);
+    const int top = top0 + i * rowH;
 
-    // Time x14 (size 3, "23:59" ends x=104); icon x=108; temp x=156 (size 3,
-    // "-99"/"199" ends x=210); precip size 2 below the temp; AQI size 2
-    // right-aligned at x=218 -- the audit's overlap findings, laid out to keep
-    // every column inside its slot for all realistic widths.
+    // hour: "HH:MM" from the daemon -> just "HH" (the page only ever shows whole hours),
+    // centred on the temp's vertical axis (size-2 ink centre == size-3 ink centre)
+    char hBuf[4] = {0};
+    hBuf[0] = h.time[0]; hBuf[1] = h.time[1];
+    gfx->setTextSize(2);
+    gfx->setTextColor(C_WHITE);
+    gfx->setCursor(14, top + 16);
+    gfx->print(hBuf);
+
+    // temp (size 3), right-aligned at x=226
+    int tC = h.temp; if (tC < -99) tC = -99; if (tC > 199) tC = 199;
+    char tBuf[6]; snprintf(tBuf, sizeof(tBuf), "%d", tC);
     gfx->setTextSize(3);
-    gfx->setTextColor(C_WHITE, C_PANEL);
-    gfx->setCursor(14, top + 24);
-    gfx->print(h.time);
-
-    WxCat cat = wxCategory(h.code, true);
-    drawWeatherIcon(gfx, 108, top + 15, cat);
-
-    char tBuf[6]; snprintf(tBuf, sizeof(tBuf), "%d", h.temp);
-    gfx->setTextSize(3);
-    gfx->setTextColor(C_WHITE, C_PANEL);
-    gfx->setCursor(156, top + 16);
+    gfx->setTextColor(C_WHITE);
+    gfx->setCursor(226 - gfxTextW(tBuf, 3), top + 12);
     gfx->print(tBuf);
 
-    if (h.precip >= 0) {
-      int precipV = h.precip; if (precipV > 100) precipV = 100;
-      char pBuf[6]; snprintf(pBuf, sizeof(pBuf), "%d%%", precipV);
+    // condition icon (cx,cy are the icon's CENTRE) + its word, centred on x=112
+    WxCat cat = wxCategory(h.code, true);
+    drawWeatherIcon(gfx, 112, top + 26, cat);
+    if (cat != WX_UNKNOWN) {   // an unknown code has no word ("--" would read as a second AQI gap)
+      char wordBuf[10];
+      snprintf(wordBuf, sizeof(wordBuf), "%s%s", wxLabel(cat), wxHeavy(h.code, true) ? "+" : "");
       gfx->setTextSize(2);
-      gfx->setTextColor(C_SKY, C_PANEL);
-      gfx->setCursor(156, top + 46);
-      gfx->print(pBuf);
+      gfx->setTextColor(C_DIM);
+      gfx->setCursor(112 - gfxTextW(wordBuf, 2) / 2, top + 52);
+      gfx->print(wordBuf);
     }
 
+    // AQI: the bottom line's left item, size 3, severity colour (the forecast page's scale)
     char aqiBuf[6];
     uint16_t aqiColor;
     if (h.hasAqi) {
@@ -1030,10 +1044,20 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
       strlcpy(aqiBuf, "--", sizeof(aqiBuf));
       aqiColor = C_DIM;
     }
-    gfx->setTextSize(2);
-    gfx->setTextColor(aqiColor, C_PANEL);
-    gfx->setCursor(218 - gfxTextW(aqiBuf, 2) - 14, top + 44);
+    gfx->setTextSize(3);
+    gfx->setTextColor(aqiColor);
+    gfx->setCursor(14, top + 45);
     gfx->print(aqiBuf);
+
+    // rain %: the bottom line's right item, size 3, right-aligned at x=226
+    if (h.precip >= 0) {
+      int precipV = h.precip; if (precipV > 100) precipV = 100;
+      char pBuf[6]; snprintf(pBuf, sizeof(pBuf), "%d%%", precipV);
+      gfx->setTextSize(3);
+      gfx->setTextColor(C_SKY);
+      gfx->setCursor(226 - gfxTextW(pBuf, 3), top + 45);
+      gfx->print(pBuf);
+    }
   }
 }
 
