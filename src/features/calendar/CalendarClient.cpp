@@ -353,13 +353,14 @@ bool codexApply(const String& body) {
 }
 
 // ---- GitHub Copilot quota: pushed payload ---------------------------------
-// { "ok":true, "pctChat":12, "rChat":1234, "pctCompletions":3,
-//   "rCompletions":1234 }
+// { "ok":true, "pctPremium":40, "rPremium":1234, "pctChat":12, "rChat":1234,
+//   "pctCompletions":3, "rCompletions":1234 }
 // GitHub's account-wide monthly reset is shared by the independently metered
 // Chat and Completions snapshots. Missing snapshot keys mean that allowance is
 // unavailable, not zero percent used.
 static void copilotFilter(JsonDocument& f) {
   f["ok"] = true;
+  f["pctPremium"] = true; f["rPremium"] = true;
   f["pctChat"] = true; f["rChat"] = true;
   f["pctCompletions"] = true; f["rCompletions"] = true;
 }
@@ -376,6 +377,13 @@ bool copilotApply(const String& body) {
 
   // Every daemon payload is a complete quota snapshot. Clear a category which
   // GitHub has stopped entitling rather than leaving stale data on the screen.
+  // Premium: the plan's paid-request allowance (optional key). Same snapshot semantics as the
+  // other categories: a payload that stops sending it clears the card (the layout then reverts
+  // to the two whole cards -- see drawCopilotPage's split handling).
+  g_copilot.hasPctPremium = doc["pctPremium"].is<int>();
+  g_copilot.pctPremium = doc["pctPremium"] | 0;
+  g_copilot.hasRPremium = doc["rPremium"].is<int>();
+  g_copilot.rPremium = doc["rPremium"] | 0;
   g_copilot.hasPctChat = gotChat;
   g_copilot.pctChat = doc["pctChat"] | 0;
   g_copilot.hasRChat = doc["rChat"].is<int>();

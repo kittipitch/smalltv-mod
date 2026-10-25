@@ -120,6 +120,45 @@ static void drawCopilotLogo(Arduino_GFX* gfx, int x0, int y0, int w, int h) {
   }
 }
 
+// Half-width card for the split bottom row (Chat | Code) when the daemon sent a Premium reading:
+// same look as the whole card, stacked in a 110 px column with 14 px margins -- label, size-4
+// right-aligned value, bar, right-aligned bare reset. Near-copy of AntigravityMode.cpp's
+// drawAntigravityHalf, per the file-by-file convention of these mode sources.
+static void drawCopilotHalf(Arduino_GFX* gfx, int x, int top, const char* label,
+                            bool has, int pct, bool hasReset, int resetMins,
+                            bool full, bool growRight) {
+  const int w = 110, h = 82;
+  if (full) gfx->fillRoundRect(x, top, w, h, 8, C_PANEL);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM, C_PANEL);
+  gfx->setCursor(x + 14, top + 6);
+  gfx->print(label);
+
+  int dispPct = has ? (pct > 99 ? 99 : (pct < 0 ? 0 : pct)) : 0;
+  char pc[8];
+  if (has) snprintf(pc, sizeof(pc), "%2d%%", dispPct);
+  else     strlcpy(pc, " --", sizeof(pc));
+  gfx->setTextSize(4);
+  gfx->setTextColor((has && pct >= 100) ? C_RED : C_WHITE, C_PANEL);
+  gfx->setCursor(x + w - gfxTextW(pc, 4) - 14, top + 24);
+  gfx->print(pc);
+
+  int bx = x + 14, by = top + 56, bw = w - 28, bh = 8;
+  gfx->fillRoundRect(bx, by, bw, bh, bh / 2, C_BARBG);
+  int fw = has ? (int)(bw * constrain(pct, 0, 100) / 100.0f) : 0;
+  int fx = growRight ? (bx + bw - fw) : bx;
+  if (fw > 0) gfx->fillRoundRect(fx, by, fw, bh, bh / 2, pctColor(pct));
+
+  char rs[16];
+  if (hasReset) fmtReset(resetMins, rs, sizeof(rs));
+  else          strlcpy(rs, "--", sizeof(rs));
+  char rsPad[16];
+  snprintf(rsPad, sizeof(rsPad), "%7s", rs);
+  gfx->setTextSize(2);
+  gfx->setCursor(x + w - 14 - gfxTextW(rsPad, 2), top + 66);
+  gfx->print(rsPad);
+}
+
 static void drawCopilotPage(Arduino_GFX* gfx, const CopilotData& c,
                             bool full, bool growRight) {
   if (full) {
@@ -134,11 +173,28 @@ static void drawCopilotPage(Arduino_GFX* gfx, const CopilotData& c,
     gfx->setCursor(46, 16);
     gfx->print("Copilot");
   }
-  drawCopilotMeter(gfx, 50, "Chat", c.hasPctChat, c.pctChat,
-                   c.hasPctChat && c.hasRChat, c.rChat, full, growRight);
-  drawCopilotMeter(gfx, 138, "Code", c.hasPctCompletions, c.pctCompletions,
-                   c.hasPctCompletions && c.hasRCompletions, c.rCompletions,
-                   full, growRight);
+  // With a Premium reading (the plan's real paid-request allowance, live 2026-10-25 the only
+  // snapshot with usage): Premium whole card on top, Chat | Code halves below -- the agy page's
+  // Argon layout. Without it (old daemon), the original two whole cards. A layout change blanks
+  // the bottom row first: the whole card's panel would otherwise leave colour in the 4 px gap.
+  const bool split = c.hasPctPremium;
+  static int8_t s_lastSplit = -1;
+  const bool cardsFull = full || (s_lastSplit != (int8_t)split);
+  s_lastSplit = (int8_t)split;
+  if (split) {
+    drawCopilotMeter(gfx, 50, "Premium", c.hasPctPremium, c.pctPremium,
+                     c.hasPctPremium && c.hasRPremium, c.rPremium, cardsFull, growRight);
+    if (cardsFull) gfx->fillRect(8, 138, 224, 82, C_BLACK);
+    drawCopilotHalf(gfx, 8, 138, "Chat", c.hasPctChat, c.pctChat,
+                    c.hasPctChat && c.hasRChat, c.rChat, cardsFull, growRight);
+    drawCopilotHalf(gfx, 122, 138, "Code", c.hasPctCompletions, c.pctCompletions,
+                    c.hasPctCompletions && c.hasRCompletions, c.rCompletions, cardsFull, growRight);
+  } else {
+    drawCopilotMeter(gfx, 50, "Chat", c.hasPctChat, c.pctChat,
+                     c.hasPctChat && c.hasRChat, c.rChat, cardsFull, growRight);
+    drawCopilotMeter(gfx, 138, "Code", c.hasPctCompletions, c.pctCompletions,
+                     c.hasPctCompletions && c.hasRCompletions, c.rCompletions, cardsFull, growRight);
+  }
 }
 
 void CopilotMode::begin(const Settings& s) {

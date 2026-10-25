@@ -107,20 +107,23 @@ void emit(Arduino_GFX& gfx, const std::string& path) {
     image.write(rgb, 3);
   }
 }
-static void set(CopilotData& a, int chat, int rchat, int code, int rcode) {
+static void set(CopilotData& a, int prem, int rprem, int chat, int rchat, int code, int rcode) {
   a.clear(); a.valid = true;
+  a.hasPctPremium = prem >= 0; a.pctPremium = prem; a.hasRPremium = true; a.rPremium = rprem;
   a.hasPctChat = chat >= 0; a.pctChat = chat; a.hasRChat = true; a.rChat = rchat;
   a.hasPctCompletions = code >= 0; a.pctCompletions = code; a.hasRCompletions = true; a.rCompletions = rcode;
 }
 int main(int, char** argv) {
   std::string dir = argv[1];
   CopilotData a;
-  // 0: both cards; 1: Completions missing (has_quota false); 2: no data at all
-  const char* names[3] = {"both-cards", "completions-missing", "no-data"};
+  // 0: live shape 2026-10-25 -- Premium is the only snapshot with usage (39% used), Chat/Code unlimited
+  // 1: an old daemon: no Premium key, the original two whole cards
+  // 2: no data at all
+  const char* names[3] = {"premium-split", "legacy-two-cards", "no-data"};
   for (int i = 0; i < 3; i++) {
-    if (i == 0) set(a, 25, 12000, 10, 12000);
-    if (i == 1) set(a, 62, 8000, -1, 0);
-    if (i == 2) set(a, -1, 0, -1, 0);
+    if (i == 0) set(a, 40, 9940, 0, 9940, 0, 9940);
+    if (i == 1) set(a, -1, 0, 62, 8000, 33, 8000);
+    if (i == 2) set(a, -1, 0, -1, 0, -1, 0);
     Arduino_GFX gfx; gfx.page = i;
     drawCopilotPage(&gfx, a, true, false);
     emit(gfx, dir + "/" + names[i] + ".ppm");
@@ -146,7 +149,7 @@ def build(src, tag):
         cpp += f"#undef {m.group(1)}\n#define {m.group(1)} {m.group(2)}\n"
     cpp += logo_h[logo_h.index("#define COPILOT_LOGO_COLS"):] + "\n"
     cpp += function(data_h, "struct CopilotData {") + ";\n"
-    for name in ("pctColor", "fmtReset", "drawCopilotMeter", "drawCopilotLogo", "drawCopilotPage"):
+    for name in ("pctColor", "fmtReset", "drawCopilotMeter", "drawCopilotHalf", "drawCopilotLogo", "drawCopilotPage"):
         if f"static void {name}(" not in src and f"static uint16_t {name}(" not in src:
             continue  # the baseline (git HEAD) has no half card
         cpp += function(src, re.search(r"static (?:uint16_t|void) " + name + r"\(", src).group()) + "\n"
@@ -159,7 +162,7 @@ def build(src, tag):
     trace = subprocess.run([str(work / "preview"), str(work)], text=True, capture_output=True, check=True).stdout
     (work / "trace.tsv").write_text(trace)
     rows = [l.split("\t", 4) for l in trace.splitlines()]
-    names = ["both-cards", "completions-missing", "no-data"]
+    names = ["premium-split", "legacy-two-cards", "no-data"]
     imgs = []
     for n in names:
         im = Image.open(work / f"{n}.ppm")
@@ -180,18 +183,35 @@ def texts(rows, page):
     return {(int(r[1]), int(r[2])): (r[3], r[4]) for r in rows if int(r[0]) == page}
 
 RIGHT = 218  # 8 + 224 - 14: the shared right edge of value, bar and reset text
-for page, chat, code in ((0, ("25%", "8d 8h"), ("10%", "8d 8h")), (1, ("62%", "5d 13h"), None), (2, (None, None), None)):
-    t = texts(cand_rows, page)
-    for top, pair in ((50, chat), (138, code)):
-        if not pair:
-            continue
-        val, rst = pair
-        if not val:
-            continue
-        vr = [r for r in cand_rows if r[0] == str(page) and int(r[2]) == top + 10 and r[4].strip().endswith("%")]
-        assert vr and vr[0][3] == "5", ("value at size 5", page, top, vr)
-        rr = [r for r in cand_rows if r[0] == str(page) and int(r[2]) == top + 66]
-        assert rr and rr[0][4] == f"{'Resets in ' + rst:>17}" and int(rr[0][1]) + 17 * 12 == RIGHT, ("reset row", page, top, rr)
+for page, prem, chat, code in ((0, ("40%", "6d 21h"), ("0%", "6d 21h"), ("0%", "6d 21h")),
+                               (1, None, ("62%", "5d 13h"), ("33%", "5d 13h")),
+                               (2, None, None, None)):
+    rows = [r for r in cand_rows if r[0] == str(page)]
+    def at(y):
+        return [r for r in rows if int(r[2]) == y]
+    # wordmark
+    wm = at(16)
+    assert wm and wm[0][4] == "Copilot" and int(wm[0][1]) == 46, ("wordmark", page)
+    if prem:
+        lab = at(62)
+        assert lab and lab[0][4] == "Premium", ("premium label", page, lab)
+        vr = [r for r in rows if int(r[2]) == 60 and r[4].strip().endswith("%")]
+        assert vr and vr[0][3] == "5" and vr[0][4] == prem[0], ("premium value", page, vr)
+        rr = at(116)
+        assert rr and rr[0][4] == f"{'Resets in ' + prem[1]:>17}" and int(rr[0][1]) + 17 * 12 == RIGHT, ("premium reset", page, rr)
+        for x, (val, lab) in ((22, ("0%", "Chat")), (136, ("0%", "Code"))):
+            hl = [r for r in rows if int(r[2]) == 144 and r[4].strip() == lab]
+            assert hl, ("half label", page, lab)
+            hv = [r for r in rows if int(r[2]) == 162 and r[4].strip().endswith("%")]
+            assert hv and hv[0][3] == "4" and hv[0][4].strip() == "0%", ("half value", page, hv)
+            edge = 104 if x < 100 else 218
+            hr = [r for r in rows if int(r[2]) == 204 and r[3] == "2" and abs(int(r[1]) + 7 * 12 - edge) < 12]
+            assert len(hr) == 1 and int(hr[0][1]) + 7 * 12 == edge, ("half reset right edge", page, x, hr)
+    elif chat:
+        vr = [r for r in rows if int(r[2]) == 60 and r[4].strip().endswith("%")]
+        assert vr and vr[0][4] == chat[0], ("legacy top value", page, vr)
+        vr2 = [r for r in rows if int(r[2]) == 148 and r[4].strip().endswith("%")]
+        assert vr2 and vr2[0][4] == code[0], ("legacy bottom value", page, vr2)
 
 # --- pixel assertions ---------------------------------------------------------------------------
 BARBG, BLACK, PANEL = rgb(0x2945), (0, 0, 0), rgb(0x18E3)
@@ -214,7 +234,7 @@ for im in cand_imgs:
 # baseline is git HEAD, which already carries the first logo revision: only require it to be a
 # helmet-sized ink box too (the grid bytes themselves are asserted on the candidate)
 bbox = ink_box(base_imgs[0], (0, 0, 45, 50))
-assert bbox == (7, 12, 36, 39), ("baseline logo box", bbox)
+assert bbox == (7, 12, 36, 35), ("baseline logo box", bbox)
 wordmark = [r for r in cand_rows if r[0] == "0" and int(r[2]) == 16]
 assert wordmark and wordmark[0][4] == "Copilot" and int(wordmark[0][1]) == 46, wordmark
 

@@ -242,6 +242,10 @@ struct CodexData {
 // rolling windows. rChat/rCompletions therefore carry the same next billing
 // cycle reset from the account-wide quota_reset_date_utc field.
 struct CopilotData {
+  int  pctPremium;         // the paid-request allowance; the only snapshot with real usage
+  bool hasPctPremium;      // live 2026-10-25; absent key = old daemon, whole-card layout
+  int  rPremium;
+  bool hasRPremium;
   int  pctChat;
   bool hasPctChat;
   int  rChat;
@@ -254,6 +258,8 @@ struct CopilotData {
   uint32_t lastOkMs;
 
   void clear() {
+    pctPremium = 0; hasPctPremium = false;
+    rPremium = 0; hasRPremium = false;
     pctChat = 0; hasPctChat = false;
     rChat = 0; hasRChat = false;
     pctCompletions = 0; hasPctCompletions = false;
