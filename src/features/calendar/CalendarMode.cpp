@@ -1000,10 +1000,11 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
     const HourFc& h = w.hc[i];
     const int top = top0 + i * rowH;
 
-    // hour: "HH:MM" from the daemon -> just "HH" (the page only ever shows whole hours),
-    // centred on the temp's vertical axis (size-2 ink centre == size-3 ink centre)
+    // hour: "HH:MM" from the daemon -> "HHh" ("08h": the owner found a bare "08" unclear;
+    // the page only ever shows whole hours), centred on the temp's vertical axis
+    // (size-2 ink centre == size-3 ink centre). hBuf[4] = 2 digits + 'h' + NUL, exactly.
     char hBuf[4] = {0};
-    hBuf[0] = h.time[0]; hBuf[1] = h.time[1];
+    hBuf[0] = h.time[0]; hBuf[1] = h.time[1]; hBuf[2] = 'h';
     gfx->setTextSize(2);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(14, top + 16);
