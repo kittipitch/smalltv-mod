@@ -2,11 +2,9 @@
 """Render the agenda page's "starts within the hour" highlight (bell + optional 1px frame) from the
 real firmware source, in several device-clock scenarios, and assert the pixels.
 
-Reuses preview_agenda.py's host harness (hardware stub, GFX font and roundrect routines, the page's
-own helper functions): that script is exec'd up to the point where it would compile, its C++ is
-patched (Settings.soonFrame, a fillRect method), the firmware's own helpers (agendaMinutesToStart,
-the bell, drawAgendaPage) are taken verbatim from CalendarMode.cpp, and a new main() renders the
-scenarios. Prints the artifact directory. No firmware build or device is involved."""
+Reuses preview_agenda.py's host harness (hardware stub, GFX font and roundrect routines, and the
+page's own functions incl. the soon helpers and the bell, all taken verbatim from CalendarMode.cpp):
+that script is exec'd up to the point where it would compile, and a new main() renders the scenarios. Prints the artifact directory. No firmware build or device is involved."""
 from pathlib import Path
 import re
 import subprocess
@@ -36,21 +34,7 @@ def function(source, signature):
     return source[start:end]
 
 
-# ---- patch the stub ------------------------------------------------------------------------
-a = "struct Settings { struct { String ids, colorIds; bool showWeekday=true; } calendar; };"
-assert cpp.count(a) == 1
-cpp = cpp.replace(a, "struct Settings { struct { String ids, colorIds; bool showWeekday=true; bool soonFrame=true; } calendar; };")
-b = "  void writeFastHLine(int x,int y,int w,uint16_t c) { writeFillRect(x,y,w,1,c); }"
-assert cpp.count(b) == 1
-cpp = cpp.replace(b, b + "\n  void fillRect(int x,int y,int w,int h,uint16_t color) { writeFillRect(x,y,w,h,color); }")
-
-# ---- firmware helpers, verbatim, inserted before the page function that uses them ----------
-frame_define = re.search(r"^#define C_FRAME\s+(0x[0-9A-Fa-f]+)", cm, re.M).group(0)
-helper_start = cm.index("static const int kAgendaFar")
-helper_end = cm.index("static void drawAgendaPage(")
-helpers = frame_define + "\n" + cm[helper_start:helper_end]
-at = cpp.index("static void drawAgendaPage(")
-cpp = cpp[:at] + helpers + "\n" + cpp[at:]
+# (the base harness already carries the stub members and the firmware's soon helpers)
 
 # ---- new main --------------------------------------------------------------------------------
 cpp = cpp[:cpp.index("int main(int argc,char** argv)")] + r'''

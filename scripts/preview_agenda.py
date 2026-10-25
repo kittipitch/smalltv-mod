@@ -63,7 +63,7 @@ struct String : std::string {
   }
   int toInt() const { return std::atoi(c_str()); }
 };
-struct Settings { struct { String ids, colorIds; bool showWeekday=true; } calendar; };
+struct Settings { struct { String ids, colorIds; bool showWeekday=true; bool soonFrame=true; } calendar; };
 tm previewNow = {};
 bool previewClockReady = true;
 bool clockNow(tm& now) { now = previewNow; return previewClockReady; }
@@ -84,6 +84,7 @@ public:
   }
   void writeFastHLine(int x,int y,int w,uint16_t c) { writeFillRect(x,y,w,1,c); }
   void writeFastVLine(int x,int y,int h,uint16_t c) { writeFillRect(x,y,1,h,c); }
+  void fillRect(int x,int y,int w,int h,uint16_t color) { writeFillRect(x,y,w,h,color); }
   void fillScreen(uint16_t color) { std::fill(pixels.begin(),pixels.end(),color); }
   void setTextSize(int s) { textsize_x=textsize_y=s; }
   void setTextColor(uint16_t c) { textcolor=textbgcolor=c; }
@@ -118,6 +119,12 @@ cpp += "\n#define C_BLACK 0x0000\n#define C_WHITE 0xffff\n#define C_ACCENT 0xDBA
 cpp += source[source.index("static const uint16_t kGCalPalette"):source.index("// Muted 6-band US AQI")]
 cpp += source[source.index("static const char* MONTH3"):source.index("static void drawRow(")]
 for name in ("isSameLocalDay", "parseIsoDate", "decCalendarDay", "formatDayRange", "drawAgendaPage"):
+    if name == "drawAgendaPage":
+        # the "starts within the hour" helpers + bell glyph + frame colour, verbatim from the
+        # firmware: drawAgendaPage calls them. (Default fixtures sit at 00:00, so nothing is
+        # "soon" there and the exact pixel/trace asserts below are unaffected.)
+        cpp += re.search(r"^#define C_FRAME\s+0x[0-9A-Fa-f]+", source, re.M).group(0) + "\n"
+        cpp += source[source.index("static const int kAgendaFar"):source.index("static void drawAgendaPage(")] + "\n"
     match = re.search(r"static (?:bool|void) " + name + r"\(", source)
     cpp += function(source, match.group()) + "\n"
 cpp += r'''
