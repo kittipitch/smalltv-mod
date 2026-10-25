@@ -263,12 +263,13 @@ static DisplayMode* activeMode(const Settings& s) {
             g_soloWxMs = millis();
             g_soloWx = (uint8_t)((g_soloWx + 1) % n);
           }
+          // The trio can SHRINK under us (a subpage unticked in the web UI while it is
+          // showing): clamp the index to the live count before indexing, or trio[2] is
+          // null and the wake() below dereferences it. (Pre-flash audit finding.)
+          if (g_soloWx >= n) { g_soloWx = 0; g_soloWxMs = millis(); }
           DisplayMode* page = trio[g_soloWx];
-          if (page != kModes[i] && g_soloWx != 0) {
-            // wake() only when the delivered page changes is hard to see from
-            // here; the hourly/forecast modes repaint on any renderGen or
-            // wake, so waking each flip is cheap and always correct.
-          }
+          // wake() each flip: the hourly/forecast modes repaint on any renderGen or wake,
+          // so waking on every non-first page is cheap and always correct.
           if (g_soloWx != 0) page->wake(s);
           return page;
         }
