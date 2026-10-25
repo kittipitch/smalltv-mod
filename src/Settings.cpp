@@ -214,7 +214,7 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselForecast = carouselZai = carouselCodex = carouselCopilot = carouselAntigravity = carouselOpenrouter = true;
+  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselHourly = carouselForecast = carouselZai = carouselCodex = carouselCopilot = carouselAntigravity = carouselOpenrouter = true;
   // Off by default: an empty album page is a black screen in the rotation, and
   // nothing shows until the owner points the daemon at a folder.
   carouselAlbum = false;
@@ -309,6 +309,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_CAL_AGENDA)  ? "agenda"
                             : (s.mode == MODE_CAL_AGENDA2) ? "agenda"
                             : (s.mode == MODE_CAL_WEATHER) ? "weather"
+                            : (s.mode == MODE_CAL_HOURLY) ? "hourly"
                             : (s.mode == MODE_CAL_FORECAST) ? "forecast"
                             : (s.mode == MODE_ZAI)      ? "zai"
                             : (s.mode == MODE_CODEX)    ? "codex"
@@ -323,6 +324,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselAgenda"]    = s.carouselAgenda;
   root["carouselAgenda2"]   = s.carouselAgenda2;
   root["carouselWeather"]   = s.carouselWeather;
+  root["carouselHourly"]    = s.carouselHourly;
   root["carouselForecast"]  = s.carouselForecast;
   root["carouselZai"]       = s.carouselZai;
   root["carouselAlbum"]     = s.carouselAlbum;
@@ -403,6 +405,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("agenda")   ? MODE_CAL_AGENDA
            : m.equalsIgnoreCase("agenda2")  ? MODE_CAL_AGENDA  // Legacy standalone page 2 becomes rotating agenda.
            : m.equalsIgnoreCase("weather")  ? MODE_CAL_WEATHER
+           : m.equalsIgnoreCase("hourly") ? MODE_CAL_HOURLY
            : m.equalsIgnoreCase("forecast") ? MODE_CAL_FORECAST
            : m.equalsIgnoreCase("zai")      ? MODE_ZAI
            : m.equalsIgnoreCase("codex")    ? MODE_CODEX
@@ -418,6 +421,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselAgenda"].is<bool>())  s.carouselAgenda = root["carouselAgenda"];
   if (root["carouselAgenda2"].is<bool>()) s.carouselAgenda2 = root["carouselAgenda2"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
+  if (root["carouselHourly"].is<bool>()) s.carouselHourly = root["carouselHourly"];
   if (root["carouselForecast"].is<bool>()) s.carouselForecast = root["carouselForecast"];
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
   if (root["carouselAlbum"].is<bool>())   s.carouselAlbum = root["carouselAlbum"];

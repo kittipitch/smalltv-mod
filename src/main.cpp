@@ -63,6 +63,7 @@ static DisplayMode* kModes[] = {
   &g_calendarAgendaMode,
   &g_calendarAgendaMode2,
   &g_calendarWeatherMode,
+  &g_calendarHourlyMode,
   &g_calendarForecastMode,
 #endif
 };
@@ -152,6 +153,7 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // same "skip until there's real content" pattern as z.ai below.
     case MODE_CAL_AGENDA2: return s.carouselAgenda2 && calendarGet().count > 3;
     case MODE_CAL_WEATHER: return s.carouselWeather;
+    case MODE_CAL_HOURLY: return s.carouselHourly;
     case MODE_CAL_FORECAST: return s.carouselForecast;
 #if WITH_CALENDAR
     // Same "skip until there's real content" pattern as the others --

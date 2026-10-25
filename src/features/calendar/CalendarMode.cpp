@@ -9,6 +9,7 @@
 CalendarAgendaMode   g_calendarAgendaMode;
 CalendarAgendaMode2  g_calendarAgendaMode2;
 CalendarWeatherMode  g_calendarWeatherMode;
+CalendarHourlyMode g_calendarHourlyMode;
 CalendarForecastMode g_calendarForecastMode;
 
 // Local palette subset (same Anthropic-inspired hex values UsageMode.cpp
@@ -933,6 +934,101 @@ static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
     gfx->setTextSize(3);
     gfx->setTextColor(aqiColor);
     gfx->setCursor(colX + (80 - gfxTextW(aqiBuf, 3)) / 2, 203);
+    gfx->print(aqiBuf);
+  }
+}
+
+// ---- DisplayMode: Hourly (next 3 hours) ----------------------------------
+static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w);
+
+// Three agenda-style horizontal cards, one per hour: time, icon, temp,
+// precip%, AQI. Same dirty tracking as the forecast mode (renderGen), and
+// the same independent-optional data contract.
+void CalendarHourlyMode::begin(const Settings& s) {
+  calendarInit(s);
+  needRender_ = true;
+  wxRenderedOk_ = 0xFFFFFFFF;
+}
+
+void CalendarHourlyMode::invalidate(const Settings& s) {
+  (void)s;
+  needRender_ = true;
+  wxRenderedOk_ = 0xFFFFFFFF;
+}
+
+void CalendarHourlyMode::service(const Settings& s) {
+  (void)s;
+  const WeatherData& w = weatherGet();
+  if (w.renderGen != wxRenderedOk_) { wxRenderedOk_ = w.renderGen; needRender_ = true; }
+  if (needRender_) {
+    Arduino_GFX* gfx = gfxDev();
+    if (gfx) drawHourlyPage(gfx, w);
+    needRender_ = false;
+  }
+}
+
+static void drawHourlyEmpty(Arduino_GFX* gfx) {
+  gfx->fillScreen(C_BLACK);
+  gfx->setTextSize(2);
+  gfx->setTextColor(C_DIM);
+  gfx->setCursor(14, 110);
+  gfx->print("No hourly forecast yet");
+}
+
+// Three horizontal cards, agenda style: fillRoundRect x=8 w=224 r=8 C_PANEL,
+// 6px gaps. Per card, left to right: HH:MM (size 3), the 40x40 weather icon,
+// temp (size 4), precip% (size 3, sky), AQI (size 3, severity colour,
+// right-aligned) -- the same info column as the 3-day forecast page, one row
+// per hour instead of a column per day.
+static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
+  if (w.hcCount == 0) { drawHourlyEmpty(gfx); return; }
+  gfx->fillScreen(C_BLACK);
+  const int top0 = 8, cardH = 70, gap = 6;
+  for (uint8_t i = 0; i < w.hcCount; i++) {
+    const HourFc& h = w.hc[i];
+    const int top = top0 + i * (cardH + gap);
+    gfx->fillRoundRect(8, top, 224, cardH, 8, C_PANEL);
+
+    gfx->setTextSize(3);
+    gfx->setTextColor(C_WHITE, C_PANEL);
+    gfx->setCursor(20, top + 24);
+    gfx->print(h.time);
+
+    WxCat cat = wxCategory(h.code, true);
+    drawWeatherIcon(gfx, 92, top + 15, cat);
+
+    char tBuf[6]; snprintf(tBuf, sizeof(tBuf), "%d", h.temp);
+    gfx->setTextSize(4);
+    gfx->setTextColor(C_WHITE, C_PANEL);
+    gfx->setCursor(146, top + 20);
+    gfx->print(tBuf);
+
+    if (h.precip >= 0) {
+      int precipV = h.precip; if (precipV > 100) precipV = 100;
+      char pBuf[6]; snprintf(pBuf, sizeof(pBuf), "%d%%", precipV);
+      gfx->setTextSize(2);
+      gfx->setTextColor(C_SKY, C_PANEL);
+      gfx->setCursor(146, top + 52);
+      gfx->print(pBuf);
+    }
+
+    char aqiBuf[6];
+    uint16_t aqiColor;
+    if (h.hasAqi) {
+      int aqiV = h.aqi; if (aqiV < 0) aqiV = 0; if (aqiV > 500) aqiV = 500;
+      snprintf(aqiBuf, sizeof(aqiBuf), "%d", aqiV);
+      aqiColor = (aqiV <= 50)  ? C_AQI_GOOD :
+                 (aqiV <= 100) ? C_AQI_MODERATE :
+                 (aqiV <= 150) ? C_AQI_SENSITIVE :
+                 (aqiV <= 200) ? C_AQI_UNHEALTHY :
+                 (aqiV <= 300) ? C_AQI_VERY_UNHEALTHY : C_AQI_HAZARDOUS;
+    } else {
+      strlcpy(aqiBuf, "--", sizeof(aqiBuf));
+      aqiColor = C_DIM;
+    }
+    gfx->setTextSize(3);
+    gfx->setTextColor(aqiColor, C_PANEL);
+    gfx->setCursor(230 - gfxTextW(aqiBuf, 3) - 12, top + 20);
     gfx->print(aqiBuf);
   }
 }

@@ -68,8 +68,18 @@ struct CalendarEvent {
 // with no AQI (or vice versa) is a normal, expected state, not an error.
 #define WX_CITY_LEN 24   // truncated for display well before this
 
+#define WX_HR_DAYS 3   // the next three hours, for the hourly-forecast page
 #define WX_FC_DAYS 3   // tomorrow, +2, +3 -- today's own conditions are
                         // already shown on the main weather page
+
+struct HourFc {
+  char time[7];   // "HH:MM" local, daemon-formatted ("15:00")
+  int  code;      // WMO weather code, same table as WeatherData.weatherCode
+  int  temp;      // whole degrees C (daemon-rounded)
+  int  precip;    // precipitation probability for that hour, %
+  int  aqi;       // US AQI from that hour's PM2.5 (same algorithm as aqiNow)
+  bool hasAqi;    // independently optional: an hour with no PM2.5 reading omits it
+};
 
 struct ForecastDay {
   char day[6];    // "Tmr"/"Mon"/"Tue"/etc. Daemon-formatted when pushed; derived
@@ -125,6 +135,10 @@ struct WeatherData {
                            // (gates access, same pattern as CalendarEvent.count)
   bool        hasForecast;
 
+  HourFc     hc[WX_HR_DAYS];
+  uint8_t    hcCount;     // 0..WX_HR_DAYS; 0 when the daemon predates "hourly"
+  bool       hasHourly;
+
   bool     valid;        // at least one field populated at least once
   bool     forecastError; // last forecast (temp/precip) fetch failed
   bool     aqError;       // last air-quality fetch failed
@@ -144,6 +158,7 @@ struct WeatherData {
     pm25 = 0; aqi = 0; aqiNow = 0; hasPm25 = hasAqi = hasAqiNow = false;
     city[0] = 0; hasCity = false;
     fcCount = 0; hasForecast = false;
+    hcCount = 0; hasHourly = false;
     valid = false; forecastError = false; aqError = false;
     lastOkMs = 0;
     renderGen = 0;

@@ -109,6 +109,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="agenda">Next event</option>
     <option value="weather">Weather + air quality</option>
     <option value="forecast">3-day forecast</option>
+    <option value="hourly">Next 3 hours</option>
     <option value="carousel">Carousel (rotate modes)</option>
    </select>
    <div id="carouselRow">
@@ -502,7 +503,7 @@ var TZMAP={
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
 var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','copilot','antigravity','openrouter']};
-var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselOpenrouter']};
+var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselHourly','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselOpenrouter']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -526,6 +527,7 @@ var CAR_MODES=[
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'},
+ {id:'hourly',chk:'carouselHourly',label:'Next 3 hours'},
  {id:'forecast',chk:'carouselForecast',label:'3-day forecast'}
 ];
 var carOrder=CAR_MODES.map(function(m){return m.id});
@@ -666,7 +668,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false); sc('carouselAlbum',c.carouselAlbum===true);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false); sc('carouselAlbum',c.carouselAlbum===true);
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -724,7 +726,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'), carouselAlbum:gc('carouselAlbum'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'), carouselAlbum:gc('carouselAlbum'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

@@ -157,6 +157,9 @@ static void weatherFilter(JsonDocument& f) {
   JsonObject fc = f["forecast"].add<JsonObject>();
   fc["day"] = true; fc["code"] = true; fc["hi"] = true; fc["lo"] = true;
   fc["precip"] = true; fc["aqi"] = true;
+  JsonObject hh = f["hourly"].add<JsonObject>();
+  hh["time"] = true; hh["code"] = true; hh["temp"] = true;
+  hh["precip"] = true; hh["aqi"] = true;
 }
 
 bool weatherApply(const String& body) {
@@ -174,7 +177,8 @@ bool weatherApply(const String& body) {
   bool gotAqiNow = doc["aqiNow"].is<int>();
   bool gotCity = doc["city"].is<const char*>();
   bool gotForecast = doc["forecast"].is<JsonArrayConst>();
-  if (!gotTemp && !gotPrecip && !gotCode && !gotUv && !gotPm && !gotAqi && !gotAqiNow && !gotCity && !gotForecast) return false;
+  bool gotHourly = doc["hourly"].is<JsonArrayConst>();
+  if (!gotTemp && !gotPrecip && !gotCode && !gotUv && !gotPm && !gotAqi && !gotAqiNow && !gotCity && !gotForecast && !gotHourly) return false;
 
   if (gotTemp)   { g_weather.tempC = doc["tempC"].as<float>(); g_weather.hasTemp = true; }
   if (gotPrecip) { g_weather.precipPct = doc["precipPct"].as<int>(); g_weather.hasPrecip = true; }
@@ -203,6 +207,37 @@ bool weatherApply(const String& body) {
   // succeeds overall via a different field, e.g. AQI, while its own
   // forecast fetch specifically failed, is a real and reachable case --
   // confirmed live this session that partial poll failures happen).
+  // "hourly": same rules as "forecast" -- independently optional, and a push
+  // that omits it clears the page's data (stale HOUR labels are wrong the
+  // same way stale day labels are).
+  if (gotHourly) {
+    JsonArrayConst hourly = doc["hourly"].as<JsonArrayConst>();
+    uint8_t n = 0;
+    for (JsonObjectConst hour : hourly) {
+      if (n >= WX_HR_DAYS) break;
+      bool hasTime = hour["time"].is<const char*>();
+      bool hasCode = hour["code"].is<int>();
+      bool hasTemp = hour["temp"].is<int>();
+      if (!hasTime || !hasCode || !hasTemp) continue;
+      strlcpy(g_weather.hc[n].time, jstr(hour["time"]), sizeof(g_weather.hc[n].time));
+      g_weather.hc[n].code = hour["code"].as<int>();
+      g_weather.hc[n].temp = hour["temp"].as<int>();
+      g_weather.hc[n].precip = hour["precip"].is<int>() ? hour["precip"].as<int>() : -1;
+      if (hour["aqi"].is<int>()) {
+        g_weather.hc[n].aqi = hour["aqi"].as<int>();
+        g_weather.hc[n].hasAqi = true;
+      } else {
+        g_weather.hc[n].hasAqi = false;
+      }
+      n++;
+    }
+    g_weather.hcCount = n;
+    g_weather.hasHourly = true;
+  } else {
+    g_weather.hcCount = 0;
+    g_weather.hasHourly = false;
+  }
+
   if (gotForecast) {
     JsonArrayConst forecast = doc["forecast"].as<JsonArrayConst>();
     uint8_t n = 0;
@@ -562,6 +597,7 @@ static uint32_t g_wxTriedMs  = 0;
 // g_linkDownSince and g_offlineShown) until both halves had failed again, then
 // restarted the offline grace from zero -- the notice never showed the true
 // outage duration. Steps write these; only a COMPLETED cycle publishes them.
+static char     g_wxHourKeys[WX_HR_DAYS][20];  // ISO "YYYY-MM-DDTHH:00" of the chosen hours
 static int      g_wxCurFc    = 0;
 static int      g_wxCurAq    = 0;
 static int      g_wxCurAqF   = 0;
@@ -783,6 +819,7 @@ static void wxStepForecast(const Settings& s) {
            "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,precipitation_probability,weather_code,uv_index"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+           "&hourly=temperature_2m,weather_code,precipitation_probability&forecast_hours=6"
            "&forecast_days=4&timezone=auto",
            s.calendar.lat, s.calendar.lon);
   {
@@ -790,6 +827,10 @@ static void wxStepForecast(const Settings& s) {
     JsonObject cur = filter["current"].to<JsonObject>();
     cur["temperature_2m"] = true; cur["precipitation_probability"] = true;
     cur["weather_code"] = true;   cur["uv_index"] = true;
+    cur["time"] = true;   // local-time anchor for the next-3-hours pick
+    JsonObject hsel = filter["hourly"].to<JsonObject>();
+    hsel["time"] = true; hsel["temperature_2m"] = true;
+    hsel["weather_code"] = true; hsel["precipitation_probability"] = true;
     JsonObject day = filter["daily"].to<JsonObject>();
     // 4 short date strings (~44 B). The HOURLY series is still excluded for the
     // heap reason documented below -- that one is 96 timestamps.
@@ -854,6 +895,43 @@ static void wxStepForecast(const Settings& s) {
       // touching renderGen, so the forecast page kept painting the old days with no
       // dirty signal to correct it -- the same mutate-without-signalling class the
       // retirement fix addressed.
+      // Next-3-hours pick, same rule as the daemon's: the first three
+      // hourly entries STRICTLY AFTER the current hour (anchored on the
+      // response's own local current.time, so a wrong device clock cannot
+      // shift the window). forecast_hours=6 keeps the arrays small enough
+      // for the ESP8266 heap. A cycle that failed to parse clears the page
+      // (a stale "15:00" is wrong within the hour, the same class as stale
+      // day labels), matching weatherApply()'s omit-means-clear contract.
+      uint8_t hn = 0;
+      JsonArray hts = doc["hourly"]["time"];
+      JsonArray hte = doc["hourly"]["temperature_2m"];
+      JsonArray hco = doc["hourly"]["weather_code"];
+      JsonArray hpp = doc["hourly"]["precipitation_probability"];
+      JsonObject cAnchor = doc["current"];
+      const char* anchor = cAnchor["time"].is<const char*>() ? cAnchor["time"].as<const char*>() : "";
+      size_t hLim = hts.size();
+      if (hte.size() < hLim) hLim = hte.size();
+      if (hco.size() < hLim) hLim = hco.size();
+      if (anchor[0]) {
+        for (size_t i = 0; i < hLim && hn < WX_HR_DAYS; i++) {
+          const char* t = hts[i].as<const char*>();
+          if (!t || strlen(t) < 13 || strncmp(t, anchor, 13) <= 0) continue;
+          if (!(hte[i].is<float>() || hte[i].is<int>())) break;
+          HourFc& hh = g_weather.hc[hn];
+          strlcpy(hh.time, t + 11, sizeof(hh.time));   // "HH:MM"
+          hh.code = hco[i] | 0;
+          hh.temp = (int)lroundf(hte[i] | 0.0f);
+          hh.precip = (i < hpp.size() && (hpp[i].is<float>() || hpp[i].is<int>()))
+                          ? (int)hpp[i].as<float>() : -1;
+          hh.hasAqi = false;   // the AQF step fills these from its own fetch
+          strlcpy(g_wxHourKeys[hn], t, sizeof(g_wxHourKeys[hn]));
+          if (g_wxHourKeys[hn][strlen(g_wxHourKeys[hn])-2] == ':')
+            g_wxHourKeys[hn][strlen(g_wxHourKeys[hn])-3] = '\0';  // "...THH:MM" -> "...THH"
+          hn++;
+        }
+      }
+      g_weather.hcCount = hn;
+      g_weather.hasHourly = (hn > 0);
       if (!gotCur && n == 0) {
         // Reachable, well-formed, and empty. That is a server-side problem, not
         // fresh data: recording 200 here would keep the retire logic asleep and
@@ -990,11 +1068,32 @@ static void wxStepAqForecast(const Settings& s) {
              s.calendar.lat, s.calendar.lon);
     JsonDocument filter;
     filter["hourly"]["pm2_5"] = true;
+    filter["hourly"]["time"] = true;   // index map for the per-hour AQI below
     JsonDocument doc;
     if (wxGetJson(s, url, doc, filter)) {
       JsonArray v = doc["hourly"]["pm2_5"];
+      JsonArray aqTimes = doc["hourly"]["time"];
       const int sz = (int)v.size();   // O(n) in ArduinoJson v7 -- hoist it
       int filled = 0;
+      // Per-hour AQI for the next-3-hours page: match each hour key the
+      // forecast step stored (ISO "YYYY-MM-DDTHH") against this array's own
+      // local times ("YYYY-MM-DDTHH:00"). Only when THIS cycle's forecast
+      // step succeeded (g_wxCurFc == 200), so the keys can never be stale.
+      if (g_wxCurFc == 200) {
+        for (uint8_t n = 0; n < g_weather.hcCount && n < WX_HR_DAYS; n++) {
+          if (!g_wxHourKeys[n][0]) continue;
+          int idx = -1;
+          for (int i = 0; i < sz && idx < 0; i++) {
+            const char* t = (i < aqTimes.size()) ? aqTimes[i].as<const char*>() : nullptr;
+            if (t && strncmp(t, g_wxHourKeys[n], 13) == 0) idx = i;
+          }
+          if (idx < 0 || idx >= sz) continue;
+          if (!(v[idx].is<float>() || v[idx].is<int>())) continue;
+          g_weather.hc[n].aqi = wxAqiFromPm25(v[idx].as<float>());
+          g_weather.hc[n].hasAqi = true;
+          filled++;
+        }
+      }
       for (uint8_t n = 0; n < g_weather.fcCount && n < WX_FC_DAYS; n++) {
         const int base = (int)(n + 1) * 24;
         int mx = -1;

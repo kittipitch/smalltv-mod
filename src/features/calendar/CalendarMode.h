@@ -93,5 +93,21 @@ class CalendarForecastMode : public DisplayMode {
 
 extern CalendarAgendaMode   g_calendarAgendaMode;
 extern CalendarAgendaMode2  g_calendarAgendaMode2;
+class CalendarHourlyMode : public DisplayMode {
+ public:
+  const char* id() const override { return "hourly"; }
+  uint8_t     modeConst() const override { return MODE_CAL_HOURLY; }
+
+  void begin(const Settings& s) override;
+  void service(const Settings& s) override;
+  void invalidate(const Settings& s) override;
+  void wake(const Settings& s) override { needRender_ = true; }
+
+ private:
+  bool     needRender_ = true;
+  uint32_t wxRenderedOk_ = 0xFFFFFFFF;   // last WeatherData.renderGen drawn
+};
+
 extern CalendarWeatherMode  g_calendarWeatherMode;
+extern CalendarHourlyMode   g_calendarHourlyMode;
 extern CalendarForecastMode g_calendarForecastMode;
