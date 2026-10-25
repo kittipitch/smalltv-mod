@@ -59,10 +59,17 @@ Antigravity) prints at most two digits: a quota that is fully used shows
   card; the small halves show just the countdown
 - **Agenda** — up to 6 upcoming Google Calendar events (3 per page, a
   second page auto-appears if you have more than 3), color-coded by which
-  calendar each event came from
+  calendar each event came from. An event that starts within the hour gets a
+  small bell by its time and, if "Frame events starting within the hour" is
+  ticked in the web UI (it is, by default), a light-grey frame
 - **Weather + AQI** — current temperature, condition (icon + word + WMO
   code), rain probability, US AQI (6-band color scale), PM2.5, and your
-  city name
+  city name. A next-3-hours page follows (thin rows: hour, icon + condition,
+  temperature, AQI, rain %; a moon instead of the sun for clear hours after
+  dark), then the 3-day forecast
+- **Copilot** — the Premium allowance as the whole card on top, with Chat
+  and Code percentages as halves below (needs `--copilot` on the daemon; see
+  the setup steps below)
 - **Plane radar** — nearby aircraft as heading triangles with callsign/
   altitude labels, centred on your home location (or the weather location
   above, if you haven't set a separate one for radar)
