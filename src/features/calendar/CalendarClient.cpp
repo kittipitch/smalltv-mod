@@ -813,7 +813,7 @@ uint32_t weatherAttemptWindowMs() {
 
 static void wxStepForecast(const Settings& s) {
   if (!g_wxCycWantFc) return;      // a daemon is feeding this half; leave it alone
-  char url[320];   // the forecast request is 261 chars rendered; 220 truncated it
+  char url[400];   // 341 chars worst case now (hourly clause added); 320 truncated it
   // --- forecast: current conditions + the next 3 days ---
   snprintf(url, sizeof(url),
            "http://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
@@ -932,6 +932,12 @@ static void wxStepForecast(const Settings& s) {
       }
       g_weather.hcCount = hn;
       g_weather.hasHourly = (hn > 0);
+      // Same contract when the FETCH itself fails: a stale "15:00" is wrong
+      // within the hour, so the transport-failure branch below clears too.
+      if (!gotCur && hn == 0) {
+        g_weather.hcCount = 0;
+        g_weather.hasHourly = false;
+      }
       if (!gotCur && n == 0) {
         // Reachable, well-formed, and empty. That is a server-side problem, not
         // fresh data: recording 200 here would keep the retire logic asleep and
@@ -954,6 +960,10 @@ static void wxStepForecast(const Settings& s) {
     } else {
       g_weather.forecastError = true;
       g_wxCurFc = g_wxHttpCode ? g_wxHttpCode : -1;
+      // Fetch failed outright: no hourly array arrived, so the page must go
+      // empty rather than show last cycle's hour labels (wrong within an hour).
+      g_weather.hcCount = 0;
+      g_weather.hasHourly = false;
     }
   }
 

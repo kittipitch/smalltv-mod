@@ -989,18 +989,22 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
     const int top = top0 + i * (cardH + gap);
     gfx->fillRoundRect(8, top, 224, cardH, 8, C_PANEL);
 
+    // Time x14 (size 3, "23:59" ends x=104); icon x=108; temp x=156 (size 3,
+    // "-99"/"199" ends x=210); precip size 2 below the temp; AQI size 2
+    // right-aligned at x=218 -- the audit's overlap findings, laid out to keep
+    // every column inside its slot for all realistic widths.
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE, C_PANEL);
-    gfx->setCursor(20, top + 24);
+    gfx->setCursor(14, top + 24);
     gfx->print(h.time);
 
     WxCat cat = wxCategory(h.code, true);
-    drawWeatherIcon(gfx, 92, top + 15, cat);
+    drawWeatherIcon(gfx, 108, top + 15, cat);
 
     char tBuf[6]; snprintf(tBuf, sizeof(tBuf), "%d", h.temp);
-    gfx->setTextSize(4);
+    gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE, C_PANEL);
-    gfx->setCursor(146, top + 20);
+    gfx->setCursor(156, top + 16);
     gfx->print(tBuf);
 
     if (h.precip >= 0) {
@@ -1008,7 +1012,7 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
       char pBuf[6]; snprintf(pBuf, sizeof(pBuf), "%d%%", precipV);
       gfx->setTextSize(2);
       gfx->setTextColor(C_SKY, C_PANEL);
-      gfx->setCursor(146, top + 52);
+      gfx->setCursor(156, top + 46);
       gfx->print(pBuf);
     }
 
@@ -1026,9 +1030,9 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
       strlcpy(aqiBuf, "--", sizeof(aqiBuf));
       aqiColor = C_DIM;
     }
-    gfx->setTextSize(3);
+    gfx->setTextSize(2);
     gfx->setTextColor(aqiColor, C_PANEL);
-    gfx->setCursor(230 - gfxTextW(aqiBuf, 3) - 12, top + 20);
+    gfx->setCursor(218 - gfxTextW(aqiBuf, 2) - 14, top + 44);
     gfx->print(aqiBuf);
   }
 }
