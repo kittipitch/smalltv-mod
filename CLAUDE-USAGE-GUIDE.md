@@ -272,10 +272,13 @@ actually run anything. Install a real interpreter first:
 **Optional: GitHub Copilot quota**
 1. Install the [GitHub CLI](https://cli.github.com/) on the daemon's machine
 2. Run `gh auth login` there for the GitHub account that has Copilot access
-3. Add `--copilot` to the daemon command line. It reads Chat and Completions
-   allowances with one read-only GitHub request per poll, not a model call.
-   These are monthly allowances, so both cards share the next billing-cycle
-   reset rather than using 5-hour and 7-day windows.
+3. Enable the feature: add `--copilot` to the daemon command line, or set
+   `"copilot_enabled": true` in the daemon's JSON config file when you run it
+   as a service. It reads Chat and Completions allowances with one read-only
+   GitHub request per poll, not a model call. These are monthly allowances, so
+   both cards share the next billing-cycle reset rather than using 5-hour and
+   7-day windows. If the page never appears although `gh auth login` is done,
+   the config key is the first thing to check.
 
 **Optional: Antigravity CLI quota**
 1. Install `agy` on the daemon's own machine (native binary, no Node/npm):
