@@ -360,14 +360,18 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat,
 // is an all-day/date-only event, on another day, or the clock is unsynced. Compared on the
 // displayed wall-clock minutes on purpose: the card prints the event's own HH:MM, so "soon" must
 // agree with what the owner reads. Tomorrow counts so 00:15 at 23:30 still highlights.
+// Known, accepted limits (pre-flash audit): on a DST change night "tomorrow" is 1380/1500 real
+// minutes away, not 1440, so the highlight can be up to an hour early/late that one night (the
+// owner's location has no DST); and a backward NTP step can repeat a wall-clock minute, which
+// skips one repaint tick and self-heals on the next minute.
 static const int kAgendaFar = 100000;
 static int agendaMinutesToStart(const CalendarEventItem& ev, const struct tm& now, bool haveNow,
                                 const struct tm& tomorrow, bool haveTomorrow) {
   if (!haveNow || ev.allDay) return kAgendaFar;
   if (strlen(ev.start) < 16 || ev.start[10] != 'T') return kAgendaFar;   // date-only, no time
   const char* t = ev.start + 11;
-  if (t[0] < '0' || t[0] > '2' || t[1] < '0' || t[1] > '9' || t[2] != ':' ||
-      t[3] < '0' || t[3] > '5' || t[4] < '0' || t[4] > '9') return kAgendaFar;
+  if (t[0] < '0' || t[0] > '2' || t[1] < '0' || t[1] > '9' || (t[0] == '2' && t[1] > '3') ||
+      t[2] != ':' || t[3] < '0' || t[3] > '5' || t[4] < '0' || t[4] > '9') return kAgendaFar;
   int evMin = ((t[0] - '0') * 10 + (t[1] - '0')) * 60 + (t[3] - '0') * 10 + (t[4] - '0');
   int dayOff;
   if (isSameLocalDay(ev.start, now)) dayOff = 0;
