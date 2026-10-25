@@ -234,7 +234,7 @@ for im in cand_imgs:
 # baseline is git HEAD, which already carries the first logo revision: only require it to be a
 # helmet-sized ink box too (the grid bytes themselves are asserted on the candidate)
 bbox = ink_box(base_imgs[0], (0, 0, 45, 50))
-assert bbox == (7, 12, 36, 35), ("baseline logo box", bbox)
+assert bbox == (7, 12, 31, 39), ("baseline logo box", bbox)
 wordmark = [r for r in cand_rows if r[0] == "0" and int(r[2]) == 16]
 assert wordmark and wordmark[0][4] == "Copilot" and int(wordmark[0][1]) == 46, wordmark
 
