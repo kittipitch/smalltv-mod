@@ -163,11 +163,11 @@ static void drawCopilotPage(Arduino_GFX* gfx, const CopilotData& c,
                             bool full, bool growRight) {
   if (full) {
     gfx->fillScreen(C_BLACK);
-    // Header: the Copilot helmet logo (owner 2026-10-23, image 11 via the pixel-logo-convert
-    // skill: per-TARGET-pixel majority, 30x24) + the wordmark. Aspect-true in the old icons' ink
+    // Header: the Copilot helmet logo (owner 2026-10-25, thin-line goggles via the pixel-logo-convert
+    // skill: per-TARGET-pixel majority, 25x28) + the wordmark. Aspect-true in the old icons' ink
     // box, top-aligned at (7,12); the wordmark moves right of it and still clears the clock (it
     // ends at x=168, the clock overlay starts at x=173).
-    drawCopilotLogo(gfx, 7, 12, 30, 24);
+    drawCopilotLogo(gfx, 7, 12, 25, 28);
     gfx->setTextSize(3);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(46, 16);
