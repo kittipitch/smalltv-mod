@@ -533,9 +533,21 @@ var CAR_MODES=[
 var carOrder=CAR_MODES.map(function(m){return m.id});
 
 function parseCarOrder(csv){
- var known=CAR_MODES.map(function(m){return m.id});
- var ids=(csv||'').split(',').map(function(s){return s.trim()}).filter(function(id){return known.indexOf(id)>=0});
- known.forEach(function(id){if(ids.indexOf(id)<0)ids.push(id)});
+ // Merge the saved CSV with CAR_MODES' own order: ids keep their saved
+ // relative order, and modes the firmware has that the CSV lacks (a new
+ // release adding a page) are inserted at their CAR_MODES position -- not
+ // appended to the end, where a new page would render last and look lost.
+ var ids=(csv||'').split(',').map(function(s){return s.trim()}).filter(function(id){return CAR_MODES.some(function(m){return m.id===id})});
+ CAR_MODES.forEach(function(m){
+  if(ids.indexOf(m.id)<0){
+   var at=ids.length;
+   for(var i=0;i<ids.length;i++){
+    var mi=CAR_MODES.findIndex(function(m2){return m2.id===ids[i]});
+    if(mi>m.indexOf.call(CAR_MODES.map(function(x){return x.id}),m.id)){at=i;break}
+   }
+   ids.splice(at,0,m.id);
+  }
+ });
  return ids;
 }
 
