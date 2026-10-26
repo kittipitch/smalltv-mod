@@ -365,6 +365,22 @@ static void drawWeatherIcon(Arduino_GFX* gfx, int cx, int cy, WxCat cat,
 // owner's location has no DST); and a backward NTP step can repeat a wall-clock minute, which
 // skips one repaint tick and self-heals on the next minute.
 static const int kAgendaFar = 100000;
+// Same contract as agendaMinutesToStart() but for ev.end: minutes until the
+// event's end (negative once it has ended). Only meaningful when hasEnd.
+static int agendaMinutesToEnd(const CalendarEventItem& ev, const struct tm& now, bool haveNow,
+                              const struct tm& tomorrow, bool haveTomorrow) {
+  if (!haveNow || ev.allDay || !ev.hasEnd) return kAgendaFar;
+  if (strlen(ev.end) < 16 || ev.end[10] != 'T') return kAgendaFar;
+  const char* t = ev.end + 11;
+  if (t[0] < '0' || t[0] > '2' || t[1] < '0' || t[1] > '9' || (t[0] == '2' && t[1] > '3') ||
+      t[2] != ':' || t[3] < '0' || t[3] > '5' || t[4] < '0' || t[4] > '9') return kAgendaFar;
+  const int evMin = ((t[0] - '0') * 10 + (t[1] - '0')) * 60 + (t[3] - '0') * 10 + (t[4] - '0');
+  int dayOff;
+  if (isSameLocalDay(ev.end, now)) dayOff = 0;
+  else if (haveTomorrow && isSameLocalDay(ev.end, tomorrow)) dayOff = 1;
+  else return kAgendaFar;
+  return dayOff * 1440 + evMin - (now.tm_hour * 60 + now.tm_min);
+}
 static int agendaMinutesToStart(const CalendarEventItem& ev, const struct tm& now, bool haveNow,
                                 const struct tm& tomorrow, bool haveTomorrow) {
   if (!haveNow || ev.allDay) return kAgendaFar;
@@ -488,7 +504,12 @@ static void drawAgendaPage(Arduino_GFX* gfx, const Settings& s, const CalendarEv
     // so they never qualify.
     const int minsToStart = multiDay ? kAgendaFar
                                      : agendaMinutesToStart(ev, now, haveNow, tomorrow, haveTomorrow);
-    const bool soon = minsToStart >= 0 && minsToStart < 60;
+// "Soon" = starts within the hour, and now also STAYS on while the event runs
+// (owner 2026-10-26: persist through the event), clearing at the end. An event
+// without a parseable end keeps the old pre-start-only behaviour.
+    const int minsToEnd = agendaMinutesToEnd(ev, now, haveNow, tomorrow, haveTomorrow);
+    const bool soon = (minsToStart >= 0 && minsToStart < 60) ||
+                      (minsToStart < 0 && minsToEnd > 0);
     if (soon && s.calendar.soonFrame) gfx->drawRoundRect(x, top, w, h, 8, C_FRAME);
     gfx->setTextSize(2);
     gfx->setTextColor(eventColor, C_PANEL);
@@ -909,7 +930,8 @@ void CalendarAgendaMode::invalidate(const Settings& s) {
 // Lower bound is -3, not -1: the main loop can spend the single m == -1 minute inside a long
 // blocking fetch and never call service() for it, so a window that closes at -1 could skip the
 // only tick that would have cleared the stale bell -- audit finding, real. -3 gives that minute
-// two more chances to run.
+// two more chances to run.// While an event runs, its end minutes are checked the same way: the bell now persists
+// through the event (owner 2026-10-26), so the tick keeps firing until 3 min past the end.
 static bool agendaSoonTick(const CalendarEvent& c, uint8_t page, int& lastMinute) {
   struct tm now;
   if (!clockNow(now)) return false;
@@ -922,8 +944,13 @@ static bool agendaSoonTick(const CalendarEvent& c, uint8_t page, int& lastMinute
   const bool haveTomorrow = mktime(&tomorrow) != (time_t)-1;
   const uint8_t start = page * EVENTS_PER_PAGE;
   for (uint8_t i = 0; i < EVENTS_PER_PAGE && start + i < c.count; i++) {
-    const int m = agendaMinutesToStart(c.items[start + i], now, true, tomorrow, haveTomorrow);
+    const CalendarEventItem& ev = c.items[start + i];
+    const int m = agendaMinutesToStart(ev, now, true, tomorrow, haveTomorrow);
     if (m >= -3 && m <= 61) return true;
+    // while the event runs (and 3 min past its end): repaint each minute so a
+    // bell persisting through the event is kept fresh and cleared after it
+    const int me = agendaMinutesToEnd(ev, now, true, tomorrow, haveTomorrow);
+    if (m < 0 && me >= -3 && me <= 61) return true;
   }
   return false;
 }

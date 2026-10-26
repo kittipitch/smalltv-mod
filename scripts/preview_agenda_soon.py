@@ -45,10 +45,12 @@ int main(int argc, char** argv) {
     {"A-soon-frame-on",      14,  0,  8, true,  false},   // event 14:30, 30 min away
     {"B-soon-frame-off",     14,  0,  8, false, false},   // bell only
     {"C-across-midnight",    23, 30,  8, true,  true },   // first card is Tomorrow 00:15
-    {"D-one-min-after",      14, 31,  8, true,  false},   // 14:30 started a minute ago
+    {"D-running-1-min-in",   14, 31,  8, true,  false},   // 14:30-15:30 started a minute ago: still marked
     {"E-exactly-60-min",     13, 30,  8, true,  false},   // diff == 60: NOT "less than an hour"
+    {"F-running-30-min-in",  15,  0,  8, true,  false},   // mid-event: bell persists
+    {"G-after-end",          15, 35,  8, true,  false},   // ended 5 min ago: cleared
   };
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 7; i++) {
     previewNow = {};
     previewNow.tm_year = 126; previewNow.tm_mon = 9; previewNow.tm_mday = sc[i].mday;
     previewNow.tm_hour = sc[i].hour; previewNow.tm_min = sc[i].min;
@@ -79,7 +81,7 @@ subprocess.run(["c++", "-std=c++14", "-Wall", "-Wextra", "-Wno-unused-function",
                 str(output / "preview.cpp"), "-o", str(output / "preview")], check=True)
 subprocess.run([str(output / "preview"), str(output)], capture_output=True, check=True)
 
-names = ["A-soon-frame-on", "B-soon-frame-off", "C-across-midnight", "D-one-min-after", "E-exactly-60-min"]
+names = ["A-soon-frame-on", "B-soon-frame-off", "C-across-midnight", "D-running-1-min-in", "E-exactly-60-min", "F-running-30-min-in", "G-after-end"]
 imgs = {}
 for n in names:
     im = Image.open(output / f"{n}.ppm").convert("RGB")
@@ -100,7 +102,7 @@ def frame_px(im, top):   # the card's top edge row, well inside the straight par
 
 BELL_PIXELS = 29 * 4      # 29 lit cells x 2x2 px
 card1 = (130, 8, 158, 34)  # the gap left of the HH:MM on card 1 (time starts x=160)
-a, b, c, d, e = (imgs[n] for n in names)
+a, b, c, d, e, f, g = (imgs[n] for n in names)
 
 # A: bell (exactly the bell's pixels) + frame on card 1; the other cards untouched
 assert yellow(a, card1) == BELL_PIXELS, ("A bell pixels", yellow(a, card1))
@@ -112,8 +114,10 @@ assert yellow(b, card1) == BELL_PIXELS, "B bell must still be drawn"
 assert all(p == PANEL for p in frame_px(b, 6)), ("B: no frame when the checkbox is off", frame_px(b, 6))
 # C: 00:15 tomorrow seen at 23:30 is 45 minutes away -> highlighted
 assert yellow(c, card1) == BELL_PIXELS and all(p == FRAME for p in frame_px(c, 6)), "C: across midnight"
-# D: started a minute ago, E: exactly 60 minutes away -> neither
-for tag, im in (("D", d), ("E", e)):
+# D and F: the event is RUNNING -> the bell persists through it; E: exactly 60 min pre-start, G: after the end
+assert yellow(d, card1) == BELL_PIXELS and all(p == FRAME for p in frame_px(d, 6)), "D: running keeps the bell"
+assert yellow(f, card1) == BELL_PIXELS and all(p == FRAME for p in frame_px(f, 6)), "F: mid-event keeps the bell"
+for tag, im in (("E", e), ("G", g)):
     assert yellow(im, card1) == 0, (tag, "no bell")
     assert all(p == PANEL for p in frame_px(im, 6)), (tag, "no frame")
 # the highlight must not disturb the rest of card 1: date text (x 18..100) and time (x 158..222)
@@ -122,14 +126,14 @@ for region in ((18, 12, 100, 32), (158, 12, 224, 32), (18, 40, 224, 62)):
     rd = [d.getpixel((x, y)) for x in range(region[0], region[2]) for y in range(region[1], region[3])]
     assert ra == rd, ("card 1 text must be identical with and without the highlight", region)
 
-sheet = Image.new("RGB", (240 * 5, 270), (20, 20, 20))
+sheet = Image.new("RGB", (240 * 7, 270), (20, 20, 20))
 dr = ImageDraw.Draw(sheet)
 labels = ["A: 30 min away, frame on", "B: frame box off (bell only)", "C: 23:30 -> 00:15 tomorrow",
-          "D: 1 min after the start", "E: exactly 60 min away"]
+          "D: running, 1 min in", "E: exactly 60 min away", "F: running, 30 min in", "G: 5 min after end"]
 for i, n in enumerate(names):
     sheet.paste(imgs[n], (i * 240, 30))
     dr.text((i * 240 + 6, 8), labels[i], fill=(230, 230, 230))
 sheet.resize((sheet.width * 2 // 2 * 1, sheet.height)).save(output / "soon-scenarios.png")
-Image.open(output / "soon-scenarios.png").resize((2400, 540), Image.Resampling.NEAREST).save(output / "soon-scenarios-2x.png")
+Image.open(output / "soon-scenarios.png").resize((sheet.width * 2, 540), Image.Resampling.NEAREST).save(output / "soon-scenarios-2x.png")
 (output / "report.md").write_text("# Agenda soon highlight preview\n\nPASS: A bell+frame, B bell only, C across midnight, D/E none; card text unchanged.\n")
 print(output)
