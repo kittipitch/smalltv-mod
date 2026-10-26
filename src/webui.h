@@ -557,7 +557,7 @@ function parseCarOrder(csv){
 function renderAgenda2Toggle(cfg){
  var cur=$('carouselAgenda2');
  var checked=cur?cur.checked:(cfg?cfg.carouselAgenda2!==false:true);
- return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin-top:4px;font-weight:normal">'+
+ return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
   '<input id="carouselAgenda2" type="checkbox"'+(checked?' checked':'')+'> Also show events 4-6 (page 2, right after this one)</label>';
 }
 
