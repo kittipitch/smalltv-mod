@@ -26,8 +26,9 @@ StatusMode g_statusMode;
 #define STATUS_ROW_H           52
 #define STATUS_GAP             5
 #define STATUS_PAD             8
-#define STATUS_L1              9
-#define STATUS_L2              30
+#define STATUS_L1              6     // name line, size 3 (ink 21 px)
+#define STATUS_L2              33    // status line, size 2 (ink 14 px)
+#define STATUS_NAME_SIZE       3     // owner 2026-10-27: names slightly larger than the agenda title
 #define STATUS_TEXT_L          16
 #define STATUS_TEXT_R          223
 #define STATUS_ARROW_W         14
@@ -137,7 +138,7 @@ static void statusLabelFor(const char* name, char* out, size_t outCap) {
     strlcpy(clean, "NONAME", sizeof(clean));
     len = 6;
   }
-  const size_t N_MAX = 17;
+  const size_t N_MAX = 11;   // size 3 in the 208 px text box
   if (len <= N_MAX) {
     strlcpy(out, clean, outCap);
   } else {
@@ -374,7 +375,7 @@ static void statusDrawRow(Arduino_GFX* gfx, int y, const UptimeTarget& t, uint32
 
   char nameBuf[32];
   statusLabelFor(t.name, nameBuf, sizeof(nameBuf));
-  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, 2, nameBuf, stale ? C_DIM : C_WHITE);
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, STATUS_NAME_SIZE, nameBuf, stale ? C_DIM : C_WHITE);
 
   if (stale) {
     const char* word = (st == UPTIME_STATUS_DOWN) ? "Was down" : "No data";
@@ -439,7 +440,7 @@ static void statusDrawOverflow(Arduino_GFX* gfx, int y, const UptimeTarget* hidd
 
   char line1[32];
   snprintf(line1, sizeof(line1), "+%u more", (unsigned)hiddenCount);
-  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, 2, line1, stale ? C_DIM : C_WHITE);
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, STATUS_NAME_SIZE, line1, stale ? C_DIM : C_WHITE);
 
   char line2[32];
   snprintf(line2, sizeof(line2), "%u%c%s", (unsigned)d, CH_NSP, "down");
@@ -448,7 +449,7 @@ static void statusDrawOverflow(Arduino_GFX* gfx, int y, const UptimeTarget* hidd
 
 static void statusDrawNoData(Arduino_GFX* gfx, int y) {
   statusDrawFrame(gfx, y, STATUS_FRAME_OTHER);
-  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, 2, "Uptime", C_DIM);
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, STATUS_NAME_SIZE, "Uptime", C_DIM);
   statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L2, 2, "No data", C_DIM);
 }
 
