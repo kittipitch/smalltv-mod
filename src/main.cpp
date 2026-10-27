@@ -154,6 +154,19 @@ static void rebuildCarouselOrder(const Settings& s) {
   }
 }
 
+#if WITH_CALENDAR
+// Any target down in the last uptime data (also when that data has gone stale: its row
+// still shows red). Drives the "only when offline" gate and the Status page's double dwell.
+static bool uptimeHasDown() {
+  const UptimeData& u = uptimeGet();
+  if (!u.valid) return false;
+  if (u.down > 0) return true;
+  for (uint8_t i = 0; i < u.count; i++)
+    if (u.targets[i].status == UPTIME_STATUS_DOWN) return true;
+  return false;
+}
+#endif
+
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
     case MODE_USAGE:  return s.carouselUsage;
@@ -195,13 +208,7 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
       if (!u.valid) return false;
       uint32_t effAgeS = u.ageS + (millis() - u.rxMillis) / 1000;
       bool stale = effAgeS > 180;
-      if (s.statusOfflineOnly) {
-        bool hasDown = (u.down > 0);
-        for (uint8_t i = 0; i < u.count; i++) {
-          if (u.targets[i].status == UPTIME_STATUS_DOWN) hasDown = true;
-        }
-        return hasDown || stale;
-      }
+      if (s.statusOfflineOnly) return uptimeHasDown() || stale;
       return true;
     }
 #endif
@@ -242,6 +249,10 @@ static DisplayMode* activeMode(const Settings& s) {
     // e.g. 2min usage / 1min everything else at the 60s default.
     uint32_t dwellMs = (uint32_t)s.carouselSec * 1000UL;
     if (kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_USAGE) dwellMs *= 2;
+#if WITH_CALENDAR
+    // Better Stack Status with a red row stays twice as long too (owner 2026-10-27).
+    if (kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_STATUS && uptimeHasDown()) dwellMs *= 2;
+#endif
     if (millis() - g_carSwitch >= dwellMs) {
       g_carSwitch = millis();
       carouselNext(s);
