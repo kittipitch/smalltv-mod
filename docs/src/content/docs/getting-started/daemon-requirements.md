@@ -81,9 +81,20 @@ sudo dnf install translate-shell      # Fedora
 sudo pacman -S translate-shell        # Arch
 ```
 
-Check it resolves **in the environment that runs the daemon**: `command -v trans`. On
-native Windows the daemon needs a Windows-callable `trans`; one installed inside WSL is
-invisible to it.
+On **native Windows**, install [Git for Windows](https://git-scm.com) (it supplies `bash` and
+`gawk`), then run, from the daemon checkout:
+
+```bat
+contrib\translate-shell-windows\install-trans.bat
+```
+
+It puts translate-shell in `%USERPROFILE%\.local\bin` with a `trans.cmd` wrapper and a small
+`hexdump` shim (Git for Windows has none), and test-translates one phrase. That folder must be
+on your user `PATH`; restart the tray daemon afterwards. A `trans` installed inside WSL is
+invisible to a native-Windows daemon.
+
+Check it resolves **in the environment that runs the daemon**: `command -v trans` (macOS,
+Linux) or `where trans` (Windows), then `trans -e bing -b :en "สวัสดี"` should print English.
 
 How the daemon uses it, so the behaviour is not surprising:
 
