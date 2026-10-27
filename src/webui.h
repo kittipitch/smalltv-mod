@@ -105,6 +105,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="copilot">Copilot quota</option>
     <option value="antigravity">Antigravity quota</option>
     <option value="openrouter">OpenRouter quota</option>
+    <option value="status">Uptime status</option>
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
     <option value="weather">Weather + air quality</option>
