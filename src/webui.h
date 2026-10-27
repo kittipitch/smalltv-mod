@@ -105,7 +105,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="copilot">Copilot quota</option>
     <option value="antigravity">Antigravity quota</option>
     <option value="openrouter">OpenRouter quota</option>
-    <option value="status">Uptime status</option>
+    <option value="status">Better Stack Status</option>
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
     <option value="weather">Weather + air quality</option>
@@ -525,7 +525,7 @@ var CAR_MODES=[
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'copilot',chk:'carouselCopilot',label:'Copilot quota'},
  {id:'openrouter',chk:'carouselOpenrouter',label:'OpenRouter quota'},
- {id:'status',chk:'carouselStatus',label:'Status'},
+ {id:'status',chk:'carouselStatus',label:'Better Stack Status'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'},
@@ -567,7 +567,7 @@ function renderStatusOfflineToggle(cfg){
  var cur=$('statusOfflineOnly');
  var checked=cur?cur.checked:(cfg?!!cfg.statusOfflineOnly:false);
  return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
-  '<input id="statusOfflineOnly" type="checkbox"'+(checked?' checked':'')+'> Show Status page only when something is offline</label>';
+  '<input id="statusOfflineOnly" type="checkbox"'+(checked?' checked':'')+'> Show Better Stack Status only when something is offline</label>';
 }
 
 function rebuildModeSelect(){
