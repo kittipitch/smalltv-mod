@@ -20,16 +20,23 @@ StatusMode g_statusMode;
 #define C_ACCENT   0xDBAA
 #define C_SKY      0x5D9C
 
-#define STATUS_TILE      108
-#define STATUS_STALE_S   180
-#define STATUS_HDR_X     8
-#define STATUS_HDR_Y     7
-#define STATUS_DIV_Y     20
-#define STATUS_NAME_X    8
-#define STATUS_ROW_A     27
-#define STATUS_ROW_B     48
-#define STATUS_ROW_C     70
-#define STATUS_ROW_D     91
+#define STATUS_STALE_S         180
+#define STATUS_X0              8
+#define STATUS_ROW_W           224
+#define STATUS_ROW_H           52
+#define STATUS_GAP             5
+#define STATUS_PAD             8
+#define STATUS_L1              9
+#define STATUS_L2              30
+#define STATUS_TEXT_L          16
+#define STATUS_TEXT_R          223
+#define STATUS_ARROW_W         14
+#define STATUS_ARROW_H         12
+
+#define STATUS_FRAME_UP        0
+#define STATUS_FRAME_DOWN      1
+#define STATUS_FRAME_WAS_DOWN  2
+#define STATUS_FRAME_OTHER     3
 
 static const char CH_MID = (char)0xB7;
 static const char CH_ELL = (char)0x85;
@@ -77,6 +84,25 @@ static void statusDrawRun(Arduino_GFX* gfx, int& cx, int y, uint8_t size, const 
   }
 }
 
+static void statusDrawText(Arduino_GFX* gfx, int x, int y, uint8_t size, const char* text, uint16_t col) {
+  int cx = x;
+  statusDrawRun(gfx, cx, y, size, text, col);
+}
+
+static void statusDrawRight(Arduino_GFX* gfx, int y, const char* text, uint16_t col) {
+  int w = statusRunW(text, 2);
+  int x = STATUS_TEXT_R - w + 1;
+  statusDrawText(gfx, x, y, 2, text, col);
+}
+
+static void statusDrawArrow(Arduino_GFX* gfx, int x, int y, bool up, uint16_t col) {
+  for (int r = 0; r < STATUS_ARROW_H; r++) {
+    int k = up ? r : (STATUS_ARROW_H - 1 - r);
+    int half = (k * (STATUS_ARROW_W / 2)) / (STATUS_ARROW_H - 1);
+    gfx->fillRect(x + STATUS_ARROW_W / 2 - 1 - half, y + 1 + r, 2 + 2 * half, 1, col);
+  }
+}
+
 static void statusSanitise(const char* in, char* out, size_t outCap) {
   if (!out || outCap == 0) return;
   out[0] = 0;
@@ -99,51 +125,25 @@ static void statusSanitise(const char* in, char* out, size_t outCap) {
   }
 }
 
-static void statusLabelFor(const char* name, char* out, size_t outCap, uint8_t& outSize) {
+static void statusLabelFor(const char* name, char* out, size_t outCap) {
+  if (!out || outCap == 0) return;
+  out[0] = 0;
   char clean[64];
   statusSanitise(name, clean, sizeof(clean));
-  size_t clen = strlen(clean);
-  while (clen > 0 && clean[clen - 1] == '/') clean[--clen] = 0;
-  while (clen > 0 && (unsigned char)clean[clen - 1] <= ' ') clean[--clen] = 0;
+  size_t len = strlen(clean);
+  while (len > 0 && clean[len - 1] == '/') clean[--len] = 0;
+  while (len > 0 && (unsigned char)clean[len - 1] <= ' ') clean[--len] = 0;
   if (clean[0] == 0) {
     strlcpy(clean, "NONAME", sizeof(clean));
-    clen = 6;
+    len = 6;
   }
-  if (clen <= 7) {
-    outSize = 2;
-    strlcpy(out, clean, outCap);
-  } else if (clen <= 15) {
-    outSize = 1;
+  const size_t N_MAX = 17;
+  if (len <= N_MAX) {
     strlcpy(out, clean, outCap);
   } else {
-    outSize = 1;
-    const char* tail = clean + (clen - 13);
+    const char* tail = clean + (len - (N_MAX - 2));
     while (*tail == '.') tail++;
     snprintf(out, outCap, "..%s", tail);
-  }
-}
-
-static void statusMiniName(const char* name, char* out, size_t outCap) {
-  char clean[64];
-  statusSanitise(name, clean, sizeof(clean));
-  size_t clen = strlen(clean);
-  while (clen > 0 && clean[clen - 1] == '/') clean[--clen] = 0;
-  while (clen > 0 && (unsigned char)clean[clen - 1] <= ' ') clean[--clen] = 0;
-  const char* slash = strrchr(clean, '/');
-  const char* seg = slash ? (slash + 1) : clean;
-  while (*seg && (unsigned char)*seg <= ' ') seg++;
-  char finalSeg[64];
-  strlcpy(finalSeg, seg, sizeof(finalSeg));
-  size_t slen = strlen(finalSeg);
-  while (slen > 0 && (unsigned char)finalSeg[slen - 1] <= ' ') finalSeg[--slen] = 0;
-  if (finalSeg[0] == 0) {
-    strlcpy(finalSeg, "NONAME", sizeof(finalSeg));
-    slen = 6;
-  }
-  if (slen <= 13) {
-    strlcpy(out, finalSeg, outCap);
-  } else {
-    snprintf(out, outCap, "%.11s..", finalSeg);
   }
 }
 
@@ -340,205 +340,132 @@ static bool statusCauseCode(const char* cause, char* out, size_t outCap) {
   return true;
 }
 
-static void statusDrawMini(Arduino_GFX* gfx, int x, int y, uint8_t kind) {
-  if (kind == UPTIME_STATUS_DOWN) {
-    gfx->fillRoundRect(x, y, 7, 7, 3, C_RED);
-  } else if (kind == UPTIME_STATUS_UP) {
-    gfx->fillRoundRect(x, y, 7, 7, 3, C_UGREEN);
-    gfx->fillRect(x + 2, y + 2, 3, 3, C_BLACK);
-  } else if (kind == UPTIME_STATUS_PENDING) {
-    gfx->drawRoundRect(x, y, 7, 7, 3, C_GOLD);
-  } else if (kind == UPTIME_STATUS_PAUSED) {
-    gfx->fillRect(x + 1, y, 2, 7, C_GREY);
-    gfx->fillRect(x + 4, y, 2, 7, C_GREY);
+static void statusDrawFrame(Arduino_GFX* gfx, int y, uint8_t kind) {
+  gfx->fillRoundRect(STATUS_X0, y, STATUS_ROW_W, STATUS_ROW_H, 6, C_BLACK);
+  if (kind == STATUS_FRAME_DOWN) {
+    gfx->drawRoundRect(STATUS_X0, y, STATUS_ROW_W, STATUS_ROW_H, 6, C_RED);
+    gfx->drawRoundRect(STATUS_X0 + 1, y + 1, STATUS_ROW_W - 2, STATUS_ROW_H - 2, 5, C_RED);
+  } else if (kind == STATUS_FRAME_UP) {
+    // owner 2026-10-27: a healthy row gets a quiet 1 px grey frame so it does not steal attention
+    gfx->drawRoundRect(STATUS_X0, y, STATUS_ROW_W, STATUS_ROW_H, 6, C_GREY);
   } else {
-    gfx->drawRoundRect(x, y, 7, 7, 3, C_DIM);
-    gfx->setTextSize(1);
-    gfx->setTextColor(C_DIM);
-    gfx->setCursor(x + 1, y);
-    gfx->print('?');
+    uint16_t col = (kind == STATUS_FRAME_WAS_DOWN) ? C_RED : C_BARBG;
+    gfx->drawRoundRect(STATUS_X0, y, STATUS_ROW_W, STATUS_ROW_H, 6, col);
   }
 }
 
-static void statusDrawFrame(Arduino_GFX* gfx, int tx, int ty, bool alarm, bool lastDownStale, bool up) {
-  gfx->fillRoundRect(tx, ty, STATUS_TILE, STATUS_TILE, 8, C_BLACK);
-  int b;
-  if (alarm || up) {
-    uint16_t col = alarm ? C_RED : C_UGREEN;
-    gfx->drawRoundRect(tx, ty, STATUS_TILE, STATUS_TILE, 8, col);
-    gfx->drawRoundRect(tx + 1, ty + 1, STATUS_TILE - 2, STATUS_TILE - 2, 7, col);
-    b = 2;
-  } else {
-    uint16_t col = lastDownStale ? C_RED : C_BARBG;
-    gfx->drawRoundRect(tx, ty, STATUS_TILE, STATUS_TILE, 8, col);
-    b = 1;
-  }
-  gfx->drawFastHLine(tx + b, ty + STATUS_DIV_Y, STATUS_TILE - 2 * b, C_BARBG);
+static void statusDrawEmpty(Arduino_GFX* gfx, int y) {
+  statusDrawFrame(gfx, y, STATUS_FRAME_OTHER);
 }
 
-static void statusDrawEmpty(Arduino_GFX* gfx, int tx, int ty) {
-  gfx->drawRoundRect(tx, ty, STATUS_TILE, STATUS_TILE, 8, C_BARBG);
-}
-
-static void statusDrawTile(Arduino_GFX* gfx, int tx, int ty, const UptimeTarget& t, uint32_t age) {
+static void statusDrawRow(Arduino_GFX* gfx, int y, const UptimeTarget& t, uint32_t age) {
   bool stale = (age > STATUS_STALE_S);
   uint8_t st = t.status;
-  bool alarm = (st == UPTIME_STATUS_DOWN && !stale);
-  bool wasDown = (stale && st == UPTIME_STATUS_DOWN);
-  bool up = (st == UPTIME_STATUS_UP && !stale);
 
-  statusDrawFrame(gfx, tx, ty, alarm, wasDown, up);
-
-  if (t.kind == UPTIME_KIND_BEAT) {
-    int cx = tx + STATUS_HDR_X;
-    statusDrawRun(gfx, cx, ty + STATUS_HDR_Y, 1, "Heartbeat", C_DIM);
-  } else if (t.kind == UPTIME_KIND_SITE) {
-    int cx = tx + STATUS_HDR_X;
-    statusDrawRun(gfx, cx, ty + STATUS_HDR_Y, 1, "Monitor", C_DIM);
+  uint8_t fkind;
+  if (stale) {
+    fkind = (st == UPTIME_STATUS_DOWN) ? STATUS_FRAME_WAS_DOWN : STATUS_FRAME_OTHER;
+  } else {
+    if (st == UPTIME_STATUS_DOWN) fkind = STATUS_FRAME_DOWN;
+    else if (st == UPTIME_STATUS_UP) fkind = STATUS_FRAME_UP;
+    else fkind = STATUS_FRAME_OTHER;
   }
+  statusDrawFrame(gfx, y, fkind);
 
   char nameBuf[32];
-  uint8_t nameSize = 1;
-  statusLabelFor(t.name, nameBuf, sizeof(nameBuf), nameSize);
-  int nameY = (nameSize == 2) ? STATUS_ROW_A : (STATUS_ROW_A + 3);
-  int nameCx = tx + STATUS_NAME_X;
-  statusDrawRun(gfx, nameCx, ty + nameY, nameSize, nameBuf, stale ? C_DIM : C_WHITE);
+  statusLabelFor(t.name, nameBuf, sizeof(nameBuf));
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, 2, nameBuf, stale ? C_DIM : C_WHITE);
 
   if (stale) {
-    int cxB = tx + 8;
-    statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, "No data", C_DIM);
-    if (wasDown) {
-      int cxC = tx + 8;
-      char wasDownStr[16];
-      snprintf(wasDownStr, sizeof(wasDownStr), "Was%cdown", CH_NSP);
-      statusDrawRun(gfx, cxC, ty + STATUS_ROW_C, 2, wasDownStr, C_DIM);
-    }
-    char updBuf[32];
-    char durBuf[16];
-    statusDurShort(age, durBuf, sizeof(durBuf));
-    snprintf(updBuf, sizeof(updBuf), "Updated %s ago", durBuf);
-    int cxD = tx + 8;
-    statusDrawRun(gfx, cxD, ty + STATUS_ROW_D, 1, updBuf, C_DIM);
+    const char* word = (st == UPTIME_STATUS_DOWN) ? "Was down" : "No data";
+    statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L2, 2, word, C_DIM);
+    char ageBuf[16];
+    statusDurShort(age, ageBuf, sizeof(ageBuf));
+    statusDrawRight(gfx, y + STATUS_L2, ageBuf, C_DIM);
     return;
   }
 
-  const char* word = "Up";
-  uint16_t wc = C_UGREEN;
-  if (st == UPTIME_STATUS_DOWN) { word = "Down"; wc = C_RED; }
-  else if (st == UPTIME_STATUS_PENDING) { word = "Pending"; wc = C_GOLD; }
-  else if (st == UPTIME_STATUS_PAUSED) { word = "Paused"; wc = C_GREY; }
-
-  int cxB = tx + 8;
-  statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, word, wc);
+  if (st == UPTIME_STATUS_UP || st == UPTIME_STATUS_DOWN) {
+    statusDrawArrow(gfx, STATUS_TEXT_L, y + STATUS_L2, st == UPTIME_STATUS_UP,
+                    (st == UPTIME_STATUS_UP) ? C_UGREEN : C_RED);
+  } else {
+    const char* word = (st == UPTIME_STATUS_PENDING) ? "Pending" : "Paused";
+    uint16_t wc = (st == UPTIME_STATUS_PENDING) ? C_GOLD : C_GREY;
+    statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L2, 2, word, wc);
+  }
 
   if (t.hasSinceS && (st == UPTIME_STATUS_UP || st == UPTIME_STATUS_DOWN)) {
     uint32_t effSince = t.sinceS + age;
-    char dur[16];
-    if (st == UPTIME_STATUS_UP) statusDurLong(effSince, dur, sizeof(dur));
-    else statusDurShort(effSince, dur, sizeof(dur));
-
-    statusDrawRunChar(gfx, cxB, ty + STATUS_ROW_B, 2, CH_MID, C_DIM);
-    statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, dur, C_DIM);
+    char durBuf[16];
+    if (st == UPTIME_STATUS_UP) statusDurLong(effSince, durBuf, sizeof(durBuf));
+    else statusDurShort(effSince, durBuf, sizeof(durBuf));
+    statusDrawRight(gfx, y + STATUS_L2, durBuf, C_DIM);
   }
 
-  if (st == UPTIME_STATUS_DOWN && t.hasCause) {
+  if (st == UPTIME_STATUS_DOWN && t.kind != UPTIME_KIND_BEAT && t.hasCause) {
     char code[64];
     if (statusCauseCode(t.cause, code, sizeof(code))) {
-      int cxC = tx + 8;
-      statusDrawRun(gfx, cxC, ty + STATUS_ROW_C, 2, code, C_WHITE);
+      char* codePtr = code;
+      if (strncmp(codePtr, "HTTP\x7F", 5) == 0 || strncmp(codePtr, "HTTP ", 5) == 0) {
+        codePtr += 5;
+      }
+      if (*codePtr) {
+        int w = statusRunW(codePtr, 2);
+        int cx = STATUS_X0 + STATUS_ROW_W / 2 - w / 2;
+        statusDrawText(gfx, cx, y + STATUS_L2, 2, codePtr, C_WHITE);
+      }
     }
   }
 }
 
-static void statusDrawOverflow(Arduino_GFX* gfx, int tx, int ty, const UptimeTarget* hidden, uint8_t hiddenCount, uint32_t age) {
+static void statusDrawOverflow(Arduino_GFX* gfx, int y, const UptimeTarget* hidden, uint8_t hiddenCount, uint32_t age) {
   bool stale = (age > STATUS_STALE_S);
   uint8_t d = 0;
   bool allUp = true;
-  bool anyPending = false;
-  for (uint8_t i = 0; i < hiddenCount; i++) {
-    if (hidden[i].status == UPTIME_STATUS_DOWN) d++;
-    if (hidden[i].status != UPTIME_STATUS_UP) allUp = false;
-    if (hidden[i].status == UPTIME_STATUS_PENDING) anyPending = true;
+  for (uint8_t j = 0; j < hiddenCount; j++) {
+    if (hidden[j].status == UPTIME_STATUS_DOWN) d++;
+    if (hidden[j].status != UPTIME_STATUS_UP) allUp = false;
   }
-  bool alarm = (d > 0 && !stale);
-  uint8_t ovMark = 0; // 0: up, 1: down, 2: pending, 3: paused, 4: stale
-  if (stale) ovMark = 4;
-  else if (d > 0) ovMark = 1;
-  else if (allUp) ovMark = 0;
-  else if (anyPending) ovMark = 2;
-  else ovMark = 3;
 
-  statusDrawFrame(gfx, tx, ty, alarm, (stale && d > 0), (ovMark == 0 && !stale));
-
-  int cxH = tx + STATUS_HDR_X;
-  statusDrawRun(gfx, cxH, ty + STATUS_HDR_Y, 1, "More targets", C_DIM);
-
-  char cntBuf[16];
-  snprintf(cntBuf, sizeof(cntBuf), "+%u", (unsigned)hiddenCount);
-  int cxA = tx + STATUS_NAME_X;
-  statusDrawRun(gfx, cxA, ty + STATUS_ROW_A, 2, cntBuf, stale ? C_DIM : C_WHITE);
-
-  int cxB = tx + 8;
+  uint8_t fkind;
   if (stale) {
-    statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, "No data", C_DIM);
-  } else if (d > 0) {
-    char dBuf[16];
-    snprintf(dBuf, sizeof(dBuf), "%u down", (unsigned)d);
-    statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, dBuf, C_RED);
-  } else if (allUp) {
-    statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, "All up", C_UGREEN);
+    fkind = (d > 0) ? STATUS_FRAME_WAS_DOWN : STATUS_FRAME_OTHER;
   } else {
-    statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, "0 down", C_DIM);
+    if (d > 0) fkind = STATUS_FRAME_DOWN;
+    else if (allUp) fkind = STATUS_FRAME_UP;
+    else fkind = STATUS_FRAME_OTHER;
   }
+  statusDrawFrame(gfx, y, fkind);
 
-  static const int listY[3] = {70, 80, 90};
-  uint8_t numShown = (hiddenCount <= 3) ? hiddenCount : 2;
-  for (uint8_t i = 0; i < numShown; i++) {
-    uint8_t miniKind = stale ? 4 : hidden[i].status;
-    statusDrawMini(gfx, tx + 8, ty + listY[i], miniKind);
-    char mName[32];
-    statusMiniName(hidden[i].name, mName, sizeof(mName));
-    uint16_t col = (hidden[i].status == UPTIME_STATUS_DOWN && !stale) ? C_WHITE : C_DIM;
-    int cxL = tx + 17;
-    statusDrawRun(gfx, cxL, ty + listY[i], 1, mName, col);
-  }
-  if (hiddenCount > 3) {
-    char moreBuf[16];
-    snprintf(moreBuf, sizeof(moreBuf), "+%u more", (unsigned)(hiddenCount - 2));
-    int cxM = tx + 17;
-    statusDrawRun(gfx, cxM, ty + listY[2], 1, moreBuf, C_DIM);
-  }
+  char line1[32];
+  snprintf(line1, sizeof(line1), "+%u more", (unsigned)hiddenCount);
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, 2, line1, stale ? C_DIM : C_WHITE);
+
+  char line2[32];
+  snprintf(line2, sizeof(line2), "%u%c%s", (unsigned)d, CH_NSP, "down");
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L2, 2, line2, (d > 0 && !stale) ? C_RED : C_DIM);
 }
 
-static void statusDrawNoData(Arduino_GFX* gfx, int tx, int ty) {
-  statusDrawFrame(gfx, tx, ty, false, false, false);
-  int cxH = tx + STATUS_HDR_X;
-  statusDrawRun(gfx, cxH, ty + STATUS_HDR_Y, 1, "Uptime", C_DIM);
-  int cxA = tx + STATUS_NAME_X;
-  statusDrawRun(gfx, cxA, ty + STATUS_ROW_A, 2, "STATUS", C_DIM);
-  int cxB = tx + 8;
-  statusDrawRun(gfx, cxB, ty + STATUS_ROW_B, 2, "No data", C_DIM);
-  int cxD = tx + 8;
-  statusDrawRun(gfx, cxD, ty + STATUS_ROW_D, 1, "Never received", C_DIM);
+static void statusDrawNoData(Arduino_GFX* gfx, int y) {
+  statusDrawFrame(gfx, y, STATUS_FRAME_OTHER);
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L1, 2, "Uptime", C_DIM);
+  statusDrawText(gfx, STATUS_TEXT_L, y + STATUS_L2, 2, "No data", C_DIM);
 }
 
 void drawStatusSlot(Arduino_GFX* gfx, const UptimeData& u, int i, uint32_t effAgeS, bool nodata) {
   if (!gfx || i < 0 || i > 3) return;
-  static const struct { int x, y; } pos[4] = {
-    {8, 8}, {124, 8}, {8, 124}, {124, 124}
-  };
-  int tx = pos[i].x;
-  int ty = pos[i].y;
-  gfx->fillRect(tx, ty, 108, 108, C_BLACK);   // empty / no-data tiles only outline: clear the slot first
+  static const int rowY[4] = {8, 65, 122, 179};
+  int y = rowY[i];
+  gfx->fillRect(STATUS_X0, y, STATUS_ROW_W, STATUS_ROW_H, C_BLACK);
   if (nodata) {
-    if (i == 0) statusDrawNoData(gfx, tx, ty);
-    else statusDrawEmpty(gfx, tx, ty);
+    if (i == 0) statusDrawNoData(gfx, y);
+    else statusDrawEmpty(gfx, y);
   } else if (i == 3 && u.count > 4) {
-    statusDrawOverflow(gfx, tx, ty, u.targets + 3, u.count - 3, effAgeS);
+    statusDrawOverflow(gfx, y, u.targets + 3, u.count - 3, effAgeS);
   } else if (i < u.count) {
-    statusDrawTile(gfx, tx, ty, u.targets[i], effAgeS);
+    statusDrawRow(gfx, y, u.targets[i], effAgeS);
   } else {
-    statusDrawEmpty(gfx, tx, ty);
+    statusDrawEmpty(gfx, y);
   }
 }
 
@@ -572,58 +499,48 @@ static uint32_t statusSlotSig(const UptimeData& u, uint32_t nowMs, bool nodata, 
   uint32_t age = u.ageS + (nowMs - u.rxMillis) / 1000;
   bool stale = (age > STATUS_STALE_S);
   h = sigBool(h, stale);
-  if (stale) {
-    char durBuf[16];
-    statusDurShort(age, durBuf, sizeof(durBuf));
-    h = sigStr(h, durBuf);
-  }
 
   h = sigInt(h, u.count);       // decides which slot shows what (overflow, empty)
 
-  {
-    if (i == 3 && u.count > 4) {
-      uint8_t hiddenCount = u.count - 3;
-      h = sigInt(h, hiddenCount);
-      const UptimeTarget* hidden = u.targets + 3;
-      uint8_t d = 0;
-      bool allUp = true;
-      bool anyPending = false;
-      for (uint8_t j = 0; j < hiddenCount; j++) {
-        if (hidden[j].status == UPTIME_STATUS_DOWN) d++;
-        if (hidden[j].status != UPTIME_STATUS_UP) allUp = false;
-        if (hidden[j].status == UPTIME_STATUS_PENDING) anyPending = true;
+  if (i == 3 && u.count > 4) {
+    uint8_t hiddenCount = u.count - 3;
+    h = sigInt(h, hiddenCount);
+    const UptimeTarget* hidden = u.targets + 3;
+    uint8_t d = 0;
+    bool allUp = true;
+    for (uint8_t j = 0; j < hiddenCount; j++) {
+      if (hidden[j].status == UPTIME_STATUS_DOWN) d++;
+      if (hidden[j].status != UPTIME_STATUS_UP) allUp = false;
+    }
+    h = sigInt(h, d);
+    h = sigBool(h, allUp);
+  } else if (i < u.count) {
+    const UptimeTarget& t = u.targets[i];
+    h = sigInt(h, t.status);
+    char nameBuf[32];
+    statusLabelFor(t.name, nameBuf, sizeof(nameBuf));
+    h = sigStr(h, nameBuf);
+    if (stale) {
+      char durBuf[16];
+      statusDurShort(age, durBuf, sizeof(durBuf));
+      h = sigStr(h, durBuf);
+    } else {
+      if (t.hasSinceS && (t.status == UPTIME_STATUS_UP || t.status == UPTIME_STATUS_DOWN)) {
+        uint32_t effSince = t.sinceS + age;
+        char durBuf[16];
+        if (t.status == UPTIME_STATUS_UP) statusDurLong(effSince, durBuf, sizeof(durBuf));
+        else statusDurShort(effSince, durBuf, sizeof(durBuf));
+        h = sigStr(h, durBuf);
       }
-      h = sigInt(h, d);
-      h = sigBool(h, allUp);
-      h = sigBool(h, anyPending);
-      uint8_t numShown = (hiddenCount <= 3) ? hiddenCount : 2;
-      for (uint8_t j = 0; j < numShown; j++) {
-        h = sigInt(h, hidden[j].status);
-        char mName[32];
-        statusMiniName(hidden[j].name, mName, sizeof(mName));
-        h = sigStr(h, mName);
-      }
-    } else if (i < u.count) {
-      const UptimeTarget& t = u.targets[i];
-      h = sigInt(h, t.kind);
-      h = sigInt(h, t.status);
-      char nameBuf[32];
-      uint8_t nameSize = 1;
-      statusLabelFor(t.name, nameBuf, sizeof(nameBuf), nameSize);
-      h = sigInt(h, nameSize);
-      h = sigStr(h, nameBuf);
-      if (!stale) {
-        if (t.hasSinceS && (t.status == UPTIME_STATUS_UP || t.status == UPTIME_STATUS_DOWN)) {
-          uint32_t effSince = t.sinceS + age;
-          char dur[16];
-          if (t.status == UPTIME_STATUS_UP) statusDurLong(effSince, dur, sizeof(dur));
-          else statusDurShort(effSince, dur, sizeof(dur));
-          h = sigStr(h, dur);
-        }
-        if (t.status == UPTIME_STATUS_DOWN && t.hasCause) {
-          char code[64];
-          if (statusCauseCode(t.cause, code, sizeof(code))) {
-            h = sigStr(h, code);
+      if (t.status == UPTIME_STATUS_DOWN && t.kind != UPTIME_KIND_BEAT && t.hasCause) {
+        char code[64];
+        if (statusCauseCode(t.cause, code, sizeof(code))) {
+          char* codePtr = code;
+          if (strncmp(codePtr, "HTTP\x7F", 5) == 0 || strncmp(codePtr, "HTTP ", 5) == 0) {
+            codePtr += 5;
+          }
+          if (*codePtr) {
+            h = sigStr(h, codePtr);
           }
         }
       }
@@ -677,7 +594,7 @@ void StatusMode::service(const Settings& s) {
     needRender_ = false;
     return;
   }
-  for (int i = 0; i < 4; i++) {            // afterwards only the tiles whose content changed
+  for (int i = 0; i < 4; i++) {            // afterwards only the rows whose content changed
     uint32_t sig = statusSlotSig(u, now, nodata, i);
     if (sig != slotSig_[i]) {
       slotSig_[i] = sig;
