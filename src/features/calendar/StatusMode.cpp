@@ -496,6 +496,10 @@ static uint32_t statusSlotSig(const UptimeData& u, uint32_t nowMs, bool nodata, 
   h = sigBool(h, u.valid);
   if (!u.valid) return h;
 
+  // An empty slot draws the same frame whatever the data's age: give it a fixed signature,
+  // so the stale flip does not repaint it for nothing (check_sig_vs_pixels.py).
+  if (i >= u.count && !(i == 3 && u.count > 4)) return sigInt(h, -1);
+
   uint32_t age = u.ageS + (nowMs - u.rxMillis) / 1000;
   bool stale = (age > STATUS_STALE_S);
   h = sigBool(h, stale);
