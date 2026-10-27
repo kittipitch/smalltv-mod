@@ -232,6 +232,19 @@ static void carouselNext(const Settings& s) {
   }
 }
 
+// Dwell of one carousel slot: the ONE rule both activeMode() and albumSecsToNextSlot() use.
+// Usage (Claude quota) gets double -- 2 min usage / 1 min everything else at the 60 s default --
+// and so does Better Stack Status while any target is down (owner 2026-10-27).
+static uint32_t carouselDwellMs(const Settings& s, size_t real) {
+  uint32_t d = (uint32_t)s.carouselSec * 1000UL;
+  const uint8_t mc = kModes[real]->modeConst();
+  if (mc == MODE_USAGE) d *= 2;
+#if WITH_CALENDAR
+  if (mc == MODE_STATUS && uptimeHasDown()) d *= 2;
+#endif
+  return d;
+}
+
 // Standalone Agenda page flip (agenda <-> agenda2 every carouselSec) -- state
 // for the logic inside activeMode(); see the comment there.
 static uint32_t g_soloSwitch = 0;
@@ -244,15 +257,11 @@ static DisplayMode* activeMode(const Settings& s) {
   }
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
-    if (!carouselHas(s, kModes[g_carOrder[g_carIdx]])) carouselNext(s);   // settings changed
-    // Usage (Claude quota) gets double the dwell of every other mode --
-    // e.g. 2min usage / 1min everything else at the 60s default.
-    uint32_t dwellMs = (uint32_t)s.carouselSec * 1000UL;
-    if (kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_USAGE) dwellMs *= 2;
-#if WITH_CALENDAR
-    // Better Stack Status with a red row stays twice as long too (owner 2026-10-27).
-    if (kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_STATUS && uptimeHasDown()) dwellMs *= 2;
-#endif
+    if (!carouselHas(s, kModes[g_carOrder[g_carIdx]])) {   // settings changed, or the page stopped qualifying
+      carouselNext(s);
+      g_carSwitch = millis();   // the next page gets its full dwell, not the dropped page's leftover
+    }
+    uint32_t dwellMs = carouselDwellMs(s, g_carOrder[g_carIdx]);
     if (millis() - g_carSwitch >= dwellMs) {
       g_carSwitch = millis();
       carouselNext(s);
@@ -291,12 +300,6 @@ static DisplayMode* activeMode(const Settings& s) {
 static Settings g_settings;
 
 #if WITH_ALBUM
-// Dwell of one slot, mirroring activeMode()'s own rule (usage gets double).
-static uint32_t carouselDwellMs(const Settings& s, size_t real) {
-  uint32_t d = (uint32_t)s.carouselSec * 1000UL;
-  if (kModes[real]->modeConst() == MODE_USAGE) d *= 2;
-  return d;
-}
 
 // Seconds until the album page NEXT starts -- strictly in the future, so a push
 // made while the page is already up is answered with a full cycle rather than
