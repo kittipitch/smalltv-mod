@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include "StatusMode.h"
 #include <Arduino_GFX_Library.h>
 #include "Gfx.h"
@@ -26,9 +27,9 @@ StatusMode g_statusMode;
 #define STATUS_ROW_H           52
 #define STATUS_GAP             5
 #define STATUS_PAD             8
-#define STATUS_L1              6     // name line, size 3 (ink 21 px)
-#define STATUS_L2              33    // status line, size 2 (ink 14 px)
-#define STATUS_NAME_SIZE       3     // owner 2026-10-27: names slightly larger than the agenda title
+#define STATUS_L1              9     // name line, size 2 (ink 14 px)
+#define STATUS_L2              30    // status line, size 2
+#define STATUS_NAME_SIZE       2     // owner 2026-10-27: size 3 cut names too short; size 2 in CAPITALS reads larger
 #define STATUS_TEXT_L          16
 #define STATUS_TEXT_R          223
 #define STATUS_ARROW_W         14
@@ -138,7 +139,11 @@ static void statusLabelFor(const char* name, char* out, size_t outCap) {
     strlcpy(clean, "NONAME", sizeof(clean));
     len = 6;
   }
-  const size_t N_MAX = 11;   // size 3 in the 208 px text box
+  // Capitals read larger than lowercase at the same size (owner 2026-10-27). A URL-style name keeps
+  // its host lowercase and capitalises the part after the last '/': "..mu.ac.th/GDR111".
+  const char* slash = strrchr(clean, '/');
+  for (char* p = slash ? (char*)slash + 1 : clean; *p; p++) *p = (char)toupper((unsigned char)*p);
+  const size_t N_MAX = 17;   // size 2 in the 208 px text box
   if (len <= N_MAX) {
     strlcpy(out, clean, outCap);
   } else {
