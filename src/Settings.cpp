@@ -217,7 +217,8 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselHourly = carouselForecast = carouselZai = carouselCodex = carouselCopilot = carouselAntigravity = carouselOpenrouter = true;
+  carouselUsage = carouselRadar = carouselAgenda = carouselAgenda2 = carouselWeather = carouselHourly = carouselForecast = carouselZai = carouselCodex = carouselCopilot = carouselAntigravity = carouselOpenrouter = carouselStatus = true;
+  statusOfflineOnly = false;
   // Off by default: an empty album page is a black screen in the rotation, and
   // nothing shows until the owner points the daemon at a folder.
   carouselAlbum = false;
@@ -319,6 +320,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_COPILOT)  ? "copilot"
                             : (s.mode == MODE_ANTIGRAVITY) ? "antigravity"
                             : (s.mode == MODE_OPENROUTER) ? "openrouter"
+                            : (s.mode == MODE_STATUS)     ? "status"
                             : (s.mode == MODE_ALBUM)       ? "album"
                             : "carousel";
   root["carouselSec"]       = s.carouselSec;
@@ -335,6 +337,8 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselCopilot"]   = s.carouselCopilot;
   root["carouselAntigravity"] = s.carouselAntigravity;
   root["carouselOpenrouter"] = s.carouselOpenrouter;
+  root["carouselStatus"]    = s.carouselStatus;
+  root["statusOfflineOnly"] = s.statusOfflineOnly;
   root["carouselOrder"]     = s.carouselOrder;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
@@ -415,6 +419,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("copilot")  ? MODE_COPILOT
            : m.equalsIgnoreCase("antigravity") ? MODE_ANTIGRAVITY
            : m.equalsIgnoreCase("openrouter") ? MODE_OPENROUTER
+           : m.equalsIgnoreCase("status")     ? MODE_STATUS
            : m.equalsIgnoreCase("album")      ? MODE_ALBUM
            : MODE_CAROUSEL;
   }
@@ -432,6 +437,8 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselCopilot"].is<bool>()) s.carouselCopilot = root["carouselCopilot"];
   if (root["carouselAntigravity"].is<bool>()) s.carouselAntigravity = root["carouselAntigravity"];
   if (root["carouselOpenrouter"].is<bool>()) s.carouselOpenrouter = root["carouselOpenrouter"];
+  if (root["carouselStatus"].is<bool>()) s.carouselStatus = root["carouselStatus"];
+  if (root["statusOfflineOnly"].is<bool>()) s.statusOfflineOnly = root["statusOfflineOnly"];
   if (root["carouselOrder"].is<const char*>()) s.carouselOrder = root["carouselOrder"].as<String>();
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);

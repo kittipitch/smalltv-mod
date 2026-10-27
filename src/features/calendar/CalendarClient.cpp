@@ -9,6 +9,7 @@ static CodexData      g_codex;
 static CopilotData    g_copilot;
 static AntigravityData g_antigravity;
 static OpenRouterData g_openrouter;
+static UptimeData     g_uptime;
 static bool          g_inited = false;
 
 #if WITH_DEVICE_WEATHER
@@ -24,6 +25,7 @@ void calendarInit(const Settings& s) {
   g_copilot.clear();
   g_antigravity.clear();
   g_openrouter.clear();
+  g_uptime.clear();
   g_inited = true;
 }
 
@@ -34,6 +36,13 @@ const CodexData&      codexGet()    { return g_codex; }
 const CopilotData&    copilotGet()  { return g_copilot; }
 const AntigravityData& antigravityGet() { return g_antigravity; }
 const OpenRouterData& openrouterGet() { return g_openrouter; }
+const UptimeData&     uptimeGet() { return g_uptime; }
+
+bool uptimeIsStale() {
+  if (!g_uptime.valid) return false;
+  uint32_t effAgeS = g_uptime.ageS + (millis() - g_uptime.rxMillis) / 1000;
+  return effAgeS > 180;
+}
 
 // Drop non-ASCII bytes (emoji, accented chars) -- this font (CP437 glyph
 // table) renders each UTF-8 continuation byte as its own garbage glyph, so an
@@ -552,6 +561,79 @@ bool openrouterApply(const String& body) {
 
   g_openrouter.valid = true;
   g_openrouter.lastOkMs = millis();
+  return true;
+}
+
+// ---- Better Stack uptime: pushed payload -----------------------------------
+// {"ok":true,"down":N,"targets":[{"name":str,"kind":"site"|"beat","status":"up"|"down"|"paused"|"pending","cause":str|null,"sinceS":int|null}, ... up to 8],"ageS":int}
+static void uptimeFilter(JsonDocument& f) {
+  f["ok"] = true;
+  f["down"] = true;
+  f["ageS"] = true;
+  JsonObject t = f["targets"].add<JsonObject>();
+  t["name"] = true;
+  t["kind"] = true;
+  t["status"] = true;
+  t["cause"] = true;
+  t["sinceS"] = true;
+}
+
+bool uptimeApply(const String& body) {
+  JsonDocument filter; uptimeFilter(filter);
+  JsonDocument doc;
+  if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
+  if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
+  JsonArrayConst arr = doc["targets"].as<JsonArrayConst>();
+  if (arr.isNull() || arr.size() == 0) return false;   // nothing to show: keep the last good data
+
+  g_uptime.clear();
+  g_uptime.down = doc["down"] | 0;
+  // ageS from the wire: a negative or absurd value must read as STALE, never as fresh
+  long ageS = doc["ageS"] | 0L;
+  g_uptime.ageS = (ageS < 0 || ageS > 30L * 86400L) ? 30UL * 86400UL : (uint32_t)ageS;
+  g_uptime.rxMillis = millis();
+
+  uint8_t n = 0;
+  for (JsonObjectConst t : arr) {
+    if (n >= 8) break;
+    if (t.isNull()) continue;   // a non-object element is not a target
+    const char* name = jstr(t["name"]);
+    strlcpy(g_uptime.targets[n].name, name, sizeof(g_uptime.targets[n].name));
+
+    const char* kind = jstr(t["kind"]);
+    if (strcmp(kind, "beat") == 0) g_uptime.targets[n].kind = UPTIME_KIND_BEAT;
+    else if (strcmp(kind, "site") == 0) g_uptime.targets[n].kind = UPTIME_KIND_SITE;
+    else g_uptime.targets[n].kind = UPTIME_KIND_NONE;
+
+    const char* st = jstr(t["status"]);
+    if (strcmp(st, "down") == 0) g_uptime.targets[n].status = UPTIME_STATUS_DOWN;
+    else if (strcmp(st, "pending") == 0) g_uptime.targets[n].status = UPTIME_STATUS_PENDING;
+    else if (strcmp(st, "paused") == 0) g_uptime.targets[n].status = UPTIME_STATUS_PAUSED;
+    else g_uptime.targets[n].status = UPTIME_STATUS_UP;
+
+    if (t["cause"].is<const char*>() && !t["cause"].isNull()) {
+      g_uptime.targets[n].hasCause = true;
+      strlcpy(g_uptime.targets[n].cause, jstr(t["cause"]), sizeof(g_uptime.targets[n].cause));
+    } else {
+      g_uptime.targets[n].hasCause = false;
+      g_uptime.targets[n].cause[0] = 0;
+    }
+
+    long since = t["sinceS"].is<long>() ? t["sinceS"].as<long>() : -1L;
+    if (since >= 0) {
+      g_uptime.targets[n].hasSinceS = true;
+      g_uptime.targets[n].sinceS = (uint32_t)since;
+    } else {
+      g_uptime.targets[n].hasSinceS = false;
+      g_uptime.targets[n].sinceS = 0;
+    }
+    n++;
+  }
+  if (n == 0) { g_uptime.clear(); return false; }
+  g_uptime.count = n;
+  g_uptime.valid = true;
+  g_uptime.lastOkMs = millis();
+  g_uptime.renderGen++;
   return true;
 }
 

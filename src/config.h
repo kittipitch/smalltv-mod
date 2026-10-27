@@ -128,6 +128,7 @@
 #define MODE_OPENROUTER 13  // OpenRouter API $ spend, daemon-pushed, same shape as MODE_ANTIGRAVITY
 #define MODE_ALBUM      14  // photo page: raw RGB565 frames pushed by the daemon (no decoder on-device)
 #define MODE_COPILOT    15  // GitHub Copilot Chat/Completions monthly quota, daemon-pushed
+#define MODE_STATUS     17  // Better Stack uptime 2x2 tiles, daemon-pushed
 
 // ---- album ----------------------------------------------------------------
 // Frame geometry is the panel's, and the daemon must match it exactly: any body

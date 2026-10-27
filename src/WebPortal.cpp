@@ -40,7 +40,7 @@ static void scheduleReboot(uint32_t inMs) {
 
 // Source-IP filter for the daemon's data-push endpoints only (/api/usage,
 // /api/calendar, /api/weather, /api/zai, /api/codex, /api/copilot, /api/antigravity,
-// /api/openrouter).
+// /api/openrouter, /api/uptime).
 // NOT a security boundary (plaintext HTTP, no auth) — just catches a daemon
 // accidentally pointed at the wrong device. Empty stored IP (the default)
 // means accept a push from anywhere.
@@ -596,6 +596,20 @@ static void handleOpenrouterPush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+static void handleUptimePush() {
+  if (!checkDaemonIp()) { sendWrongSource(); return; }
+  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
+  // 8 targets with 40-char names and causes fit in ~1.5 KB; refuse anything far larger
+  if (server.arg("plain").length() > 4096) { server.send(413, "text/plain", "too large"); return; }
+#if WITH_CALENDAR
+  bool ok = uptimeApply(server.arg("plain"));
+#else
+  bool ok = false;
+#endif
+  server.send(ok ? 200 : 400, "application/json",
+              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+
 // ---- OTA ------------------------------------------------------------------
 static void handleUpdateDone() {
   bool ok = !Update.hasError();
@@ -705,6 +719,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/copilot", HTTP_POST, handleCopilotPush);       // daemon pushes Copilot quota here
   server.on("/api/antigravity", HTTP_POST, handleAntigravityPush); // daemon pushes Antigravity quota here
   server.on("/api/openrouter", HTTP_POST, handleOpenrouterPush); // daemon pushes OpenRouter spend here
+  server.on("/api/uptime", HTTP_POST, handleUptimePush);         // daemon pushes Better Stack uptime here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 #if WITH_ALBUM
   server.on("/api/album", HTTP_POST, handleAlbumDone, handleAlbumUpload);   // daemon pushes a 240x240 RGB565 frame here

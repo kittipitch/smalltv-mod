@@ -502,8 +502,8 @@ var TZMAP={
  'Australia/Perth':'AWST-8','Australia/Sydney':'AEST-10AEDT,M10.1.0,M4.1.0/3',
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
-var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','copilot','antigravity','openrouter']};
-var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselHourly','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselOpenrouter']};
+var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','copilot','antigravity','openrouter','status']};
+var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselHourly','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselOpenrouter','carouselStatus']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -524,6 +524,7 @@ var CAR_MODES=[
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'copilot',chk:'carouselCopilot',label:'Copilot quota'},
  {id:'openrouter',chk:'carouselOpenrouter',label:'OpenRouter quota'},
+ {id:'status',chk:'carouselStatus',label:'Status'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'},
@@ -561,6 +562,13 @@ function renderAgenda2Toggle(cfg){
   '<input id="carouselAgenda2" type="checkbox"'+(checked?' checked':'')+'> Also show events 4-6 (page 2, right after this one)</label>';
 }
 
+function renderStatusOfflineToggle(cfg){
+ var cur=$('statusOfflineOnly');
+ var checked=cur?cur.checked:(cfg?!!cfg.statusOfflineOnly:false);
+ return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
+  '<input id="statusOfflineOnly" type="checkbox"'+(checked?' checked':'')+'> Show Status page only when something is offline</label>';
+}
+
 function rebuildModeSelect(){
  // Mode dropdown and the carousel checklist show the same feature set, so
  // build the dropdown from the SAME source (carOrder) instead of a second
@@ -587,7 +595,7 @@ function renderCarouselList(cfg){
   var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
-  var extra=id==='agenda'?renderAgenda2Toggle(cfg)+'<div id="agendaWeekdaySlot"></div>':'';
+  var extra=id==='agenda'?(renderAgenda2Toggle(cfg)+'<div id="agendaWeekdaySlot"></div>'):(id==='status'?renderStatusOfflineToggle(cfg):'');
   // Rows with `extra` (currently only agenda's page-2 toggle) are taller than
   // one line, so align-items:center would center the checkbox against the
   // whole 2-line block instead of the row label's own line -- flex-start
@@ -680,7 +688,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false); sc('carouselAlbum',c.carouselAlbum===true);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -738,7 +746,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'), carouselAlbum:gc('carouselAlbum'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

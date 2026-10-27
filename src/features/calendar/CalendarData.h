@@ -360,3 +360,56 @@ struct OpenRouterData {
     valid = false; lastOkMs = 0;
   }
 };
+
+enum UptimeKind : uint8_t {
+  UPTIME_KIND_NONE = 0,
+  UPTIME_KIND_SITE = 1,
+  UPTIME_KIND_BEAT = 2,
+};
+
+enum UptimeStatus : uint8_t {
+  UPTIME_STATUS_UP = 0,
+  UPTIME_STATUS_DOWN = 1,
+  UPTIME_STATUS_PENDING = 2,
+  UPTIME_STATUS_PAUSED = 3,
+};
+
+struct UptimeTarget {
+  char     name[48];
+  uint8_t  kind;      // UptimeKind
+  uint8_t  status;    // UptimeStatus
+  char     cause[48];
+  bool     hasCause;
+  uint32_t sinceS;
+  bool     hasSinceS;
+};
+
+struct UptimeData {
+  int          down;
+  uint8_t      count;
+  UptimeTarget targets[8];
+  uint32_t     ageS;
+  uint32_t     rxMillis;
+  bool         valid;
+  uint32_t     lastOkMs;
+  uint32_t     renderGen;
+
+  void clear() {
+    down = 0;
+    count = 0;
+    for (int i = 0; i < 8; i++) {
+      targets[i].name[0] = 0;
+      targets[i].kind = UPTIME_KIND_NONE;
+      targets[i].status = UPTIME_STATUS_UP;
+      targets[i].cause[0] = 0;
+      targets[i].hasCause = false;
+      targets[i].sinceS = 0;
+      targets[i].hasSinceS = false;
+    }
+    ageS = 0;
+    rxMillis = 0;
+    valid = false;
+    lastOkMs = 0;
+    renderGen = 0;
+  }
+};

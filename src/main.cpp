@@ -31,7 +31,8 @@
 #include "CopilotMode.h"
 #include "AntigravityMode.h"
 #include "OpenRouterMode.h"
-#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet()/openrouterGet() for carouselHas()'s data-presence gate
+#include "StatusMode.h"
+#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet()/openrouterGet()/uptimeGet() for carouselHas()'s data-presence gate
 #endif
 #include "AlbumMode.h"
 #include "OfflineScreen.h"    // linkState()/drawOfflineScreen() for the link gate in loop()
@@ -52,6 +53,7 @@ static DisplayMode* kModes[] = {
   &g_antigravityMode,
   &g_copilotMode,
   &g_openrouterMode,
+  &g_statusMode,
 #endif
 #if WITH_RADAR
   &g_radarMode,
@@ -118,8 +120,23 @@ static void rebuildCarouselOrder(const Settings& s) {
     if (comma == -1) break;
     start = comma + 1;
   }
-  for (size_t i = 0; i < kModeCount; i++)
-    if (!used[i] && kModes[i]->modeConst() != MODE_CAL_AGENDA2) g_carOrder[n++] = i;
+  // A mode missing from the saved CSV (new in this firmware) goes in at its canonical slot:
+  // right after the nearest earlier kModes entry already placed, never at the end, where
+  // it looks lost (carousel skill rule; the hourly page hit this).
+  for (size_t i = 0; i < kModeCount; i++) {
+    if (used[i] || kModes[i]->modeConst() == MODE_CAL_AGENDA2) continue;
+    size_t insertAt = 0;
+    for (size_t k = i; k-- > 0;) {
+      if (!used[k]) continue;
+      for (size_t j = 0; j < n; j++)
+        if (g_carOrder[j] == k) { insertAt = j + 1; break; }
+      break;
+    }
+    for (size_t j = n; j > insertAt; j--) g_carOrder[j] = g_carOrder[j - 1];
+    g_carOrder[insertAt] = i;
+    n++;
+    used[i] = true;
+  }
 
   // Force MODE_CAL_AGENDA2 to sit right after MODE_CAL_AGENDA's slot (or at
   // the end if agenda somehow isn't compiled in/present -- shouldn't happen,
@@ -170,6 +187,23 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // pushed data at least once.
     case MODE_ANTIGRAVITY: return s.carouselAntigravity && antigravityGet().valid;
     case MODE_OPENROUTER: return s.carouselOpenrouter && openrouterGet().valid;
+    case MODE_STATUS: {
+      if (!s.carouselStatus) return false;
+      const UptimeData& u = uptimeGet();
+      // Never received: this unit has no uptime daemon (most users), so stay out of the
+      // carousel. Once data has arrived, stale data forces the page in (fail-open).
+      if (!u.valid) return false;
+      uint32_t effAgeS = u.ageS + (millis() - u.rxMillis) / 1000;
+      bool stale = effAgeS > 180;
+      if (s.statusOfflineOnly) {
+        bool hasDown = (u.down > 0);
+        for (uint8_t i = 0; i < u.count; i++) {
+          if (u.targets[i].status == UPTIME_STATUS_DOWN) hasDown = true;
+        }
+        return hasDown || stale;
+      }
+      return true;
+    }
 #endif
     default:          return true;
   }
