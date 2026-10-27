@@ -1209,11 +1209,13 @@ static void drawHourlyEmpty(Arduino_GFX* gfx) {
 // No card fills, black background; rows 74px with the block starting at y=11, so the
 // separators sit at y=85 and y=159 and the ink spans ~17..225.
 // Per row (owner's layout, then an Opus pixel QC against the 3-day page's standard):
-//   left   hour only, no ":00", size 2, vertically centred on the temp's axis
-//   middle the 40x40 condition icon, its word under it (+ for heavy), centred on x=120
-//          unless the rain % needs room, then shifted left by the minimum (was a
-//          fixed 112 before 2026-10-25 -- measured ink centres icon ~119.5 / word
-//          ~118.5 on the live fixture, whose rows keep x=120)
+//   left   hour only, no ":00", size 2, vertically centred on the temp's axis; the first
+//          row says "Next" instead (owner 2026-10-27)
+//   middle the 40x40 condition icon, its word under it (+ for heavy), centred midway
+//          between the left column's widest ink and the right column's nearest ink over
+//          all rows (one x per page; live fixture: icon ink 109.5 in the span 47..172).
+//          History: fixed 112 until 2026-10-25, then screen centre 120, which left the
+//          right-hand gap visibly smaller (owner 2026-10-27). The rain-% clamp still applies.
 //   right  temp (size 3, degree sign included), right-aligned at x=226
 //   bottom ONE shared line: AQI (left, severity colour) / condition word / rain % (right)
 //          -- AQI and rain % are size 3 like every number on the 3-day page (and the
@@ -1221,9 +1223,8 @@ static void drawHourlyEmpty(Arduino_GFX* gfx) {
 // Column slots at the worst case (no value can run into its neighbour):
 //   AQI "500" size 3  x=14..68     word "Storm+"/"Cloudy" size 2 x=84..156
 //   rain "100%" size 3 x=154..226  temp "-99\xF8" size 3 x=154..226 (on the line above
-//   the bottom one). The word's right-hand neighbour is the RAIN %: a 6-char word
-//   centred on 120 ends its advance at x=156, past rain's x=154 start, so the pair
-//   shifts left to cx=116 (7px of ink gap); shorter words and rain <= ~70% stay 120.
+//   the bottom one). The word's right-hand neighbour is the RAIN %; in that worst case
+//   the span centre is ~111 and the word keeps 13px of ink gap (preview_hourly.py checks).
 static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
   if (w.hcCount == 0) { drawHourlyEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
@@ -1231,6 +1232,34 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
   // Only draw a separator between two populated rows (a direct push can carry < 3 hours).
   for (uint8_t i = 1; i < w.hcCount; i++)
     gfx->drawFastHLine(14, top0 + i * rowH, 212, C_PANEL);
+  // Icon/word centre: the middle of the free span between the left column's widest ink
+  // (hour size 2, AQI size 3, both from x=14) and the right column's nearest ink (temp and
+  // rain %, size 3, right-aligned at 226), over ALL rows so the icons stay in one column.
+  // Owner 2026-10-27: on x=120 "the space on the right looks smaller" (live: 51 vs 32 px).
+  int leftInk = 14, rightInk = 226;
+  for (uint8_t i = 0; i < w.hcCount; i++) {
+    const HourFc& h = w.hc[i];
+    char b[6];
+    int l = 14 + gfxTextW(i == 0 ? "Next" : "00h", 2) - 2;     // hour label (row 0 says "Next")
+    if (h.hasAqi) {
+      int a = h.aqi; if (a < 0) a = 0; if (a > 500) a = 500;
+      snprintf(b, sizeof(b), "%d", a);
+    } else strlcpy(b, "--", sizeof(b));
+    int la = 14 + gfxTextW(b, 3) - 3;
+    if (la > l) l = la;
+    if (l > leftInk) leftInk = l;
+    int t = h.temp; if (t < -99) t = -99; if (t > 199) t = 199;
+    snprintf(b, sizeof(b), "%d\xF8", t);
+    int r = 226 - gfxTextW(b, 3);
+    if (h.precip >= 0) {
+      int pv = h.precip; if (pv > 100) pv = 100;
+      snprintf(b, sizeof(b), "%d%%", pv);
+      int rp = 226 - gfxTextW(b, 3);
+      if (rp < r) r = rp;
+    }
+    if (r < rightInk) rightInk = r;
+  }
+  const int pageCx = (leftInk + rightInk + 1) / 2;
   for (uint8_t i = 0; i < w.hcCount; i++) {
     const HourFc& h = w.hc[i];
     const int top = top0 + i * rowH;
@@ -1243,7 +1272,7 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
     gfx->setTextSize(2);
     gfx->setTextColor(C_WHITE);
     gfx->setCursor(14, top + 16);
-    gfx->print(hBuf);
+    gfx->print(i == 0 ? "Next" : hBuf);   // the first row says "Next" (owner 2026-10-27)
 
     // temp (size 3), right-aligned at x=226 -- the right edge STAYS at 226
     // including the degree glyph (0xF8, no trailing "C", same glyph as the
@@ -1279,7 +1308,7 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
       snprintf(wordBuf, sizeof(wordBuf), "%s%s", wxLabel(cat), wxHeavy(h.code, true) ? "+" : "");
       wordW = gfxTextW(wordBuf, 2);
     }
-    int cx = 120;
+    int cx = pageCx;
     if (wordW) {
       int fit = rainLeft - 2 - wordW / 2;
       if (fit < cx) cx = fit;

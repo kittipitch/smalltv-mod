@@ -211,19 +211,35 @@ for i in range(3):
     print(f"hourly-worst row {i}: word ink x {min(wxs)}..{max(wxs)}, rain ink starts {min(rxs)}, gap {gap}px")
     assert gap >= 6, f"hourly-worst row {i}: word/rain ink gap {gap}px < 6px"
 
-# hourly-live rows must stay exactly where they were: icon ~119.5 / word ~118.5
-live = imgs[names.index("hourly-live")]
-px = live.load()
-for i in range(3):
-    top = 11 + i * 74
-    ixs = [x for y in range(top + 4, top + 49) for x in range(95, 146) if px[x, y] != (0, 0, 0)]
-    wxs = word_xs(live, top)
-    assert ixs and wxs, f"hourly-live row {i}: no icon/word ink"
-    icon_c = (min(ixs) + max(ixs)) / 2
-    word_c = (min(wxs) + max(wxs)) / 2
-    print(f"hourly-live row {i}: icon ink centre {icon_c}, word ink centre {word_c}")
-    assert abs(icon_c - 119.5) <= 0.5, f"hourly-live row {i}: icon ink centre {icon_c} != 119.5"
-    assert abs(word_c - 118.5) <= 0.5, f"hourly-live row {i}: word ink centre {word_c} != 118.5"
+# icon + word sit midway between the left column's rightmost ink (hour, AQI) and the right
+# column's leftmost ink (temp, rain %), one x for every row (owner 2026-10-27: on x=120 "the
+# space on the right looks smaller"). Measured on ink, never from the source. Tolerance 2 px:
+# the firmware centres on glyph CELLS, and a leading "1" ("155", "100%") has blank columns.
+def band(top):
+    return [y for y in range(top + 4, top + 72) if y not in (85, 159)]
+
+for name in ("hourly-live", "hourly-mixed", "hourly-noaqi"):
+    im = imgs[names.index(name)]
+    px = im.load()
+    lefts, rights = [], []
+    for i in range(3):
+        top = 11 + i * 74
+        lefts += [x for y in band(top) for x in range(0, 70) if px[x, y] != (0, 0, 0)]
+        rights += [x for y in band(top) for x in range(152, 240) if px[x, y] != (0, 0, 0) and not grey(px[x, y])]  # the word is grey
+    mid = (max(lefts) + min(rights)) / 2
+    for i in range(3):
+        top = 11 + i * 74
+        ixs = [x for y in range(top + 4, top + 49) for x in range(75, 150) if px[x, y] != (0, 0, 0)]
+        wxs = [x for x in word_xs(im, top) if x >= 75]
+        assert ixs, f"{name} row {i}: no icon ink"
+        icon_c = (min(ixs) + max(ixs)) / 2
+        msg = f"{name} row {i}: span {max(lefts)}..{min(rights)} mid {mid}, icon ink centre {icon_c}"
+        if wxs:
+            word_c = (min(wxs) + max(wxs)) / 2
+            msg += f", word ink centre {word_c}"
+            assert abs(word_c - mid) <= 2, msg
+        print(msg)
+        assert abs(icon_c - mid) <= 2, msg
 
 sheet = Image.new("RGB", (1200, 240))
 for i, im in enumerate(imgs):
