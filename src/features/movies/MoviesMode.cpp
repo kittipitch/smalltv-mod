@@ -1,4 +1,5 @@
 #include "MoviesMode.h"
+#include "MovieIcons.h"
 #if WITH_MOVIES
 #include <Arduino_GFX_Library.h>
 #include <LittleFS.h>
@@ -16,20 +17,6 @@ static const uint16_t kPH = MOVIES_POSTER_H;
 static const uint32_t kPosterBytes = (uint32_t)kPW * kPH * 2;
 static const uint32_t kFrameBytes = MOVIES_BYTES;
 #define C_PANEL 0x18E3   // card fill 0x1f1f1e: the quota pages' card colour
-
-// 12x12 icons drawn at 2x: '#' = main colour, 'g' = second colour, '.' = card background.
-static const char kTomato[12][13] PROGMEM = {
-  "....gg.g....", "...gggggg...", "..##gggg##..", ".##########.", "############", "############",
-  "############", "############", "############", ".##########.", "..########..", "....####...."};
-static const char kPopcorn[12][13] PROGMEM = {
-  "..###.###...", ".#########..", "###########.", ".#########..", "..g#g#g#g...", "..g#g#g#g...",
-  "..g#g#g#g...", "...g#g#g#...", "...g#g#g#...", "...g#g#g#...", "....g#g#....", "....g#g#...."};
-static const char kFilm[12][13] PROGMEM = {      // clapperboard: in theaters
-  "##gg##gg##gg", "gg##gg##gg##", "############", "............", "############", "############",
-  "##g######g##", "############", "############", "##g######g##", "############", "############"};
-static const char kTv[12][13] PROGMEM = {        // television: at home
-  "...#....#...", "....#..#....", ".....##.....", "############", "#gggggggggg#", "#gggggggggg#",
-  "#gggggggggg#", "#gggggggggg#", "#gggggggggg#", "############", "..#......#..", "..#......#.."};
 
 static uint16_t s_row[kPW];         // one poster row, reused; .bss, not the ~1800 B continuation stack
 static uint32_t s_rx   = 0;
@@ -78,13 +65,14 @@ static void drawWaiting() {
   g->print("waiting for daemon");
 }
 
-static void drawIcon(Arduino_GFX* g, const char (*art)[13], int cx, int y, uint16_t main, uint16_t other) {
-  int x0 = cx - 12;
-  for (int r = 0; r < 12; r++)
-    for (int c = 0; c < 12; c++) {
-      char p = (char)pgm_read_byte(&art[r][c]);
-      if (p != '.') g->fillRect(x0 + 2 * c, y + 2 * r, 2, 2, p == '#' ? main : other);
-    }
+// One Twemoji icon (MovieIcons.h), centred on cx, a row at a time through the panel's tone correction.
+static void drawIcon(Arduino_GFX* g, const uint16_t* art, int cx, int y) {
+  uint16_t row[MOVIE_ICON_PX];
+  for (int r = 0; r < MOVIE_ICON_PX; r++) {
+    memcpy_P(row, art + r * MOVIE_ICON_PX, sizeof(row));
+    gfxToneRow(row, MOVIE_ICON_PX);
+    g->draw16bitRGBBitmap((int16_t)(cx - MOVIE_ICON_PX / 2), (int16_t)(y + r), row, MOVIE_ICON_PX, 1);
+  }
 }
 
 static void drawCentered(Arduino_GFX* g, int cx, int y, const char* text, uint8_t maxSize, int width) {
@@ -100,23 +88,33 @@ static void scoreText(uint8_t v, char* out, size_t n) {
   else snprintf(out, n, "%d%%", v);
 }
 
-// The right column: three rounded cards like the quota pages, icons, and text in the device's font.
+// The right column: ONE rounded card like the quota pages holding three items (tomato + score, popcorn
+// + score, film/TV + year), spaced evenly by ink: the gap above the first, between items and below the
+// last is the same. Item = 32 px Twemoji icon, 8 px gap, text whose ink is 7 rows per text-size step.
 static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const int x = kPW + 4, w = 240 - kPW - 8, cx = x + w / 2, inner = w - 6;
+  const int top = 4, h = 232, iconH = MOVIE_ICON_PX, gapIT = 8;
+  char txt[3][8];
+  scoreText(t[2], txt[0], sizeof(txt[0]));
+  scoreText(t[3], txt[1], sizeof(txt[1]));
+  snprintf(txt[2], sizeof(txt[2]), "%u", (unsigned)(t[4] | (t[5] << 8)));
+  const uint8_t maxSz[3] = {3, 3, 2};                // year smaller than the scores (owner)
+  uint8_t sz[3];
+  int used = 0;
+  for (int i = 0; i < 3; i++) {
+    sz[i] = gfxFitSize(txt[i], inner, maxSz[i]);
+    used += iconH + gapIT + 7 * sz[i];
+  }
+  const int sp = (h - used) / 4;
   g->fillRect(kPW, 0, 240 - kPW, 240, C_BLACK);
-  const int tops[3] = {4, 83, 162};
-  for (int i = 0; i < 3; i++) g->fillRoundRect(x, tops[i], w, 74, 8, C_PANEL);
-  char buf[8];
-  drawIcon(g, kTomato, cx, tops[0] + 8, 0xF986 /* tomato red */, 0x3D87 /* leaf green */);
-  scoreText(t[2], buf, sizeof(buf));
-  drawCentered(g, cx, tops[0] + 42, buf, 3, inner);
-  drawIcon(g, kPopcorn, cx, tops[1] + 8, 0xFE80 /* popcorn yellow */, 0xE945 /* stripe red */);
-  scoreText(t[3], buf, sizeof(buf));
-  drawCentered(g, cx, tops[1] + 42, buf, 3, inner);
-  if (t[6] == 0) drawIcon(g, kFilm, cx, tops[2] + 8, C_WHITE, 0x4208);
-  else           drawIcon(g, kTv, cx, tops[2] + 8, C_WHITE, 0x041F);
-  snprintf(buf, sizeof(buf), "%u", (unsigned)(t[4] | (t[5] << 8)));
-  drawCentered(g, cx, tops[2] + 44, buf, 2, inner);   // year: smaller than the scores (owner)
+  g->fillRoundRect(x, top, w, h, 8, C_PANEL);
+  int y = top + sp + (h - used - 4 * sp) / 2;        // centre the rounding remainder
+  for (int i = 0; i < 3; i++) {
+    const uint16_t* art = i == 0 ? kIconTomato : i == 1 ? kIconPopcorn : t[6] == 0 ? kIconFilm : kIconTv;
+    drawIcon(g, art, cx, y);
+    drawCentered(g, cx, y + iconH + gapIT, txt[i], sz[i], inner);
+    y += iconH + gapIT + 7 * sz[i] + sp;
+  }
 }
 
 static void drawCurrent() {

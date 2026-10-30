@@ -86,7 +86,7 @@ class Element {
  }
 }
 function add(id) { return elements[id]=new Element(id); }
-for(const id of ['mode','carouselRow','carouselList','carouselLbl','agendaWeekdayControl','calendarShowWeekday','calendar','usage',
+for(const id of ['mode','carouselRow','carouselList','carouselLbl','subSolo','agendaWeekdayControl','moviesControl','statusControl','calendarShowWeekday','calendar','usage',
  'apSsid','apPass','hostname','daemonIp','brightness','brVal','rotation','autoBrightness','backlightInverted','calLat','calLon','calPlace']) add(id);
 elements.calendarShowWeekday.checked=true;
 elements.agendaWeekdayControl.appendChild(elements.calendarShowWeekday);
@@ -119,14 +119,24 @@ js += r'''
   assert.equal($('calendarShowWeekday'),checkbox);
   assert.equal(checkbox.checked,false);
   assert.equal(control.style.display, mode==='agenda'||mode==='carousel'?'flex':'none');
-  assert.equal(control.parentNode, mode==='carousel'?$('agendaWeekdaySlot'):$('carouselRow'));
+  assert.equal(control.parentNode, mode==='carousel'?$('sub_agenda'):$('subSolo'));
   assert.equal(collect().calendar.showWeekday,false);
  }
  const agendaIndex=carOrder.indexOf('agenda'); carMove(agendaIndex,-1);
  assert.equal($('calendarShowWeekday'),checkbox); assert.equal(checkbox.checked,false);
- assert.equal(control.parentNode,$('agendaWeekdaySlot'));
+ assert.equal(control.parentNode,$('sub_agenda'));
  rebuildModeSelect(); modeChanged(); assert.equal(checkbox.checked,false);
  assert.equal(Object.keys(elements).filter(id=>id==='calendarShowWeekday').length,1);
+ // Every page's sub-options follow the same table: in its own row in carousel mode, under the Mode menu
+ // when it is the standalone mode (Status's offline filter is carousel-only), hidden for any other mode.
+ for(const [id,el,solo] of [['movies','moviesControl',true],['status','statusControl',false]]) {
+  for(const mode of ['carousel',id,'weather']) {
+   $('mode').value=mode; modeChanged();
+   const want=mode==='carousel'||(mode===id&&solo);
+   assert.equal($(el).style.display, want?'flex':'none', id+' in '+mode);
+   assert.equal($(el).parentNode, mode==='carousel'?$('sub_'+id):$('subSolo'), id+' parent in '+mode);
+  }
+ }
  $('calendar').remove(); modeChanged();
  assert.equal(control.style.display,'none'); assert.equal(checkbox.checked,false);
  assert.equal(collect().calendar,undefined);

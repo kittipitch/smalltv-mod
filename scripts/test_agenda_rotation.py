@@ -36,7 +36,11 @@ static uint32_t carouselDwellMs(const Settings& s, size_t) { return s.carouselSe
 cpp += selector + r'''
 int main() {
   Settings s;
-  assert(activeMode(s) == &first);  // Carousel checkbox must not disable solo page 2.
+  // Unticked "Also show events 4-6": standalone agenda never shows page 2 (owner 2026-10-31: the
+  // sub-option applies in standalone mode too).
+  for (now = 100; now < 40000; now += 500) assert(activeMode(s) == &first);
+  s.carouselAgenda2 = true; now = 100; g_soloSwitch = 0;
+  assert(activeMode(s) == &first);
   now = 5099; assert(activeMode(s) == &first);
   now = 5100; assert(activeMode(s) == &second); assert(second.wakes == 1);
   now = 5101; assert(activeMode(s) == &second); assert(second.wakes == 1);
@@ -75,12 +79,12 @@ const assert = require('node:assert/strict');
 const sel = {value:'agenda', options:[], set innerHTML(html) {
   this.options = [...html.matchAll(/value="([^"]+)"/g)].map(m => ({value:m[1]}));
 }};
-const elements = {mode:sel, carouselRow:{style:{}}, carouselList:{style:{}}, carouselLbl:{}};
+const elements = {mode:sel, carouselRow:{style:{}}, carouselList:{style:{}}, carouselLbl:{}, subSolo:{appendChild(){}}};
 function $(id) { return elements[id]; }
 var carOrder = ['usage','agenda','weather'];
 var CAR_MODES = carOrder.map(id => ({id, label:id}));
 '''
-js += ui[ui.index("function rebuildModeSelect()"):ui.index("function renderCarouselList(")]
+js += ui[ui.index("var SUBOPTS="):ui.index("function renderCarouselList(")]
 js += ui[ui.index("function modeChanged()"):ui.index("function loadConfig()")]
 js += r'''
 rebuildModeSelect();

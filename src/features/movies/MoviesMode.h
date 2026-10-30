@@ -1,10 +1,11 @@
-// MoviesMode.h — Movies page: Rotten Tomatoes Certified Fresh, one movie an hour, painted by the daemon.
+// MoviesMode.h — Movies page: Rotten Tomatoes Certified Fresh, one movie an hour.
 //
-// The daemon (clawdmeter-daemon --movies) does everything: it reads the lists, picks the movie, fetches
-// the poster and paints the finished 240x240 RGB565 frame. The device stores at most TWO frames and no
-// movie data at all (owner 2026-10-31: "dont keep it on device", "current and next one 2 at most"):
+// The daemon (clawdmeter-daemon --movies) reads the lists, picks the movie and sends the poster (160x240
+// RGB565, big-endian) plus an 8-byte trailer with the scores, year and source; the device draws the right
+// column itself (MoviesMode.cpp). The device stores at most TWO frames and no movie data at all (owner
+// 2026-10-31: "dont keep it on device", "current and next one 2 at most"):
 //
-//   POST /api/movie          multipart field "frame", exactly 115,200 B -> /movie_next.565
+//   POST /api/movie          multipart field "frame", exactly MOVIES_BYTES (76,808 B) -> /movie_next.565
 //                            (streamed through /movie_next.tmp, renamed only when whole)
 //   POST /api/movie/promote  /movie_next.565 -> /movie.565, repaint if the page is on screen
 //

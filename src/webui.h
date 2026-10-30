@@ -114,8 +114,16 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </select>
    <div id="carouselRow">
     <label id="carouselLbl">Each page shows for (s)</label><input id="carouselSec" type="number" min="5" max="3600">
-    <div id="agendaWeekdayControl" class="chk" style="flex-direction:column;align-items:flex-start;gap:6px;margin:0"><div class="chk" style="margin:0"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div><div class="chk" style="margin:0"><input id="calendarSoonFrame" type="checkbox" checked><label for="calendarSoonFrame">Frame events starting within the hour</label></div></div>
+    <div id="agendaWeekdayControl" class="chk" style="flex-direction:column;align-items:flex-start;gap:6px;margin:0"><div class="chk" style="margin:0"><input id="carouselAgenda2" type="checkbox" checked><label for="carouselAgenda2">Also show events 4-6 (page 2, right after page 1)</label></div><div class="chk" style="margin:0"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div><div class="chk" style="margin:0"><input id="calendarSoonFrame" type="checkbox" checked><label for="calendarSoonFrame">Frame events starting within the hour</label></div></div>
     <div id="carouselList"></div>
+   </div>
+   <div id="subSolo"></div>
+   <div id="statusControl" style="display:none;flex-direction:column;gap:0">
+    <label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal"><input id="statusOfflineOnly" type="checkbox"> Show Better Stack Status only when something is offline</label>
+   </div>
+   <div id="moviesControl" style="display:none;flex-direction:column;gap:0">
+    <label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal"><input id="moviesTheaters" type="checkbox" checked> In theaters</label>
+    <label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal"><input id="moviesHome" type="checkbox" checked> At home (streaming)</label>
    </div>
    <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Copilot quota needs <code>--copilot</code> plus <code>gh auth login</code> with Copilot access on the daemon's machine (one read-only GitHub quota request per poll, no model call); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex and Copilot, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval) -- these pages stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
   </div>
@@ -555,33 +563,14 @@ function parseCarOrder(csv){
  return ids;
 }
 
-// Nested "+ page 2" toggle rendered inside the "Next event" row. Own
-// class="chk" wrapper so hideFeat('calendar')'s $(id).closest('.chk')
-// removes just this toggle, not the whole agenda row.
-function renderAgenda2Toggle(cfg){
- var cur=$('carouselAgenda2');
- var checked=cur?cur.checked:(cfg?cfg.carouselAgenda2!==false:true);
- return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
-  '<input id="carouselAgenda2" type="checkbox"'+(checked?' checked':'')+'> Also show events 4-6 (page 2, right after this one)</label>';
-}
-
-// Movies sub-options, nested in the Movies row like the agenda's page-2 toggle. Only matter while
-// Movies is ticked; the daemon reads them from /api/config.
-function renderMoviesToggles(cfg){
- function box(id,label){
-  var cur=$(id);
-  var checked=cur?cur.checked:(cfg?cfg[id]!==false:true);
-  return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
-   '<input id="'+id+'" type="checkbox"'+(checked?' checked':'')+'> '+label+'</label>';
- }
- return box('moviesTheaters','In theaters')+box('moviesHome','At home (streaming)');
-}
-
-function renderStatusOfflineToggle(cfg){
- var cur=$('statusOfflineOnly');
- var checked=cur?cur.checked:(cfg?!!cfg.statusOfflineOnly:false);
- return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
-  '<input id="statusOfflineOnly" type="checkbox"'+(checked?' checked':'')+'> Show Better Stack Status only when something is offline</label>';
+// Each page's sub-options are ONE static control, listed here. modeChanged() places it: inside that page's
+// row in carousel mode, under the Mode menu when that page is the standalone mode, hidden otherwise.
+// solo:false = the options mean nothing standalone (Status "only when offline" is a carousel filter).
+// need = the settings tab the control depends on (hideFeat() removes it on builds without the feature).
+var SUBOPTS={agenda:{el:'agendaWeekdayControl',need:'calendar'},movies:{el:'moviesControl'},
+ status:{el:'statusControl',solo:false}};
+function parkSubopts(){ // keep the controls alive while renderCarouselList() rebuilds the rows that hold them
+ Object.keys(SUBOPTS).forEach(function(id){var e=$(SUBOPTS[id].el); if(e)$('subSolo').appendChild(e)});
 }
 
 function rebuildModeSelect(){
@@ -605,12 +594,12 @@ function rebuildModeSelect(){
 function renderCarouselList(cfg){
  var el=$('carouselList'); if(!el)return;
  // Keep the shared checkbox alive when its containing agenda row is rebuilt.
- var weekday=$('agendaWeekdayControl'); if(weekday)$('carouselRow').appendChild(weekday);
+ parkSubopts();
  el.innerHTML=carOrder.map(function(id,i){
   var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
-  var extra=id==='agenda'?(renderAgenda2Toggle(cfg)+'<div id="agendaWeekdaySlot"></div>'):(id==='status'?renderStatusOfflineToggle(cfg):(id==='movies'?renderMoviesToggles(cfg):''));
+  var extra=SUBOPTS[id]?'<div id="sub_'+id+'"></div>':'';
   // Rows with `extra` (currently only agenda's page-2 toggle) are taller than
   // one line, so align-items:center would center the checkbox against the
   // whole 2-line block instead of the row label's own line -- flex-start
@@ -654,11 +643,13 @@ function modeChanged(){if(!$('mode'))return;
  $('carouselRow').style.display=rot?'block':'none';
  $('carouselList').style.display=(m==='carousel')?'block':'none';
  $('carouselLbl').textContent=(m==='album')?'Each picture shows for (s)':'Each page shows for (s)';
- var weekday=$('agendaWeekdayControl'); if(weekday){
-  var slot=m==='carousel'?$('agendaWeekdaySlot'):null;
-  (slot||$('carouselRow')).appendChild(weekday);
-  weekday.style.display=$('calendar')&&(m==='agenda'||(m==='carousel'&&slot))?'flex':'none';
- }}
+ Object.keys(SUBOPTS).forEach(function(id){
+  var o=SUBOPTS[id], e=$(o.el); if(!e)return;
+  var slot=m==='carousel'?$('sub_'+id):null;
+  (slot||$('subSolo')).appendChild(e);
+  var ok=!o.need||!!$(o.need);
+  e.style.display=ok&&(slot||(m===id&&o.solo!==false))?'flex':'none';
+ });}
 function loadConfig(){return j('/api/config').then(function(c){C=c;
  var f=c.features||{}; ['usage','radar','calendar'].forEach(function(k){if(f[k]===false)hideFeat(k)});
  // CAR_MODES/carOrder are static id lists with no feature-awareness of

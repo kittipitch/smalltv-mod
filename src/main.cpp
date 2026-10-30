@@ -281,7 +281,8 @@ static DisplayMode* activeMode(const Settings& s) {
       if (s.mode == MODE_CAL_AGENDA) {
         if (g_soloSwitch == 0) g_soloSwitch = millis();
         const bool wasPage2 = g_soloPage2;
-        if (calendarGet().valid && calendarGet().count > 3) {
+        // Page 2 only when "Also show events 4-6" is ticked: the sub-option applies standalone too.
+        if (s.carouselAgenda2 && calendarGet().valid && calendarGet().count > 3) {
           if (millis() - g_soloSwitch >= (uint32_t)s.carouselSec * 1000UL) {
             g_soloSwitch = millis();
             g_soloPage2 = !g_soloPage2;
