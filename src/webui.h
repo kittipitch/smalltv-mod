@@ -520,6 +520,7 @@ var CAR_MODES=[
  {id:'usage',chk:'carouselUsage',label:'Claude usage'},
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
  {id:'album',chk:'carouselAlbum',label:'Pictures'},
+ {id:'movies',chk:'carouselMovies',label:'Movies (Rotten Tomatoes)'},
  {id:'codex',chk:'carouselCodex',label:'Codex quota'},
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'copilot',chk:'carouselCopilot',label:'Copilot quota'},
@@ -561,6 +562,18 @@ function renderAgenda2Toggle(cfg){
   '<input id="carouselAgenda2" type="checkbox"'+(checked?' checked':'')+'> Also show events 4-6 (page 2, right after this one)</label>';
 }
 
+// Movies sub-options, nested in the Movies row like the agenda's page-2 toggle. Only matter while
+// Movies is ticked; the daemon reads them from /api/config.
+function renderMoviesToggles(cfg){
+ function box(id,label){
+  var cur=$(id);
+  var checked=cur?cur.checked:(cfg?cfg[id]!==false:true);
+  return '<label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal">'+
+   '<input id="'+id+'" type="checkbox"'+(checked?' checked':'')+'> '+label+'</label>';
+ }
+ return box('moviesTheaters','In theaters')+box('moviesHome','At home (streaming)');
+}
+
 function renderStatusOfflineToggle(cfg){
  var cur=$('statusOfflineOnly');
  var checked=cur?cur.checked:(cfg?!!cfg.statusOfflineOnly:false);
@@ -594,7 +607,7 @@ function renderCarouselList(cfg){
   var m=CAR_MODES.filter(function(x){return x.id===id})[0]; if(!m)return '';
   var cur=$(m.chk);
   var checked=cur?cur.checked:(cfg?cfg[m.chk]!==false:true);
-  var extra=id==='agenda'?(renderAgenda2Toggle(cfg)+'<div id="agendaWeekdaySlot"></div>'):(id==='status'?renderStatusOfflineToggle(cfg):'');
+  var extra=id==='agenda'?(renderAgenda2Toggle(cfg)+'<div id="agendaWeekdaySlot"></div>'):(id==='status'?renderStatusOfflineToggle(cfg):(id==='movies'?renderMoviesToggles(cfg):''));
   // Rows with `extra` (currently only agenda's page-2 toggle) are taller than
   // one line, so align-items:center would center the checkbox against the
   // whole 2-line block instead of the row label's own line -- flex-start
@@ -687,7 +700,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselMovies',c.carouselMovies===true); sc('moviesTheaters',c.moviesTheaters!==false); sc('moviesHome',c.moviesHome!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -745,7 +758,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselMovies:gc('carouselMovies'), moviesTheaters:gc('moviesTheaters'), moviesHome:gc('moviesHome'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

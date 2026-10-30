@@ -222,6 +222,9 @@ void Settings::setDefaults() {
   // Off by default: an empty album page is a black screen in the rotation, and
   // nothing shows until the owner points the daemon at a folder.
   carouselAlbum = false;
+  // Off by default for the same reason; both sources on once it is ticked.
+  carouselMovies = false;
+  moviesTheaters = moviesHome = true;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -321,6 +324,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_ANTIGRAVITY) ? "antigravity"
                             : (s.mode == MODE_STATUS)     ? "status"
                             : (s.mode == MODE_ALBUM)       ? "album"
+                            : (s.mode == MODE_MOVIES)      ? "movies"
                             : "carousel";
   root["carouselSec"]       = s.carouselSec;
   root["carouselUsage"]     = s.carouselUsage;
@@ -332,6 +336,9 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselForecast"]  = s.carouselForecast;
   root["carouselZai"]       = s.carouselZai;
   root["carouselAlbum"]     = s.carouselAlbum;
+  root["carouselMovies"]    = s.carouselMovies;
+  root["moviesTheaters"]    = s.moviesTheaters;
+  root["moviesHome"]        = s.moviesHome;
   root["carouselCodex"]     = s.carouselCodex;
   root["carouselCopilot"]   = s.carouselCopilot;
   root["carouselAntigravity"] = s.carouselAntigravity;
@@ -419,6 +426,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            // "openrouter" (page removed 2026-10-31) falls through to the carousel
            : m.equalsIgnoreCase("status")     ? MODE_STATUS
            : m.equalsIgnoreCase("album")      ? MODE_ALBUM
+           : m.equalsIgnoreCase("movies")     ? MODE_MOVIES
            : MODE_CAROUSEL;
   }
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
@@ -431,6 +439,9 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselForecast"].is<bool>()) s.carouselForecast = root["carouselForecast"];
   if (root["carouselZai"].is<bool>())     s.carouselZai = root["carouselZai"];
   if (root["carouselAlbum"].is<bool>())   s.carouselAlbum = root["carouselAlbum"];
+  if (root["carouselMovies"].is<bool>())  s.carouselMovies = root["carouselMovies"];
+  if (root["moviesTheaters"].is<bool>())  s.moviesTheaters = root["moviesTheaters"];
+  if (root["moviesHome"].is<bool>())      s.moviesHome = root["moviesHome"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
   if (root["carouselCopilot"].is<bool>()) s.carouselCopilot = root["carouselCopilot"];
   if (root["carouselAntigravity"].is<bool>()) s.carouselAntigravity = root["carouselAntigravity"];

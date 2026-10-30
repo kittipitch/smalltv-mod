@@ -34,6 +34,7 @@
 #include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet()/uptimeGet() for carouselHas()'s data-presence gate
 #endif
 #include "AlbumMode.h"
+#include "MoviesMode.h"
 #include "OfflineScreen.h"    // linkState()/drawOfflineScreen() for the link gate in loop()
 #if WITH_USAGE
 #include "UsageClient.h"      // usageService(): kept alive under the link gate (pull mode)
@@ -58,6 +59,9 @@ static DisplayMode* kModes[] = {
 #endif
 #if WITH_ALBUM
   &g_albumMode,
+#endif
+#if WITH_MOVIES
+  &g_moviesMode,
 #endif
 #if WITH_CALENDAR
   &g_calendarAgendaMode,
@@ -174,6 +178,11 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // from the reply to its own push -- so gating the page on already having a
     // frame would mean it never enters rotation and never gets one.
     case MODE_ALBUM:  return s.carouselAlbum;
+    // In rotation whenever ticked, frame or not: before the first push it shows "waiting", and
+    // gating it on having a frame would hide it from the daemon that is meant to fill it.
+#endif
+#if WITH_MOVIES
+    case MODE_MOVIES: return s.carouselMovies;
 #endif
     case MODE_RADAR:  return s.carouselRadar;
     case MODE_CAL_AGENDA:  return s.carouselAgenda;
@@ -331,6 +340,16 @@ bool albumPageIsUp() {
   if (g_settings.mode == MODE_ALBUM) return true;
   if (g_settings.mode != MODE_CAROUSEL) return false;
   return kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_ALBUM;
+}
+#endif
+
+#if WITH_MOVIES
+// True while the Movies page is on screen: a promote repaints only then.
+bool moviesPageIsUp() {
+  if (kModeCount == 0) return false;
+  if (g_settings.mode == MODE_MOVIES) return true;
+  if (g_settings.mode != MODE_CAROUSEL) return false;
+  return kModes[g_carOrder[g_carIdx]]->modeConst() == MODE_MOVIES;
 }
 #endif
 

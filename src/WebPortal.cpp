@@ -16,6 +16,7 @@
 #include "OomTrap.h"
 #if WITH_ALBUM
 #include "AlbumMode.h"
+#include "MoviesMode.h"
 #endif
 #if WITH_CALENDAR
 #include "CalendarClient.h"
@@ -652,6 +653,42 @@ static void handleAlbumDone() {
 }
 #endif
 
+#if WITH_MOVIES
+// Movies page (MoviesMode.h): the daemon streams the NEXT frame here, then promotes it.
+static bool s_moviesAuthed = false;
+static bool s_moviesWhole = false;
+
+static void handleMoviesUpload() {
+  HTTPUpload& up = server.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    s_moviesWhole = false;
+    s_moviesAuthed = checkDaemonIp();      // checked here: the done-handler runs after the body
+    if (s_moviesAuthed) moviesRxBegin();
+  } else if (!s_moviesAuthed) {
+    return;                                // wrong source: swallow the body, touch nothing
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    moviesRxChunk(up.buf, up.currentSize);
+  } else if (up.status == UPLOAD_FILE_END) {
+    s_moviesWhole = moviesRxEnd(true);
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    moviesRxEnd(false);
+  }
+  yield();
+}
+
+static void handleMoviesDone() {
+  if (!s_moviesAuthed) { sendWrongSource(); return; }
+  if (!s_moviesWhole) { server.send(400, "application/json", "{\"ok\":false}"); return; }
+  server.send(200, "application/json", moviesHasCurrent() ? "{\"ok\":true,\"has\":1}" : "{\"ok\":true,\"has\":0}");
+}
+
+static void handleMoviesPromote() {
+  if (!checkDaemonIp()) { sendWrongSource(); return; }
+  bool ok = moviesPromote();
+  server.send(ok ? 200 : 409, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+}
+#endif
+
 static void handleUpdateUpload() {
   HTTPUpload& up = server.upload();
   if (up.status == UPLOAD_FILE_START) {
@@ -717,6 +754,10 @@ void webPortalBegin(Settings& settings) {
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 #if WITH_ALBUM
   server.on("/api/album", HTTP_POST, handleAlbumDone, handleAlbumUpload);   // daemon pushes a 240x240 RGB565 frame here
+#endif
+#if WITH_MOVIES
+  server.on("/api/movie/promote", HTTP_POST, handleMoviesPromote);         // NEXT frame -> on screen
+  server.on("/api/movie", HTTP_POST, handleMoviesDone, handleMoviesUpload); // daemon pushes the NEXT frame
 #endif
 
   // Common captive-portal probe endpoints

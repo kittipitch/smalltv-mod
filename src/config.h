@@ -129,6 +129,7 @@
 #define MODE_ALBUM      14  // photo page: raw RGB565 frames pushed by the daemon (no decoder on-device)
 #define MODE_COPILOT    15  // GitHub Copilot Chat/Completions monthly quota, daemon-pushed
 #define MODE_STATUS     17  // Better Stack uptime 2x2 tiles, daemon-pushed
+#define MODE_MOVIES     18  // Rotten Tomatoes Certified Fresh, one movie an hour, frame painted by the daemon
 
 // ---- album ----------------------------------------------------------------
 // Frame geometry is the panel's, and the daemon must match it exactly: any body
@@ -141,6 +142,13 @@
 // per rotation is ~660 whole-filesystem rewrites a day (~5 months of flash);
 // every 10th is ~17 years. Costs a repeated picture while the daemon is down.
 #define ALBUM_CHECKPOINT_EVERY 10
+
+// Movies page (MoviesMode.h): the frame on screen and the next one, nothing else.
+#define MOVIES_W 240
+#define MOVIES_H 240
+#define MOVIES_PATH      "/movie.565"
+#define MOVIES_NEXT_PATH "/movie_next.565"
+#define MOVIES_TMP_PATH  "/movie_next.tmp"
 #define DEFAULT_MODE MODE_CAROUSEL
 #define DEFAULT_CAROUSEL_SEC 60      // per-mode dwell in carousel
 
@@ -161,6 +169,9 @@
 #endif
 #ifndef WITH_ALBUM
 #define WITH_ALBUM 1
+#endif
+#ifndef WITH_MOVIES
+#define WITH_MOVIES 1
 #endif
 
 // TLS. BearSSL costs ~73 KB of flash, and on a device the daemon PUSHES to it
