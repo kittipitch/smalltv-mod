@@ -78,7 +78,7 @@ static void drawIcon(Arduino_GFX* g, const uint16_t* art, int cx, int y) {
 static void drawCentered(Arduino_GFX* g, int cx, int y, const char* text, uint8_t maxSize, int width) {
   uint8_t sz = gfxFitSize(text, width, maxSize);
   g->setTextSize(sz);
-  g->setTextColor(C_WHITE, C_PANEL);              // the quota pages' value colour
+  g->setTextColor(C_WHITE);   // transparent: an opaque cell would clip the icon above ("--" sits 9 px up)
   g->setCursor(cx - gfxTextW(text, sz) / 2, y);
   g->print(text);
 }
