@@ -95,7 +95,9 @@ void MoviesMode::begin(const Settings& s) {
 }
 
 void MoviesMode::service(const Settings& s) { (void)s; }   // frames arrive by push
-void MoviesMode::invalidate(const Settings& s) { (void)s; drawCurrent(); }
+// Every settings save calls invalidate() on ALL modes: repaint only when this page is the one
+// on screen, or it would cover the album photo (or flash over any other page).
+void MoviesMode::invalidate(const Settings& s) { (void)s; if (moviesPageIsUp()) drawCurrent(); }
 void MoviesMode::wake(const Settings& s) { (void)s; drawCurrent(); }
 
 #endif  // WITH_MOVIES
