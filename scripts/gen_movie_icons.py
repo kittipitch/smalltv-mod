@@ -9,7 +9,7 @@ alpha work. Run from the repo root:  python3 scripts/gen_movie_icons.py
 from pathlib import Path
 from PIL import Image
 
-SIZE = 32
+SIZE = 28
 PANEL = 0x18E3                      # C_PANEL in MoviesMode.cpp
 ICONS = [("kIconTomato", "1f345"), ("kIconPopcorn", "1f37f"), ("kIconFilm", "1f3ac"), ("kIconTv", "1f4fa")]
 root = Path(__file__).resolve().parents[1]
@@ -24,7 +24,7 @@ for name, code in ICONS:
     im = Image.open(src / f"{code}.png").convert("RGBA").resize((SIZE, SIZE), Image.LANCZOS)
     flat = Image.new("RGBA", im.size, bg + (255,))
     flat.alpha_composite(im)
-    px = [((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3) for r, g, b, _ in flat.getdata()]
+    px = [((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3) for r, g, b, _ in flat.get_flattened_data()]
     rows = [", ".join(f"0x{v:04X}" for v in px[i:i + SIZE // 2]) for i in range(0, len(px), SIZE // 2)]
     lines.append(f"static const uint16_t {name}[{SIZE * SIZE}] PROGMEM = {{  // U+{code.upper()}")
     lines += ["  " + r + "," for r in rows]

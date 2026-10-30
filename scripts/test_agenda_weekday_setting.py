@@ -88,6 +88,10 @@ class Element {
 function add(id) { return elements[id]=new Element(id); }
 for(const id of ['mode','carouselRow','carouselList','carouselLbl','subSolo','agendaWeekdayControl','moviesControl','statusControl','calendarShowWeekday','calendar','usage',
  'apSsid','apPass','hostname','daemonIp','brightness','brVal','rotation','autoBrightness','backlightInverted','calLat','calLon','calPlace']) add(id);
+// A real <select> drops a value it has no <option> for (falls back to the first option). Model that, so a
+// mode set before the dropdown is rebuilt from carOrder (e.g. Movies, not in the static HTML) is caught.
+{ const sel=elements.mode; let v=''; sel.options=[{value:'usage'},{value:'agenda'},{value:'carousel'}];
+  Object.defineProperty(sel,'value',{get(){return v;},set(x){v=(sel.options||[]).some(o=>o.value===x)?x:((sel.options||[])[0]||{}).value||'';}}); }
 elements.calendarShowWeekday.checked=true;
 elements.agendaWeekdayControl.appendChild(elements.calendarShowWeekday);
 elements.carouselRow.appendChild(elements.agendaWeekdayControl);
@@ -108,6 +112,8 @@ js += ui[ui.index("function modeChanged()"):ui.index("function esc(s)")]
 js += ui[ui.index("function collect()"):ui.index("function saveAll()")]
 js += r'''
 (async()=>{
+ // Owner 2026-10-31: chose Movies, came back, the menu showed Claude usage (first load = static options).
+ fixture={mode:'movies'}; await loadConfig(); assert.equal(gv('mode'),'movies');
  for(const calendar of [undefined,{}, {showWeekday:false},{showWeekday:true}]) {
   fixture={mode:'agenda',calendar}; await loadConfig();
   assert.equal(gc('calendarShowWeekday'), !calendar||calendar.showWeekday!==false);

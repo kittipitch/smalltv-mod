@@ -9,8 +9,8 @@
 MoviesMode g_moviesMode;
 
 // Wire format (clawdmeter-daemon movies.pack_movie): the poster, 160 x 240 RGB565 big-endian, then an
-// 8-byte trailer 'M','V', tomatometer, popcorn, year LE, source, 0 (score 255 = none; source 0 = in
-// theaters, 1 = at home). The poster is a picture; the column is drawn HERE in the device's own font,
+// 8-byte trailer 'M','V', tomatometer, popcorn, year LE, source, title length (score 255 = none; source
+// 0 = in theaters, 1 = at home), then the title as printable ASCII in a 64-byte zero-padded field. The poster is a picture; the column is drawn HERE in the device's own font,
 // so it matches the quota pages (owner 2026-10-31: "poster = pic and the font shud be font").
 static const uint16_t kPW = MOVIES_POSTER_W;
 static const uint16_t kPH = MOVIES_POSTER_H;
@@ -90,11 +90,65 @@ static void scoreText(uint8_t v, char* out, size_t n) {
 
 // The right column: ONE rounded card like the quota pages holding three items (tomato + score, popcorn
 // + score, film/TV + year), spaced evenly by ink: the gap above the first, between items and below the
-// last is the same. Item = 32 px Twemoji icon, 8 px gap, text ink (glcd: 7 rows per size step; "--" inks
+// last is the same. Item = 28 px Twemoji icon, 8 px gap, text ink (glcd: 7 rows per size step; "--" inks
 // only row 3, so a missing score is spaced by its dash, not by an empty 7-row box).
+// The title runs across the top of the screen, over the poster and the card (owner 2026-10-31), in
+// yellow at the year's size: at most two centred lines of 20 characters (size 2 = 12 px a character on
+// 240 px), word-wrapped; a longer title ends in "..." on the second line. Returns the number of lines.
+static const int kTitleCols = 20, kTitleLines = 2, kTitleY = 4, kTitlePitch = 18;
+static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
+  int n = 0;
+  while (n < kTitleLines) {
+    while (*s == ' ') s++;
+    const int len = (int)strlen(s);
+    if (!len) break;
+    int take = len;
+    if (len > kTitleCols) {
+      take = kTitleCols;                               // one long word: hard cut
+      for (int i = kTitleCols; i > 0; i--)
+        if (s[i] == ' ') { take = i; break; }
+    }
+    if (n == kTitleLines - 1 && take < len) {         // more than fits: end in "..."
+      int k = len < kTitleCols - 3 ? len : kTitleCols - 3;
+      while (k > 0 && s[k - 1] == ' ') k--;
+      memcpy(out[n], s, k);
+      strcpy(out[n] + k, "...");
+    } else {
+      memcpy(out[n], s, take);
+      out[n][take] = 0;
+    }
+    s += take;
+    n++;
+  }
+  return n;
+}
+
+// Yellow with a 1 px black outline, so it reads over any poster.
+static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n) {
+  g->setTextSize(2);
+  for (int l = 0; l < n; l++) {
+    const int x = (240 - gfxTextW(lines[l], 2)) / 2, y = kTitleY + l * kTitlePitch;
+    g->setTextColor(C_BLACK);
+    for (int dy = -1; dy <= 1; dy++)
+      for (int dx = -1; dx <= 1; dx++)
+        if (dx || dy) { g->setCursor(x + dx, y + dy); g->print(lines[l]); }
+    g->setTextColor(C_YELLOW);
+    g->setCursor(x, y);
+    g->print(lines[l]);
+  }
+}
+
 static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const int x = kPW + 4, w = 240 - kPW - 8, cx = x + w / 2, inner = w - 6;
-  const int top = 4, h = 232, iconH = MOVIE_ICON_PX, gapIT = 8;
+  const int iconH = MOVIE_ICON_PX, gapIT = 8;
+  char title[kTitleCols * 4 + 1], lines[kTitleLines][kTitleCols + 1];
+  const uint8_t tl = t[7] <= 64 ? t[7] : 64;
+  memcpy(title, t + 8, tl);
+  title[tl] = 0;
+  const int nl = wrapTitle(title, lines);
+  // The items always sit under ONE title line (size 2 inks 14 rows), gaps all equal; a second line is
+  // drawn over the tomato rather than pushing the card down (owner 2026-10-31).
+  const int top = nl ? kTitleY + 14 : 4, h = 236 - top;
   char txt[3][8];
   scoreText(t[2], txt[0], sizeof(txt[0]));
   scoreText(t[3], txt[1], sizeof(txt[1]));
@@ -111,7 +165,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   }
   const int sp = (h - used) / 4;
   g->fillRect(kPW, 0, 240 - kPW, 240, C_BLACK);
-  g->fillRoundRect(x, top, w, h, 8, C_PANEL);
+  g->fillRoundRect(x, 4, w, 232, 8, C_PANEL);
   int y = top + sp + (h - used - 4 * sp) / 2;        // centre the rounding remainder
   for (int i = 0; i < 3; i++) {
     const uint16_t* art = i == 0 ? kIconTomato : i == 1 ? kIconPopcorn : t[6] == 0 ? kIconFilm : kIconTv;
@@ -119,14 +173,15 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
     drawCentered(g, cx, y + iconH + gapIT - inkTop[i], txt[i], sz[i], inner);
     y += iconH + gapIT + inkH[i] + sp;
   }
+  drawTitle(g, lines, nl);
 }
 
 static void drawCurrent() {
   Arduino_GFX* g = gfxDev();
   if (!g) return;
   File f = LittleFS.open(MOVIES_PATH, "r");
-  uint8_t t[8] = {0};
-  bool ok = f && f.size() == kFrameBytes && f.seek(kPosterBytes) && f.read(t, 8) == 8 &&
+  uint8_t t[72] = {0};
+  bool ok = f && f.size() == kFrameBytes && f.seek(kPosterBytes) && f.read(t, 72) == 72 &&
             t[0] == 'M' && t[1] == 'V' && f.seek(0);
   if (!ok) {
     if (f) f.close();

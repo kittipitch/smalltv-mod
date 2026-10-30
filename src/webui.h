@@ -689,10 +689,12 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sc('nightEnabled',!!ck.nightEnabled);
  sv('nightStart',ck.nightStart||'22:00'); sv('nightEnd',ck.nightEnd||'07:00');
  sv('nightLevel',ck.nightLevel!=null?ck.nightLevel:0); $('nlVal')&&($('nlVal').textContent=(ck.nightLevel!=null?ck.nightLevel:0));
- $('mode').value=c.mode||'carousel'; modeChanged();
  sv('carouselSec',c.carouselSec||60);
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
+ // AFTER renderCarouselList(): it rebuilds the dropdown from carOrder, and a <select> silently drops a value
+ // it has no option for yet (Movies is not in the static HTML), so Movies came back as "Claude usage".
+ $('mode').value=c.mode||'carousel'; modeChanged();
  sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselMovies',c.carouselMovies===true); sc('moviesTheaters',c.moviesTheaters!==false); sc('moviesHome',c.moviesHome!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
  // usage slice
