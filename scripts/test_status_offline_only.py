@@ -23,12 +23,12 @@ struct Settings { bool carouselUsage = false, carouselRadar = false, carouselAge
   carouselZai = false, carouselCodex = false, carouselCopilot = false, carouselAntigravity = false,
   carouselStatus = true, statusOfflineOnly = true; };
 struct DisplayMode { int mode; int modeConst() const { return mode; } };
-DisplayMode usage{MODE_USAGE}, status{MODE_STATUS};
-DisplayMode* kModes[] = {&usage, &status};
-const size_t kModeCount = 2;
+DisplayMode usage{MODE_USAGE}, status{MODE_STATUS}, agenda{MODE_CAL_AGENDA}, agenda2{MODE_CAL_AGENDA2};
+DisplayMode* kModes[] = {&usage, &status, &agenda, &agenda2};
+const size_t kModeCount = 4;
 struct Valid { bool valid = false; unsigned count = 0; };
-Valid none;
-const Valid& calendarGet() { return none; }
+Valid none, cal{true, 6};
+const Valid& calendarGet() { return cal; }
 const Valid& zaiGet() { return none; }
 const Valid& codexGet() { return none; }
 const Valid& copilotGet() { return none; }
@@ -53,7 +53,16 @@ int main() {
   down = false; s.statusOfflineOnly = false;
   assert(carouselHas(s, &status));
   // No uptime data ever: stays out (this unit has no uptime feed).
-  s.statusOfflineOnly = true; s.carouselUsage = false; up.valid = false;
+  // Next event unticked but its "events 4-6" box still ticked (the default) with 6 events: page 2 is NOT
+  // in rotation on its own, so Status is still the only page.
+  s.statusOfflineOnly = true; s.carouselUsage = false; s.carouselAgenda = false; s.carouselAgenda2 = true;
+  assert(!carouselHas(s, &agenda2));
+  assert(carouselHas(s, &status));
+  s.carouselAgenda = true;
+  assert(carouselHas(s, &agenda2));
+  assert(!carouselHas(s, &status));
+  s.carouselAgenda = false; s.carouselAgenda2 = false;
+  up.valid = false;
   assert(!carouselHas(s, &status));
 }
 '''

@@ -197,7 +197,8 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     case MODE_CAL_AGENDA:  return s.carouselAgenda;
     // Only in rotation when there's actually a 4th-6th event to show --
     // same "skip until there's real content" pattern as z.ai below.
-    case MODE_CAL_AGENDA2: return s.carouselAgenda2 && calendarGet().count > 3;
+    // Page 2 follows page 1: "Also show events 4-6" is a sub-option of Next event, never a page alone.
+    case MODE_CAL_AGENDA2: return s.carouselAgenda && s.carouselAgenda2 && calendarGet().count > 3;
     case MODE_CAL_WEATHER: return s.carouselWeather;
     case MODE_CAL_HOURLY: return s.carouselHourly;
     case MODE_CAL_FORECAST: return s.carouselForecast;
