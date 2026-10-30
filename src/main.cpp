@@ -60,15 +60,15 @@ static DisplayMode* kModes[] = {
 #if WITH_ALBUM
   &g_albumMode,
 #endif
-#if WITH_MOVIES
-  &g_moviesMode,
-#endif
 #if WITH_CALENDAR
   &g_calendarAgendaMode,
   &g_calendarAgendaMode2,
   &g_calendarWeatherMode,
   &g_calendarHourlyMode,
   &g_calendarForecastMode,
+#endif
+#if WITH_MOVIES
+  &g_moviesMode,   // after the 3-day forecast (owner 2026-10-31)
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);

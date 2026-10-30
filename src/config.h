@@ -144,8 +144,9 @@
 #define ALBUM_CHECKPOINT_EVERY 10
 
 // Movies page (MoviesMode.h): the frame on screen and the next one, nothing else.
-#define MOVIES_W 240
-#define MOVIES_H 240
+#define MOVIES_POSTER_W 160   // poster picture; the device draws the 80 px column itself
+#define MOVIES_POSTER_H 240
+#define MOVIES_BYTES ((uint32_t)MOVIES_POSTER_W * MOVIES_POSTER_H * 2 + 8)  // + trailer
 #define MOVIES_PATH      "/movie.565"
 #define MOVIES_NEXT_PATH "/movie_next.565"
 #define MOVIES_TMP_PATH  "/movie_next.tmp"

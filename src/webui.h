@@ -519,8 +519,6 @@ var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',ca
 var CAR_MODES=[
  {id:'usage',chk:'carouselUsage',label:'Claude usage'},
  {id:'zai',chk:'carouselZai',label:'Z.AI quota'},
- {id:'album',chk:'carouselAlbum',label:'Pictures'},
- {id:'movies',chk:'carouselMovies',label:'Movies (Rotten Tomatoes)'},
  {id:'codex',chk:'carouselCodex',label:'Codex quota'},
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'copilot',chk:'carouselCopilot',label:'Copilot quota'},
@@ -529,7 +527,12 @@ var CAR_MODES=[
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
  {id:'weather',chk:'carouselWeather',label:'Weather + air quality'},
  {id:'hourly',chk:'carouselHourly',label:'Next 3 hours'},
- {id:'forecast',chk:'carouselForecast',label:'3-day forecast'}
+ {id:'forecast',chk:'carouselForecast',label:'3-day forecast'},
+ // Movies right after the 3-day forecast, Pictures last (owner 2026-10-31). parseCarOrder() puts a page
+ // that is new to a saved order before the first saved page that follows it here, so with Pictures
+ // after Movies an existing order gets Movies between the forecast and Pictures.
+ {id:'movies',chk:'carouselMovies',label:'Movies (Rotten Tomatoes)'},
+ {id:'album',chk:'carouselAlbum',label:'Pictures'}
 ];
 var carOrder=CAR_MODES.map(function(m){return m.id});
 
