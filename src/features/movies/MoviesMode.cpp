@@ -90,7 +90,8 @@ static void scoreText(uint8_t v, char* out, size_t n) {
 
 // The right column: ONE rounded card like the quota pages holding three items (tomato + score, popcorn
 // + score, film/TV + year), spaced evenly by ink: the gap above the first, between items and below the
-// last is the same. Item = 32 px Twemoji icon, 8 px gap, text whose ink is 7 rows per text-size step.
+// last is the same. Item = 32 px Twemoji icon, 8 px gap, text ink (glcd: 7 rows per size step; "--" inks
+// only row 3, so a missing score is spaced by its dash, not by an empty 7-row box).
 static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const int x = kPW + 4, w = 240 - kPW - 8, cx = x + w / 2, inner = w - 6;
   const int top = 4, h = 232, iconH = MOVIE_ICON_PX, gapIT = 8;
@@ -100,10 +101,13 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   snprintf(txt[2], sizeof(txt[2]), "%u", (unsigned)(t[4] | (t[5] << 8)));
   const uint8_t maxSz[3] = {3, 3, 2};                // year smaller than the scores (owner)
   uint8_t sz[3];
-  int used = 0;
+  int inkTop[3], inkH[3], used = 0;
   for (int i = 0; i < 3; i++) {
     sz[i] = gfxFitSize(txt[i], inner, maxSz[i]);
-    used += iconH + gapIT + 7 * sz[i];
+    const bool dash = strcmp(txt[i], "--") == 0;
+    inkTop[i] = dash ? 3 * sz[i] : 0;
+    inkH[i] = dash ? sz[i] : 7 * sz[i];
+    used += iconH + gapIT + inkH[i];
   }
   const int sp = (h - used) / 4;
   g->fillRect(kPW, 0, 240 - kPW, 240, C_BLACK);
@@ -112,8 +116,8 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   for (int i = 0; i < 3; i++) {
     const uint16_t* art = i == 0 ? kIconTomato : i == 1 ? kIconPopcorn : t[6] == 0 ? kIconFilm : kIconTv;
     drawIcon(g, art, cx, y);
-    drawCentered(g, cx, y + iconH + gapIT, txt[i], sz[i], inner);
-    y += iconH + gapIT + 7 * sz[i] + sp;
+    drawCentered(g, cx, y + iconH + gapIT - inkTop[i], txt[i], sz[i], inner);
+    y += iconH + gapIT + inkH[i] + sp;
   }
 }
 
