@@ -70,7 +70,6 @@ const ZaiData&        zaiGet();
 const CodexData&      codexGet();
 const CopilotData&    copilotGet();
 const AntigravityData& antigravityGet();
-const OpenRouterData& openrouterGet();
 const UptimeData&     uptimeGet();
 
 // Apply payloads PUSHED to the device.
@@ -80,6 +79,5 @@ bool zaiApply(const String& body);        // {ok,pct5h?,pctTokens?}
 bool codexApply(const String& body);      // {ok,pct5h?,r5h?,pctWeek?,rWeek?}
 bool copilotApply(const String& body);    // {ok,pctChat?,rChat?,pctCompletions?,rCompletions?}
 bool antigravityApply(const String& body); // {ok,pctPro?,labelPro?,rPro?,pctFlash?,labelFlash?,rFlash?}
-bool openrouterApply(const String& body); // {ok,usd_daily?,usd_weekly?,usd_total?,free_tier?}
 bool uptimeApply(const String& body);     // {ok,down?,targets:[...],ageS?}
 bool uptimeIsStale();

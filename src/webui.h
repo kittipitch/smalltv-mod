@@ -104,7 +104,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="codex">Codex quota</option>
     <option value="copilot">Copilot quota</option>
     <option value="antigravity">Antigravity quota</option>
-    <option value="openrouter">OpenRouter quota</option>
     <option value="status">Better Stack Status</option>
     <option value="radar">Plane radar</option>
     <option value="agenda">Next event</option>
@@ -118,7 +117,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div id="agendaWeekdayControl" class="chk" style="flex-direction:column;align-items:flex-start;gap:6px;margin:0"><div class="chk" style="margin:0"><input id="calendarShowWeekday" type="checkbox" checked><label for="calendarShowWeekday">Show weekday</label></div><div class="chk" style="margin:0"><input id="calendarSoonFrame" type="checkbox" checked><label for="calendarSoonFrame">Frame events starting within the hour</label></div></div>
     <div id="carouselList"></div>
    </div>
-   <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Copilot quota needs <code>--copilot</code> plus <code>gh auth login</code> with Copilot access on the daemon's machine (one read-only GitHub quota request per poll, no model call); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex and Copilot, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval); OpenRouter quota needs the daemon's <code>--openrouter</code> flag plus an OpenRouter API key on the daemon's machine (<code>~/.openrouter_dot_ai_key</code> by default) -- unlike Antigravity, this is one lightweight authenticated GET per poll, no per-call model cost -- all five stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
+   <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Copilot quota needs <code>--copilot</code> plus <code>gh auth login</code> with Copilot access on the daemon's machine (one read-only GitHub quota request per poll, no model call); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex and Copilot, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval) -- these pages stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
   </div>
   <div class="card"><h2>Screen</h2>
    <label>Brightness: <span id="brVal"></span>%</label>
@@ -241,7 +240,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   <div class="card"><h2>Daemon source IP</h2>
    <label>Only accept pushes from</label>
    <input id="daemonIp" type="text" autocomplete="off" placeholder="(any — leave blank)">
-   <small class="hint">Optional. When set, the daemon-push endpoints (usage/agenda/weather/z.ai/Codex/Antigravity/OpenRouter) only accept data from this IP &mdash; everything else on this page stays open to anyone on the LAN. This is <b>not security</b> (plaintext HTTP, no auth at all) &mdash; it just stops a daemon accidentally pointed at the wrong device from overwriting what's on screen. No password needed to change it.</small>
+   <small class="hint">Optional. When set, the daemon-push endpoints (usage/agenda/weather/z.ai/Codex/Antigravity) only accept data from this IP &mdash; everything else on this page stays open to anyone on the LAN. This is <b>not security</b> (plaintext HTTP, no auth at all) &mdash; it just stops a daemon accidentally pointed at the wrong device from overwriting what's on screen. No password needed to change it.</small>
   </div>
   <div class="card" id="ghUpdateCard"><h2>Update from GitHub</h2>
    <div class="muted">Installed: <b id="fwVer">-</b></div>
@@ -503,8 +502,8 @@ var TZMAP={
  'Australia/Perth':'AWST-8','Australia/Sydney':'AEST-10AEDT,M10.1.0,M4.1.0/3',
  'Australia/Adelaide':'ACST-9:30ACDT,M10.1.0,M4.1.0/3','Australia/Brisbane':'AEST-10',
  'Pacific/Auckland':'NZST-12NZDT,M9.5.0,M4.1.0/3','Pacific/Honolulu':'HST10'};
-var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','copilot','antigravity','openrouter','status']};
-var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselHourly','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselOpenrouter','carouselStatus']};
+var MODEOPT={usage:'usage',radar:'radar',calendar:['agenda','weather','forecast','zai','codex','copilot','antigravity','status']};
+var CAROPT={usage:'carouselUsage',radar:'carouselRadar',album:'carouselAlbum',calendar:['carouselAgenda','carouselAgenda2','carouselWeather','carouselHourly','carouselForecast','carouselZai','carouselCodex','carouselCopilot','carouselAntigravity','carouselStatus']};
 
 // Reorderable carousel-rotation-order list. ids match the device's DisplayMode::id()
 // strings exactly (see main.cpp's rebuildCarouselOrder()) -- carOrder is sent to
@@ -524,7 +523,6 @@ var CAR_MODES=[
  {id:'codex',chk:'carouselCodex',label:'Codex quota'},
  {id:'antigravity',chk:'carouselAntigravity',label:'Antigravity quota'},
  {id:'copilot',chk:'carouselCopilot',label:'Copilot quota'},
- {id:'openrouter',chk:'carouselOpenrouter',label:'OpenRouter quota'},
  {id:'status',chk:'carouselStatus',label:'Better Stack Status'},
  {id:'radar',chk:'carouselRadar',label:'Plane radar'},
  {id:'agenda',chk:'carouselAgenda',label:'Next event'},
@@ -689,7 +687,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  carOrder=parseCarOrder(c.carouselOrder);
  renderCarouselList(c);
  sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselOpenrouter',c.carouselOpenrouter!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -747,7 +745,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselOpenrouter:gc('carouselOpenrouter'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

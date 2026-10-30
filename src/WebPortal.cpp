@@ -40,7 +40,7 @@ static void scheduleReboot(uint32_t inMs) {
 
 // Source-IP filter for the daemon's data-push endpoints only (/api/usage,
 // /api/calendar, /api/weather, /api/zai, /api/codex, /api/copilot, /api/antigravity,
-// /api/openrouter, /api/uptime).
+// /api/uptime; /api/openrouter is still accepted and dropped).
 // NOT a security boundary (plaintext HTTP, no auth) — just catches a daemon
 // accidentally pointed at the wrong device. Empty stored IP (the default)
 // means accept a push from anywhere.
@@ -584,16 +584,10 @@ static void handleAntigravityPush() {
               ok ? "{\"ok\":true}" : "{\"ok\":false}");
 }
 
+// The OpenRouter page was removed to free flash (2026-10-31). Daemons that still send its payload
+// get a 200 and the body is dropped, so they log no errors.
 static void handleOpenrouterPush() {
-  if (!checkDaemonIp()) { sendWrongSource(); return; }
-  if (!server.hasArg("plain")) { server.send(400, "text/plain", "no body"); return; }
-#if WITH_CALENDAR
-  bool ok = openrouterApply(server.arg("plain"));
-#else
-  bool ok = false;
-#endif
-  server.send(ok ? 200 : 400, "application/json",
-              ok ? "{\"ok\":true}" : "{\"ok\":false}");
+  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 static void handleUptimePush() {
@@ -718,7 +712,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/codex", HTTP_POST, handleCodexPush);           // daemon pushes Codex quota here
   server.on("/api/copilot", HTTP_POST, handleCopilotPush);       // daemon pushes Copilot quota here
   server.on("/api/antigravity", HTTP_POST, handleAntigravityPush); // daemon pushes Antigravity quota here
-  server.on("/api/openrouter", HTTP_POST, handleOpenrouterPush); // daemon pushes OpenRouter spend here
+  server.on("/api/openrouter", HTTP_POST, handleOpenrouterPush); // page removed: 200, body dropped
   server.on("/api/uptime", HTTP_POST, handleUptimePush);         // daemon pushes Better Stack uptime here
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
 #if WITH_ALBUM

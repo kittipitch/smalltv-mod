@@ -30,9 +30,8 @@
 #include "CodexMode.h"
 #include "CopilotMode.h"
 #include "AntigravityMode.h"
-#include "OpenRouterMode.h"
 #include "StatusMode.h"
-#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet()/openrouterGet()/uptimeGet() for carouselHas()'s data-presence gate
+#include "CalendarClient.h"   // zaiGet()/codexGet()/antigravityGet()/uptimeGet() for carouselHas()'s data-presence gate
 #endif
 #include "AlbumMode.h"
 #include "OfflineScreen.h"    // linkState()/drawOfflineScreen() for the link gate in loop()
@@ -52,7 +51,6 @@ static DisplayMode* kModes[] = {
   &g_codexMode,
   &g_antigravityMode,
   &g_copilotMode,
-  &g_openrouterMode,
   &g_statusMode,
 #endif
 #if WITH_RADAR
@@ -199,7 +197,6 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
     // carousel until the daemon has agy authenticated and has actually
     // pushed data at least once.
     case MODE_ANTIGRAVITY: return s.carouselAntigravity && antigravityGet().valid;
-    case MODE_OPENROUTER: return s.carouselOpenrouter && openrouterGet().valid;
     case MODE_STATUS: {
       if (!s.carouselStatus) return false;
       const UptimeData& u = uptimeGet();

@@ -8,7 +8,6 @@ static ZaiData        g_zai;
 static CodexData      g_codex;
 static CopilotData    g_copilot;
 static AntigravityData g_antigravity;
-static OpenRouterData g_openrouter;
 static UptimeData     g_uptime;
 static bool          g_inited = false;
 
@@ -24,7 +23,6 @@ void calendarInit(const Settings& s) {
   g_codex.clear();
   g_copilot.clear();
   g_antigravity.clear();
-  g_openrouter.clear();
   g_uptime.clear();
   g_inited = true;
 }
@@ -35,7 +33,6 @@ const ZaiData&        zaiGet()      { return g_zai; }
 const CodexData&      codexGet()    { return g_codex; }
 const CopilotData&    copilotGet()  { return g_copilot; }
 const AntigravityData& antigravityGet() { return g_antigravity; }
-const OpenRouterData& openrouterGet() { return g_openrouter; }
 const UptimeData&     uptimeGet() { return g_uptime; }
 
 bool uptimeIsStale() {
@@ -517,50 +514,6 @@ bool antigravityApply(const String& body) {
 
   g_antigravity.valid = true;
   g_antigravity.lastOkMs = millis();
-  return true;
-}
-
-// ---- OpenRouter quota: pushed payload -------------------------------------
-// { "ok":true, "usd_daily":0.035, "usd_weekly":0.12, "usd_total":4.56, "free_tier":true }
-// OpenRouter API spend is daemon-pushed, same device-side shape as the sibling
-// quota pages: parse defensively, keep optional fields independent, and only
-// accept a push when at least one real field landed.
-static void openrouterFilter(JsonDocument& f) {
-  f["ok"] = true;
-  f["usd_daily"] = true; f["usd_weekly"] = true; f["usd_total"] = true; f["free_tier"] = true;
-}
-
-bool openrouterApply(const String& body) {
-  JsonDocument filter; openrouterFilter(filter);
-  JsonDocument doc;
-  if (deserializeJson(doc, body, DeserializationOption::Filter(filter))) return false;
-  if (doc["ok"].is<bool>() && doc["ok"].as<bool>() == false) return false;
-
-  bool gotDaily = doc["usd_daily"].is<float>() || doc["usd_daily"].is<int>();
-  bool gotWeekly = doc["usd_weekly"].is<float>() || doc["usd_weekly"].is<int>();
-  bool gotTotal = doc["usd_total"].is<float>() || doc["usd_total"].is<int>();
-  bool gotFreeTier = doc["free_tier"].is<bool>();
-  // free_tier alone is metadata, not a metric -- a payload carrying only it
-  // (e.g. an odd API response shape where the usd_* fields didn't parse)
-  // must not count as "useful data": it would mark the page valid and put
-  // it in the carousel showing three "--" rows with a confident FREE/PAID
-  // subtitle above them. Require at least one real spend figure, same as
-  // every sibling quota parser (codex sol pre-flash audit, 2026-08-25).
-  if (!gotDaily && !gotWeekly && !gotTotal) return false;
-
-  // Unconditional, same rule as codexApply(): a figure the API stops returning
-  // clears, rather than freezing yesterday's spend on screen as today's.
-  g_openrouter.hasUsdDaily = gotDaily;
-  g_openrouter.usdDaily    = gotDaily ? doc["usd_daily"].as<double>() : 0.0;
-  g_openrouter.hasUsdWeekly = gotWeekly;
-  g_openrouter.usdWeekly    = gotWeekly ? doc["usd_weekly"].as<double>() : 0.0;
-  g_openrouter.hasUsdTotal = gotTotal;
-  g_openrouter.usdTotal    = gotTotal ? doc["usd_total"].as<double>() : 0.0;
-  g_openrouter.hasFreeTier = gotFreeTier;
-  g_openrouter.freeTier    = gotFreeTier && doc["free_tier"].as<bool>();
-
-  g_openrouter.valid = true;
-  g_openrouter.lastOkMs = millis();
   return true;
 }
 

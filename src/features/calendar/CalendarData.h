@@ -345,22 +345,6 @@ struct AntigravityData {
   }
 };
 
-struct OpenRouterData {
-  double usdDaily;   bool hasUsdDaily;
-  double usdWeekly;  bool hasUsdWeekly;
-  double usdTotal;   bool hasUsdTotal;
-  bool   freeTier;   bool hasFreeTier;
-  bool     valid;
-  uint32_t lastOkMs;
-  void clear() {
-    usdDaily = 0; hasUsdDaily = false;
-    usdWeekly = 0; hasUsdWeekly = false;
-    usdTotal = 0; hasUsdTotal = false;
-    freeTier = false; hasFreeTier = false;
-    valid = false; lastOkMs = 0;
-  }
-};
-
 enum UptimeKind : uint8_t {
   UPTIME_KIND_NONE = 0,
   UPTIME_KIND_SITE = 1,

@@ -167,7 +167,7 @@ static uint16_t creditColor(int days) {
 // CodexMode.cpp's drawCodexResetSuffix() so both quota pages render the same
 // shape from the same two numbers; kept as a copy rather than hoisted to a
 // shared header because these palettes are per-file #define copies by
-// convention (OpenRouterMode.cpp does the same), and touching zero Codex lines
+// convention, and touching zero Codex lines
 // keeps this flash's audit surface to one file with no Codex regression path.
 //
 // Format: "N" when N credits are available but no expiry is known, "N·Dd" when

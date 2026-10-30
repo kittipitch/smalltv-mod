@@ -130,7 +130,7 @@ struct Settings {
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselHourly, carouselForecast, carouselZai, carouselCodex, carouselCopilot, carouselAntigravity, carouselOpenrouter, carouselStatus, carouselAlbum;
+  bool carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselHourly, carouselForecast, carouselZai, carouselCodex, carouselCopilot, carouselAntigravity, carouselStatus, carouselAlbum;
   bool statusOfflineOnly;  // checkbox: Show Status page only when something is offline
   // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather"),
   // user-defined rotation order via the web UI's up/down arrows. Empty =
