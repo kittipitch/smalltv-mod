@@ -27,6 +27,9 @@
 > - **Plane radar**, live (not disabled — see below), and it now falls back to
 >   the weather-location setting if its own home lat/lon isn't set, so you
 >   don't have to enter your location twice
+> - A **Movies** page: one Rotten Tomatoes Certified Fresh movie an hour (poster,
+>   Tomatometer, Popcorn score, release year; in theaters and/or at home), fed by
+>   the daemon's `--movies`
 > - **User-configurable carousel rotation order** — drag modes into whatever
 >   order you want in the web UI, not just on/off checkboxes
 > - **Optional daemon source-IP filter** — restrict data pushes (usage/
@@ -142,6 +145,7 @@ The four above are the models this firmware is known to run on. The same cube is
 - **z.ai, Codex CLI, and Google Antigravity CLI quota pages.** Each its own logo, a quota-% fill bar per window, and a reset/expiry countdown — the same two-card layout as the Claude usage page, fed by the same daemon. The reset countdown is right-aligned on every quota card. On the Antigravity page the lower card splits in two halves (`7d ... Fl` for Gemini, `7d ... Ar` for the separate Gemini 4 Argon limit) when your account has an Argon quota, and the header shows the Antigravity logo.
 - **GitHub Copilot quota page.** The Premium allowance as the whole card on top, with Chat and Code percentages as halves below it, fed by the daemon through the GitHub CLI.
 - **Agenda + Weather/AQI.** Your next few Google Calendar events (up to 6, split across two rotating pages if you have that many), color-coded by source calendar, multi-day events shown as a compact date range instead of looking like a same-day event. A separate page shows current temperature, rain %, condition, city name, and a 6-band color-coded AQI + PM2.5 reading, plus a 3-day forecast page. Calendar comes only from the daemon. Weather and AQI are pushed by the daemon too, but the device also has its own direct Open-Meteo fallback: if the daemon goes quiet it fetches the forecast and air quality itself over plain HTTP, so a device with no daemon still shows weather. That fallback doubles as the device's reachability probe (see the offline notices below). A **next-3-hours page** follows: one thin line per upcoming hour with the hour ("08h"), icon + condition word, temperature with a degree sign, AQI on the left and rain % on the right, and a moon icon for clear hours after dark. Events that start within the hour get a **small bell** by their time and an optional light-grey frame (web-UI checkbox "Frame events starting within the hour", on by default). The weather pages repaint only when their data changes, so the daemon's periodic pushes no longer make them flicker, and temperatures on the 3-day and hourly pages carry a degree sign.
+- **Movies.** One Rotten Tomatoes Certified Fresh movie an hour, from this year or last: the title in yellow across the top, the poster on the left, and on the right one card with the Tomatometer, the Popcorn score and the release year, with a clapperboard (in theaters) or a TV (at home). Tick In theaters, At home, or both; every movie in the list is shown once before any repeats, in list order, never random. The [clawdmeter-daemon](https://github.com/kittipitch/clawdmeter-daemon) (`--movies`) reads the lists and sends the posters; the device keeps at most two on flash.
 - **It tells you when it is offline, and which side broke.** The device
   classifies its own link and takes over the screen after 30 s rather than
   quietly showing stale numbers. **DEVICE OFFLINE** (red) means this device
@@ -304,7 +308,7 @@ The PC-side usage daemon lives in its own repo: [clawdmeter-daemon](https://gith
   - [NMMiner's NM-TV-154 custom firmware guide](https://www.nmminer.com/2026/03/02/how-to-develop-nm-tv-custom-firmware/), which documents the NM-TV-154 pin map
 - The plane radar's look reimplements [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar), a sonar-style ADS-B radar for a 1.28" round display: heading triangles, speed vectors, callsign and altitude tags, and rim dots for out-of-range traffic all come from that design.
 - Claude usage mode reimplements [clawdmeter](https://github.com/HermannBjorgvin/Clawdmeter) for this hardware; the mascot frames come from [claudepix](https://claudepix.vercel.app).
-- Movies page icons (tomato, popcorn, clapperboard, television) are [Twemoji](https://github.com/jdecked/twemoji) graphics, licensed [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/); `scripts/gen_movie_icons.py` scales them to 32 px.
+- Movies page icons (tomato, popcorn, clapperboard, television) are [Twemoji](https://github.com/jdecked/twemoji) graphics, licensed [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/); `scripts/gen_movie_icons.py` scales them to 28 px.
 - Libraries: [Arduino_GFX](https://github.com/moononournation/Arduino_GFX), [ArduinoJson](https://arduinojson.org/).
 
 ## License
