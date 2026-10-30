@@ -137,6 +137,7 @@ static void drawCurrent() {
       break;
     }
     for (uint16_t i = 0; i < kPW; i++) s_row[i] = __builtin_bswap16(s_row[i]);
+    gfxToneRow(s_row, kPW);    // draw16bitRGBBitmap skips the driver's tone hooks (see Gfx.h)
     g->draw16bitRGBBitmap(0, (int16_t)y, s_row, kPW, 1);
     yield();
   }

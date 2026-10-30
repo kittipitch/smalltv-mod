@@ -30,6 +30,9 @@ Arduino_GFX* gfxDev();                 // shared draw target for feature rendere
 // 4 driver methods this hooks. rGain/gGain/bGain: 0..100, 100 = normal (lower
 // = reduce that channel). sat: 0..200, 100 = normal, >100 = boosted.
 void gfxSetTone(uint8_t rGain, uint8_t gGain, uint8_t bGain, uint8_t sat);
+// Apply the same correction to a row of RGB565 pixels in place. REQUIRED before draw16bitRGBBitmap():
+// that call writes straight to the bus and skips the driver hooks above.
+void gfxToneRow(uint16_t* px, uint32_t n);
 
 // ---- Text helpers (built-in 6x8 font, integer scaled) ---------------------
 int     gfxTextW(const char* s, uint8_t size);

@@ -30,11 +30,14 @@ static uint16_t s_sinceCk = ALBUM_CHECKPOINT_EVERY;  // force a checkpoint on th
 
 // Blit one full row. draw16bitRGBBitmap lives on Arduino_GFX itself (the
 // writeAddrWindow/writePixels pair is Arduino_TFT-only and gfxDev() hands back
-// the base type), and it still routes through the tone-corrected writePixels
-// override in Gfx.cpp, so photos get the same panel calibration as text.
+// the base type). It writes straight to the bus and does NOT pass through the
+// tone-corrected driver hooks in Gfx.cpp, so the row is corrected here first
+// (it used to be assumed otherwise; photos came out uncorrected until 2026-10-31).
 static void blitRow(uint16_t y) {
   Arduino_GFX* g = gfxDev();
-  if (g && y < kH) g->draw16bitRGBBitmap(0, (int16_t)y, s_row, kW, 1);
+  if (!g || y >= kH) return;
+  gfxToneRow(s_row, kW);
+  g->draw16bitRGBBitmap(0, (int16_t)y, s_row, kW, 1);
 }
 
 void albumRxBegin() {

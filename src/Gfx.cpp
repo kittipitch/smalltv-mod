@@ -36,6 +36,14 @@ static inline uint16_t applyTone(uint16_t c565) {
   return (uint16_t)((r5o << 11) | (g6o << 5) | b5o);
 }
 
+// Bitmaps need this explicitly: Arduino_TFT::draw16bitRGBBitmap() hands its pixels straight to the
+// bus (_bus->writePixels), bypassing the writePixels() override below, so photos and posters came out
+// uncorrected (owner 2026-10-31: "the poster ... doesnt respect the RGB scaling of the unit at all").
+void gfxToneRow(uint16_t* px, uint32_t n) {
+  if (toneIsNoop()) return;
+  for (uint32_t i = 0; i < n; i++) px[i] = applyTone(px[i]);
+}
+
 // The SmallTV's ST7789 has its CS line tied to GND and only latches SPI in
 // **mode 3**. Arduino_GFX's stock Arduino_ST7789 forces SPI_MODE2 on the ESP8266
 // (wrong clock edge for this panel), so the controller never initializes and the
