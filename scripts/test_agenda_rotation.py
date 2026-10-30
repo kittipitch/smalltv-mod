@@ -29,6 +29,9 @@ bool carouselHas(const Settings& s, const DisplayMode* m) {
   return m != &second || (s.carouselAgenda2 && events.count > 3);
 }
 void carouselNext(const Settings&) {}
+// main.cpp's carouselDwellMs() sits outside the copied slice; same rule for these modes
+// (no MODE_USAGE/MODE_STATUS doubling is exercised here).
+static uint32_t carouselDwellMs(const Settings& s, size_t) { return s.carouselSec * 1000UL; }
 '''
 cpp += selector + r'''
 int main() {
