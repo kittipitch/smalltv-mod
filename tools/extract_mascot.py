@@ -9,7 +9,7 @@ with PROGMEM so the ~33 KB of frame data lives in flash instead of the ESP8266's
 ~40 KB heap. The renderer reads cells/palette/holds back with pgm_read_*.
 
 Run from the repo root:  python tools/extract_mascot.py
-Output: src/mascot_frames.h  (do not hand-edit — re-run this instead)
+Output: src/features/usage/mascot_frames.h  (do not hand-edit — re-run this instead)
 """
 
 import re
@@ -17,15 +17,13 @@ import sys
 from pathlib import Path
 
 SRC = Path("../clawdmeter-win/firmware/src/splash_animations.h")
-OUT = Path("src/mascot_frames.h")
+OUT = Path("src/features/usage/mascot_frames.h")
 
 # (display name, source variable prefix, burn-rate group 0=idle..3=heavy)
+# Only the default animation since 2026-10-31 (owner: keep the default one; frees ~26.8 KB of flash).
+# The burn-rate picker in Mascot.cpp falls back to group 0 when a mood has no animation.
 CHOSEN = [
     ("idle breathe", "splash_idle_breathe", 0),
-    ("idle blink",   "splash_idle_blink",   0),
-    ("work coding",  "splash_work_coding",  1),
-    ("dance sway",   "splash_dance_sway",   2),
-    ("dance bounce", "splash_dance_bounce", 3),
 ]
 
 
