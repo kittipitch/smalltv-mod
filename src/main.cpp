@@ -169,6 +169,15 @@ static bool uptimeHasDown() {
 }
 #endif
 
+static bool carouselHas(const Settings& s, const DisplayMode* m);
+
+// True when some page other than m is in rotation right now.
+static bool carouselHasOther(const Settings& s, const DisplayMode* m) {
+  for (size_t i = 0; i < kModeCount; i++)
+    if (kModes[i] != m && carouselHas(s, kModes[i])) return true;
+  return false;
+}
+
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
     case MODE_USAGE:  return s.carouselUsage;
@@ -214,7 +223,9 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
       if (!u.valid) return false;
       uint32_t effAgeS = u.ageS + (millis() - u.rxMillis) / 1000;
       bool stale = effAgeS > 180;
-      if (s.statusOfflineOnly) return uptimeHasDown() || stale;
+      // The offline filter only thins a rotation: Status as the carousel's only page shows anyway
+      // (owner 2026-10-31, "if only page then it has to show anyway").
+      if (s.statusOfflineOnly && carouselHasOther(s, m)) return uptimeHasDown() || stale;
       return true;
     }
 #endif
