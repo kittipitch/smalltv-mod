@@ -225,6 +225,9 @@ void Settings::setDefaults() {
   // Off by default for the same reason; both sources on once it is ticked.
   carouselMovies = false;
   moviesTheaters = moviesHome = true;
+  animeMovies = animeSeries = true;
+  animeEnglish = false;
+  animeMinScore = 75;
   moviesDouble = false;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
@@ -340,6 +343,10 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselMovies"]    = s.carouselMovies;
   root["moviesTheaters"]    = s.moviesTheaters;
   root["moviesHome"]        = s.moviesHome;
+  root["animeMovies"]       = s.animeMovies;
+  root["animeSeries"]       = s.animeSeries;
+  root["animeEnglish"]      = s.animeEnglish;
+  root["animeMinScore"]     = s.animeMinScore;
   root["moviesDouble"]      = s.moviesDouble;
   root["carouselCodex"]     = s.carouselCodex;
   root["carouselCopilot"]   = s.carouselCopilot;
@@ -444,6 +451,10 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselMovies"].is<bool>())  s.carouselMovies = root["carouselMovies"];
   if (root["moviesTheaters"].is<bool>())  s.moviesTheaters = root["moviesTheaters"];
   if (root["moviesHome"].is<bool>())      s.moviesHome = root["moviesHome"];
+  if (root["animeMovies"].is<bool>())     s.animeMovies = root["animeMovies"];
+  if (root["animeSeries"].is<bool>())     s.animeSeries = root["animeSeries"];
+  if (root["animeEnglish"].is<bool>())    s.animeEnglish = root["animeEnglish"];
+  if (root["animeMinScore"].is<int>()) s.animeMinScore = constrain((int)root["animeMinScore"], 70, 95);
   if (root["moviesDouble"].is<bool>())    s.moviesDouble = root["moviesDouble"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
   if (root["carouselCopilot"].is<bool>()) s.carouselCopilot = root["carouselCopilot"];
