@@ -11,7 +11,8 @@ from PIL import Image
 
 SIZE = 28
 PANEL = 0x18E3                      # C_PANEL in MoviesMode.cpp
-ICONS = [("kIconTomato", "1f345"), ("kIconPopcorn", "1f37f"), ("kIconFilm", "1f3ac"), ("kIconTv", "1f4fa")]
+ICONS = [("kIconTomato", "1f345"), ("kIconPopcorn", "1f37f"), ("kIconFilm", "1f3ac"), ("kIconTv", "1f4fa"),
+         ("kIconStar", "2b50"), ("kIconMembers", "1f465")]
 root = Path(__file__).resolve().parents[1]
 src = root / "tools/movie_icons"
 out = root / "src/features/movies/MovieIcons.h"

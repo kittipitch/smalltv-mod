@@ -10,7 +10,9 @@ MoviesMode g_moviesMode;
 
 // Wire format (clawdmeter-daemon movies.pack_movie): the poster, 160 x 240 RGB565 big-endian, then an
 // 8-byte trailer 'M','V', tomatometer, popcorn, year LE, source, title length (score 255 = none; source
-// 0 = in theaters, 1 = at home), then the title as printable ASCII in a 64-byte zero-padded field. The poster is a picture; the column is drawn HERE in the device's own font,
+// 0 = in theaters, 1 = at home), then the title as printable ASCII in a 64-byte zero-padded field.
+// Anime (MyAnimeList, source 2 = anime movie, 3 = series): bytes 2-3 = score in hundredths, 4-5 = members
+// in thousands (both uint16 LE), and the 64-byte field holds the title, a 0 byte, then the season label. The poster is a picture; the column is drawn HERE in the device's own font,
 // so it matches the quota pages (owner 2026-10-31: "poster = pic and the font shud be font").
 static const uint16_t kPW = MOVIES_POSTER_W;
 static const uint16_t kPH = MOVIES_POSTER_H;
@@ -88,6 +90,29 @@ static void scoreText(uint8_t v, char* out, size_t n) {
   else snprintf(out, n, "%d%%", v);
 }
 
+// ---- anime card text (host-tested by scripts/test_anime_card.py)
+static void animeScoreText(uint16_t hundredths, char* out, size_t n) {
+  snprintf(out, n, "%u.%02u", (unsigned)(hundredths / 100), (unsigned)(hundredths % 100));
+}
+
+// Members in thousands: "218K" under a million, "2.7M" under ten million, then "65M".
+static void membersText(uint16_t k, char* out, size_t n) {
+  if (k < 1000) snprintf(out, n, "%uK", (unsigned)k);
+  else if (k < 10000) snprintf(out, n, "%u.%uM", (unsigned)(k / 1000), (unsigned)(k % 1000 / 100));
+  else snprintf(out, n, "%uM", (unsigned)(k / 1000));
+}
+
+// The season label ("Fall 26") sits after the title's 0 byte in the 64-byte field; "" when absent.
+static const char* seasonLabel(const uint8_t* t) {
+  const unsigned tl = t[7];
+  if (tl >= 63 || t[8 + tl] != 0) return "";
+  const char* lab = (const char*)t + 9 + tl;
+  for (unsigned i = 0; i < 63 - tl; i++)
+    if (!lab[i]) return lab;
+  return "";                                          // no terminator inside the field
+}
+// ---- end anime card text
+
 // The right column: ONE rounded card like the quota pages holding three items (tomato + score, popcorn
 // + score, film/TV + year), spaced evenly by ink: the gap above the first, between items and below the
 // last is the same. Item = 28 px Twemoji icon, 8 px gap, text ink (glcd: 7 rows per size step; "--" inks
@@ -149,10 +174,17 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   // The items always sit under ONE title line (size 2 inks 14 rows), gaps all equal; a second line is
   // drawn over the tomato rather than pushing the card down (owner 2026-10-31).
   const int top = nl ? kTitleY + 14 : 4, h = 236 - top;
-  char txt[3][8];
-  scoreText(t[2], txt[0], sizeof(txt[0]));
-  scoreText(t[3], txt[1], sizeof(txt[1]));
-  snprintf(txt[2], sizeof(txt[2]), "%u", (unsigned)(t[4] | (t[5] << 8)));
+  char txt[3][10];
+  const bool anime = t[6] >= 2;
+  if (anime) {   // star + score, members, season (owner 2026-11-01)
+    animeScoreText((uint16_t)(t[2] | (t[3] << 8)), txt[0], sizeof(txt[0]));
+    membersText((uint16_t)(t[4] | (t[5] << 8)), txt[1], sizeof(txt[1]));
+    strlcpy(txt[2], seasonLabel(t), sizeof(txt[2]));
+  } else {
+    scoreText(t[2], txt[0], sizeof(txt[0]));
+    scoreText(t[3], txt[1], sizeof(txt[1]));
+    snprintf(txt[2], sizeof(txt[2]), "%u", (unsigned)(t[4] | (t[5] << 8)));
+  }
   const uint8_t maxSz[3] = {3, 3, 2};                // year smaller than the scores (owner)
   uint8_t sz[3];
   int inkTop[3], inkH[3], used = 0;
@@ -168,7 +200,9 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   g->fillRoundRect(x, 4, w, 232, 8, C_PANEL);
   int y = top + sp + (h - used - 4 * sp) / 2;        // centre the rounding remainder
   for (int i = 0; i < 3; i++) {
-    const uint16_t* art = i == 0 ? kIconTomato : i == 1 ? kIconPopcorn : t[6] == 0 ? kIconFilm : kIconTv;
+    const uint16_t* art = i == 0 ? (anime ? kIconStar : kIconTomato)
+                        : i == 1 ? (anime ? kIconMembers : kIconPopcorn)
+                        : (t[6] == 0 || t[6] == 2) ? kIconFilm : kIconTv;   // film: in theaters / anime movie
     drawIcon(g, art, cx, y);
     drawCentered(g, cx, y + iconH + gapIT - inkTop[i], txt[i], sz[i], inner);
     y += iconH + gapIT + inkH[i] + sp;
