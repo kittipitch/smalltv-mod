@@ -28,6 +28,7 @@ bool moviesPromote();
 bool moviesHasCurrent();
 // True while the Movies page is the one on screen (main.cpp owns the carousel).
 bool moviesPageIsUp();
+extern uint32_t g_moviesDrawMs;   // last full paint of the page, ms (diagnostics)
 
 class MoviesMode : public DisplayMode {
  public:

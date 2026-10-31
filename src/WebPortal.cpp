@@ -1,4 +1,5 @@
 #include "WebPortal.h"
+const char* statusPage(uint32_t* upMs);   // main.cpp
 #include "OfflineScreen.h"   // linkState() for the /api/status "link" field
 #include "Platform.h"
 #include <ArduinoJson.h>
@@ -213,6 +214,11 @@ static void handleStatus() {
   o["ip"] = netIP();
   o["rssi"] = netRSSI();
   o["heap"] = ESP.getFreeHeap();
+  { uint32_t up; const char* pg = statusPage(&up);   // carousel diagnostics: which page, up how long
+    if (*pg) { o["page"] = pg; o["pageMs"] = up; } }
+#if WITH_MOVIES
+  o["moviesDrawMs"] = g_moviesDrawMs;
+#endif
   o["maxblk"] = platformMaxFreeBlock();   // largest contiguous block (TLS handshake needs one)
   #if WITH_CALENDAR && WITH_DEVICE_WEATHER
   // Device-direct weather fetch outcome -- this board has no serial, so the

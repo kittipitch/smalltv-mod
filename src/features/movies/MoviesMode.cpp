@@ -176,9 +176,12 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   drawTitle(g, lines, nl);
 }
 
+uint32_t g_moviesDrawMs = 0;   // last full paint, for /api/status (it eats into the page's dwell)
+
 static void drawCurrent() {
   Arduino_GFX* g = gfxDev();
   if (!g) return;
+  const uint32_t t0 = millis();
   File f = LittleFS.open(MOVIES_PATH, "r");
   uint8_t t[72] = {0};
   bool ok = f && f.size() == kFrameBytes && f.seek(kPosterBytes) && f.read(t, 72) == 72 &&
@@ -200,6 +203,7 @@ static void drawCurrent() {
   }
   f.close();
   drawColumn(g, t);
+  g_moviesDrawMs = millis() - t0;
 }
 
 bool moviesPromote() {

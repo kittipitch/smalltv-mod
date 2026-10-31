@@ -366,6 +366,15 @@ bool moviesPageIsUp() {
 }
 #endif
 
+// The page on screen and how long it has been up, for /api/status (owner 2026-10-31 doubted the Movies page got
+// its full interval: this measures it). Carousel only; "" otherwise.
+const char* statusPage(uint32_t* upMs) {
+  *upMs = 0;
+  if (g_settings.mode != MODE_CAROUSEL || kModeCount == 0) return "";
+  *upMs = millis() - g_carSwitch;
+  return kModes[g_carOrder[g_carIdx]]->id();
+}
+
 static String   g_resetReason;        // why the chip last reset (diagnostics)
 static bool     g_safeMode = false;   // last reset was an exception -> don't re-enter the crash
 static char     g_epcStr[16] = "";
