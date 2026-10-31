@@ -124,6 +124,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <div id="moviesControl" style="display:none;flex-direction:column;gap:0">
     <label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal"><input id="moviesTheaters" type="checkbox" checked> In theaters</label>
     <label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal"><input id="moviesHome" type="checkbox" checked> At home (streaming)</label>
+    <label class="chk" style="display:flex;align-items:center;gap:4px;margin:6px 0;font-weight:normal"><input id="moviesDouble" type="checkbox"> Show Movies twice as long (in the carousel)</label>
    </div>
    <small class="hint">Pick the active feature. Usage and Radar each have their own settings tab; Next event/Weather share the <b>Agenda &amp; weather</b> tab. Z.AI quota needs the daemon's <code>--zai</code> flag configured; Codex quota needs <code>--codex</code> plus <code>codex login</code> already done on the daemon's machine (no separate API key or cost -- rides your existing ChatGPT plan usage); Copilot quota needs <code>--copilot</code> plus <code>gh auth login</code> with Copilot access on the daemon's machine (one read-only GitHub quota request per poll, no model call); Antigravity quota needs <code>--antigravity</code> plus <code>agy</code> authenticated on the daemon's machine (UNLIKE Codex and Copilot, this fires a real cheap-model prompt every poll -- a real cost, kept to a long default interval) -- these pages stay out of the carousel rotation until actually pushed data. Carousel rotates through the ticked features, in the order shown -- use the arrows to reorder. In Pictures-only mode this same interval is how long each photo stays on screen.</small>
   </div>
@@ -696,7 +697,7 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // it has no option for yet (Movies is not in the static HTML), so Movies came back as "Claude usage".
  $('mode').value=c.mode||'carousel'; modeChanged();
  sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselMovies',c.carouselMovies===true); sc('moviesTheaters',c.moviesTheaters!==false); sc('moviesHome',c.moviesHome!==false); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
+ sc('carouselAgenda',c.carouselAgenda!==false); sc('carouselAgenda2',c.carouselAgenda2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselHourly',c.carouselHourly!==false); sc('carouselForecast',c.carouselForecast!==false); sc('carouselZai',c.carouselZai!==false); sc('carouselCodex',c.carouselCodex!==false); sc('carouselAntigravity',c.carouselAntigravity!==false); sc('carouselMovies',c.carouselMovies===true); sc('moviesTheaters',c.moviesTheaters!==false); sc('moviesHome',c.moviesHome!==false); sc('moviesDouble',!!c.moviesDouble); sc('carouselStatus',c.carouselStatus!==false); sc('statusOfflineOnly',!!c.statusOfflineOnly); sc('carouselAlbum',c.carouselAlbum===true);
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -754,7 +755,7 @@ function collect(){
   carouselSec:parseInt(gv('carouselSec'))||60,
   carouselOrder:carOrder.join(','),
   carouselUsage:gc('carouselUsage'), carouselRadar:gc('carouselRadar'),
-  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselMovies:gc('carouselMovies'), moviesTheaters:gc('moviesTheaters'), moviesHome:gc('moviesHome'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
+  carouselAgenda:gc('carouselAgenda'), carouselAgenda2:gc('carouselAgenda2'), carouselWeather:gc('carouselWeather'), carouselHourly:gc('carouselHourly'), carouselForecast:gc('carouselForecast'), carouselZai:gc('carouselZai'), carouselCodex:gc('carouselCodex'), carouselAntigravity:gc('carouselAntigravity'), carouselMovies:gc('carouselMovies'), moviesTheaters:gc('moviesTheaters'), moviesHome:gc('moviesHome'), moviesDouble:gc('moviesDouble'), carouselStatus:gc('carouselStatus'), statusOfflineOnly:gc('statusOfflineOnly'), carouselAlbum:gc('carouselAlbum'),
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

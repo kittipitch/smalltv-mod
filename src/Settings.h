@@ -132,6 +132,7 @@ struct Settings {
   uint16_t carouselSec;
   bool carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselHourly, carouselForecast, carouselZai, carouselCodex, carouselCopilot, carouselAntigravity, carouselStatus, carouselAlbum, carouselMovies;
   bool moviesTheaters, moviesHome;  // Movies sub-options; the daemon reads them from /api/config
+  bool moviesDouble;                // Movies page stays twice the carousel interval (owner 2026-10-31)
   bool statusOfflineOnly;  // checkbox: Show Status page only when something is offline
   // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather"),
   // user-defined rotation order via the web UI's up/down arrows. Empty =

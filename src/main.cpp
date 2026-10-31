@@ -257,6 +257,9 @@ static uint32_t carouselDwellMs(const Settings& s, size_t real) {
   uint32_t d = (uint32_t)s.carouselSec * 1000UL;
   const uint8_t mc = kModes[real]->modeConst();
   if (mc == MODE_USAGE) d *= 2;
+#if WITH_MOVIES
+  if (mc == MODE_MOVIES && s.moviesDouble) d *= 2;   // "Show Movies twice as long" box
+#endif
 #if WITH_CALENDAR
   if (mc == MODE_STATUS && uptimeHasDown()) d *= 2;
 #endif

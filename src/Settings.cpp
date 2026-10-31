@@ -225,6 +225,7 @@ void Settings::setDefaults() {
   // Off by default for the same reason; both sources on once it is ticked.
   carouselMovies = false;
   moviesTheaters = moviesHome = true;
+  moviesDouble = false;
   carouselOrder = "";
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -339,6 +340,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselMovies"]    = s.carouselMovies;
   root["moviesTheaters"]    = s.moviesTheaters;
   root["moviesHome"]        = s.moviesHome;
+  root["moviesDouble"]      = s.moviesDouble;
   root["carouselCodex"]     = s.carouselCodex;
   root["carouselCopilot"]   = s.carouselCopilot;
   root["carouselAntigravity"] = s.carouselAntigravity;
@@ -442,6 +444,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselMovies"].is<bool>())  s.carouselMovies = root["carouselMovies"];
   if (root["moviesTheaters"].is<bool>())  s.moviesTheaters = root["moviesTheaters"];
   if (root["moviesHome"].is<bool>())      s.moviesHome = root["moviesHome"];
+  if (root["moviesDouble"].is<bool>())    s.moviesDouble = root["moviesDouble"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
   if (root["carouselCopilot"].is<bool>()) s.carouselCopilot = root["carouselCopilot"];
   if (root["carouselAntigravity"].is<bool>()) s.carouselAntigravity = root["carouselAntigravity"];
