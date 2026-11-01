@@ -122,12 +122,18 @@ static const char* seasonLabel(const uint8_t* t) {
 // 240 px), word-wrapped; a longer title ends in "..." on the second line. Returns the number of lines.
 // ---- title text
 static const int kTitleCols = 20, kTitleLines = 2, kTitleY = 4, kTitlePitch = 18;
-static const uint8_t kTitleLumBright = 160;   // poster band luminance at/above which the title fills black
 static void upperAscii(char* s) {
   for (; *s; s++)
     if (*s >= 'a' && *s <= 'z') *s -= 32;
 }
-static bool titleBright(uint8_t luma) { return luma >= kTitleLumBright; }
+// Trailer byte 69 = 0xC5 marks the daemon's title colour in bytes 70-71 (RGB565 LE). Its value is not ASCII, so
+// the last letters of an older frame's long title cannot pass for it; such a frame stays yellow and may
+// use the whole field for its title.
+static bool titleHasColor(const uint8_t* t) { return t[69] == 0xC5; }
+static uint16_t titleColor(const uint8_t* t) {
+  return titleHasColor(t) ? (uint16_t)(t[70] | (t[71] << 8)) : 0xFFE0;   // 0xFFE0 = C_YELLOW
+}
+static uint8_t titleMaxLen(const uint8_t* t) { return titleHasColor(t) ? 60 : 63; }
 static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
   int n = 0;
   while (n < kTitleLines) {
@@ -156,19 +162,21 @@ static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
 }
 // ---- end title text
 
-// The title prints in bold ALL CAPS with no outline (owner 2026-11-01). Its colour comes from the frame's
-// final byte, the mean luminance of the poster's top 40 rows that the daemon measures (the device has no
-// framebuffer to sample): purple, yellow's opposite on the colour wheel, over a bright band, yellow over a
-// dark one. The font has no bold face, so each line prints twice, 1 px apart.
-static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n, bool bright) {
+// The title prints in bold ALL CAPS with no outline (owner 2026-11-01). The daemon samples the top 20% of the
+// poster and sends the opposite colour; letters past the poster sit on the dark card, where that colour may
+// not read, so they stay yellow. The font has no bold face: each letter prints twice, 1 px apart.
+static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n, uint16_t color) {
   g->setTextSize(2);
-  g->setTextColor(bright ? C_PURPLE : C_YELLOW);
   for (int l = 0; l < n; l++) {
-    const int x = (240 - gfxTextW(lines[l], 2)) / 2, y = kTitleY + l * kTitlePitch;
-    g->setCursor(x, y);
-    g->print(lines[l]);
-    g->setCursor(x + 1, y);
-    g->print(lines[l]);
+    const int y = kTitleY + l * kTitlePitch;
+    int x = (240 - gfxTextW(lines[l], 2)) / 2;
+    for (const char* c = lines[l]; *c; c++, x += 12) {
+      g->setTextColor(x + 6 < kPW ? color : C_YELLOW);
+      g->setCursor(x, y);
+      g->print(*c);
+      g->setCursor(x + 1, y);
+      g->print(*c);
+    }
   }
 }
 
@@ -176,7 +184,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const int x = kPW + 4, w = 240 - kPW - 8, cx = x + w / 2, inner = w - 6;
   const int iconH = MOVIE_ICON_PX, gapIT = 8;
   char title[kTitleCols * 4 + 1], lines[kTitleLines][kTitleCols + 1];
-  const uint8_t tl = t[7] <= 63 ? t[7] : 63;   // byte 63 of the field is the luminance: never a title char
+  const uint8_t tl = t[7] <= titleMaxLen(t) ? t[7] : titleMaxLen(t);
   memcpy(title, t + 8, tl);
   title[tl] = 0;
   upperAscii(title);
@@ -217,7 +225,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
     drawCentered(g, cx, y + iconH + gapIT - inkTop[i], txt[i], sz[i], inner);
     y += iconH + gapIT + inkH[i] + sp;
   }
-  drawTitle(g, lines, nl, titleBright(t[71]));
+  drawTitle(g, lines, nl, titleColor(t));
 }
 
 uint32_t g_moviesDrawMs = 0;   // last full paint, for /api/status (it eats into the page's dwell)
