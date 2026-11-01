@@ -454,7 +454,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["animeMovies"].is<bool>())     s.animeMovies = root["animeMovies"];
   if (root["animeSeries"].is<bool>())     s.animeSeries = root["animeSeries"];
   if (root["animeEnglish"].is<bool>())    s.animeEnglish = root["animeEnglish"];
-  if (root["animeMinScore"].is<int>()) s.animeMinScore = constrain((int)root["animeMinScore"], 70, 95);
+  if (root["animeMinScore"].is<int>()) s.animeMinScore = constrain((int)root["animeMinScore"], 50, 95);
   if (root["moviesDouble"].is<bool>())    s.moviesDouble = root["moviesDouble"];
   if (root["carouselCodex"].is<bool>())   s.carouselCodex = root["carouselCodex"];
   if (root["carouselCopilot"].is<bool>()) s.carouselCopilot = root["carouselCopilot"];

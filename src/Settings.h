@@ -133,7 +133,7 @@ struct Settings {
   bool carouselUsage, carouselRadar, carouselAgenda, carouselAgenda2, carouselWeather, carouselHourly, carouselForecast, carouselZai, carouselCodex, carouselCopilot, carouselAntigravity, carouselStatus, carouselAlbum, carouselMovies;
   bool moviesTheaters, moviesHome;  // Movies sub-options; the daemon reads them from /api/config
   bool animeMovies, animeSeries, animeEnglish;  // MyAnimeList anime on the Movies page (daemon reads them too)
-  uint8_t animeMinScore;                        // anime star threshold in tenths, 70..95 (7.5 = 75)
+  uint8_t animeMinScore;                        // anime star threshold in tenths, 50..95 (7.5 = 75)
   bool moviesDouble;                // Movies page stays twice the carousel interval (owner 2026-10-31)
   bool statusOfflineOnly;  // checkbox: Show Status page only when something is offline
   // Comma-separated mode id()s (e.g. "usage,zai,agenda,weather"),
