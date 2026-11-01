@@ -126,6 +126,34 @@ static void upperAscii(char* s) {
   for (; *s; s++)
     if (*s >= 'a' && *s <= 'z') *s -= 32;
 }
+// "SEASON 2" and "2ND SEASON" -> "S2" (owner 2026-11-01), in an uppercased title. Only ever shortens, in place.
+static bool isDigit(char c) { return c >= '0' && c <= '9'; }
+static void shortSeason(char* s) {
+  char* word = strstr(s, "SEASON");
+  if (!word || (word > s && word[-1] != ' ')) return;
+  char* from = word;                                // start of the part being replaced
+  const char* num = word + 7, *rest;                // the number, and what follows the replaced part
+  int digits = 0;
+  if (word[6] == ' ' && isDigit(*num)) {            // SEASON 2
+    while (isDigit(num[digits])) digits++;
+    rest = num + digits;
+    if (*rest && *rest != ' ') return;
+  } else {                                          // 2ND SEASON
+    if ((word[6] && word[6] != ' ') || word - s < 4 || word[-1] != ' ') return;
+    const char* suffix = word - 3;
+    if (strncmp(suffix, "ST", 2) && strncmp(suffix, "ND", 2) && strncmp(suffix, "RD", 2) && strncmp(suffix, "TH", 2)) return;
+    from = (char*)suffix;
+    while (from > s && isDigit(from[-1])) from--;
+    digits = (int)(suffix - from);
+    if (!digits || (from > s && from[-1] != ' ')) return;
+    num = from;
+    rest = word + 6;
+  }
+  memmove(from + 1, num, digits);                   // before the S: in "2ND" the digit is at `from`
+  *from = 'S';
+  memmove(from + 1 + digits, rest, strlen(rest) + 1);
+}
+
 // The see-through banner behind the title (owner 2026-11-01): only the rows of the lines in use and only as wide as
 // each line's letters. The device has no framebuffer, so the poster is dimmed as it is drawn.
 static const uint8_t kBannerPct = 45;   // poster brightness behind the letters
@@ -194,6 +222,7 @@ static int titleLines(const uint8_t* t, char lines[kTitleLines][kTitleCols + 1])
   memcpy(title, t + 8, tl);
   title[tl] = 0;
   upperAscii(title);
+  shortSeason(title);
   return wrapTitle(title, lines);
 }
 

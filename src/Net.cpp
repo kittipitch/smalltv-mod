@@ -17,8 +17,19 @@ static uint32_t    g_discCount = 0;      // up -> down transitions seen by netLo
 #define ROT_DWELL_MAX_MS  600000UL
 static uint32_t    g_rotDwellMs = ROT_DWELL_MIN_MS;
 static uint32_t    g_nextRotMs  = 0;
+static uint32_t    g_apIdleSince = 0;    // millis() the setup page was last in use, or came up
+
+// ---- ap retry
+// On the setup page with networks saved, try them again by itself (owner 2026-11-01): one failed join at boot used to
+// need a person. Never while someone is connected to the page, so nobody is cut off while typing.
+static const uint32_t kApRetryMs = 180000UL;
+static bool apShouldRetry(uint8_t savedNets, uint8_t stations, uint32_t idleMs) {
+  return savedNets > 0 && stations == 0 && idleMs >= kApRetryMs;
+}
+// ---- end ap retry
 
 static void startAP(const Settings& s) {
+  g_apIdleSince = millis();
   g_mode = NET_AP;
   WiFi.mode(WIFI_AP);
   IPAddress apIP(192, 168, 4, 1);
@@ -127,6 +138,10 @@ void netBegin(const Settings& s, void (*onProgress)(const char*)) {
 void netLoop() {
   if (g_mode == NET_AP) {
     g_dns.processNextRequest();
+    const uint8_t stations = WiFi.softAPgetStationNum();
+    if (stations) g_apIdleSince = millis();
+    // A restart repeats the boot's whole join sequence; no second connect path to keep correct.
+    if (g_cfg && apShouldRetry(g_cfg->wifiCount, stations, millis() - g_apIdleSince)) ESP.restart();
     return;
   }
   // STA: keep mDNS alive and let the SDK own reconnection. Never scan here -- it

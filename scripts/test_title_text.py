@@ -28,6 +28,23 @@ int main() {
   upperAscii(up);
   check(up, "THE APOTHECARY DIARIES 3");     // digits and spaces untouched
 
+  // "SEASON 2" and "2ND SEASON" both shorten to "S2" (owner 2026-11-01).
+  const char* cases[][2] = {
+    {"AO ASHI SEASON 2", "AO ASHI S2"},
+    {"KOORI NO JOUHEKI 2ND SEASON", "KOORI NO JOUHEKI S2"},
+    {"KUSURIYA NO HITORIGOTO 3RD SEASON", "KUSURIYA NO HITORIGOTO S3"},
+    {"SHOW 1ST SEASON PART 2", "SHOW S1 PART 2"},
+    {"SHOW SEASON 12 PART 2", "SHOW S12 PART 2"},
+    {"SEASON 3", "S3"},
+    {"THE LAST SEASON", "THE LAST SEASON"},       // no number: keep
+    {"SEASONS 2", "SEASONS 2"},                   // another word
+    {"OFFSEASON 2", "OFFSEASON 2"},               // inside a word
+    {"SEASON", "SEASON"},
+    {"FRIEREN", "FRIEREN"},
+    {"", ""},
+  };
+  for (auto& c : cases) { strcpy(up, c[0]); shortSeason(up); check(up, c[1]); }
+
   char lines[2][kTitleCols + 1], w[64];
   strcpy(w, "kusuriya no hitorigoto"); upperAscii(w);
   assert(wrapTitle(w, lines) == 2);
