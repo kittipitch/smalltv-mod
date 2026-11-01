@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Movie/anime title text: compile the title helpers from MoviesMode.cpp on the host and check what
-they do. The title prints in ALL CAPS (owner 2026-11-01); the frame's final byte carries the poster
-band's luminance and the title fills black with a yellow outline when that band is bright (yellow on
-bright posters is hard to read). Run from the repo root."""
+they do. The title prints in bold yellow ALL CAPS on a see-through banner fitted to each line (owner
+2026-11-01). Run from the repo root."""
 import subprocess
 import tempfile
 from pathlib import Path
@@ -41,23 +40,30 @@ int main() {
   assert(wrapTitle(w, lines) == 2);
   check(lines[1] + strlen(lines[1]) - 3, "...");                       // ends in "..."
 
-  uint8_t t[72] = {0};
-  assert(titleColor(t) == 0xFFE0);                     // old frame, no marker: yellow
-  assert(titleMaxLen(t) == 63);
-  t[69] = 0xC5; t[70] = 0x10; t[71] = 0x80;
-  assert(titleColor(t) == 0x8010);                     // marked: RGB565 little-endian
-  assert(titleMaxLen(t) == 60);
-  t[69] = 'x';
-  assert(titleColor(t) == 0xFFE0);                     // an old long title's letter is not a marker
+  // Banner: only as tall as the lines in use, only as wide as each line's letters, inside the poster.
+  assert(titleBandRow(0, 2) && titleBandRow(0, 19) && !titleBandRow(0, 1) && !titleBandRow(0, 20));
+  assert(titleBandRow(1, 20) && titleBandRow(1, 37) && !titleBandRow(1, 19) && !titleBandRow(1, 38));
+  int x0, x1;
+  titleBandX("TUNER", 160, &x0, &x1);
+  assert(x0 == 88 && x1 == 152);
+  titleBandX("KOORI NO JOUHEKI 2ND", 160, &x0, &x1);
+  assert(x0 == 0 && x1 == 160);
+  // See-through: each channel kept at kBannerPct percent, so the poster still shows.
+  assert(kBannerPct == 45);
+  uint16_t row[4] = {0xFFFF, 0x0000, 0xFFFF, 0xF800};
+  dimPixels(row, 1, 4);
+  assert(row[0] == 0xFFFF && row[1] == 0x0000);        // outside the range: untouched
+  assert(row[2] == ((13 << 11) | (28 << 5) | 13));     // white
+  assert(row[3] == (13 << 11));                        // red
   printf("ok\n");
 }
 '''
-# Colour and weight (owner 2026-11-01): the daemon works out the colour; the device prints bold (twice, 1 px
-# apart), no outline, and any letter over the dark card stays yellow.
+# Look (owner 2026-11-01): bold plain yellow, no outline, on a see-through banner fitted to each line.
 draw = cpp[cpp.index("static void drawTitle"):cpp.index("static void drawColumn")]
-assert "C_BLACK" not in draw and "C_PURPLE" not in draw and "C_BLUE" not in draw, "no fixed poster colour, no outline"
+assert "g->setTextColor(C_YELLOW);" in draw and "C_BLACK" not in draw, "plain yellow, no outline"
 assert "x + 1" in draw and draw.count("g->print(") == 2, "bold: printed twice, 1 px apart"
-assert "< kPW ? color : C_YELLOW" in draw, "over the poster the daemon's colour, over the card yellow"
+current = cpp[cpp.index("static void drawCurrent"):cpp.index("bool moviesPromote")]
+assert current.index("dimPixels(") < current.index("gfxToneRow("), "the poster is dimmed as it is drawn, before the tone step"
 
 with tempfile.TemporaryDirectory() as d:
     (Path(d) / "t.cpp").write_text(src)

@@ -126,14 +126,25 @@ static void upperAscii(char* s) {
   for (; *s; s++)
     if (*s >= 'a' && *s <= 'z') *s -= 32;
 }
-// Trailer byte 69 = 0xC5 marks the daemon's title colour in bytes 70-71 (RGB565 LE). Its value is not ASCII, so
-// the last letters of an older frame's long title cannot pass for it; such a frame stays yellow and may
-// use the whole field for its title.
-static bool titleHasColor(const uint8_t* t) { return t[69] == 0xC5; }
-static uint16_t titleColor(const uint8_t* t) {
-  return titleHasColor(t) ? (uint16_t)(t[70] | (t[71] << 8)) : 0xFFE0;   // 0xFFE0 = C_YELLOW
+// The see-through banner behind the title (owner 2026-11-01): only the rows of the lines in use and only as wide as
+// each line's letters. The device has no framebuffer, so the poster is dimmed as it is drawn.
+static const uint8_t kBannerPct = 45;   // poster brightness behind the letters
+static bool titleBandRow(int line, int y) {
+  const int top = kTitleY + line * kTitlePitch;
+  return y >= top - 2 && y <= top + 15;
 }
-static uint8_t titleMaxLen(const uint8_t* t) { return titleHasColor(t) ? 60 : 63; }
+static void titleBandX(const char* line, int posterW, int* x0, int* x1) {
+  const int w = (int)strlen(line) * 12, x = (240 - w) / 2;
+  *x0 = x > 2 ? x - 2 : 0;
+  *x1 = x + w + 2 < posterW ? x + w + 2 : posterW;
+}
+static void dimPixels(uint16_t* row, int x0, int x1) {
+  for (int i = x0; i < x1; i++) {
+    const uint16_t v = row[i];
+    row[i] = (uint16_t)((((v >> 11) * kBannerPct / 100) << 11) | ((((v >> 5) & 63) * kBannerPct / 100) << 5) |
+                        ((v & 31) * kBannerPct / 100));
+  }
+}
 static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
   int n = 0;
   while (n < kTitleLines) {
@@ -162,33 +173,35 @@ static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
 }
 // ---- end title text
 
-// The title prints in bold ALL CAPS with no outline (owner 2026-11-01). The daemon samples the top 20% of the
-// poster and sends the opposite colour; letters past the poster sit on the dark card, where that colour may
-// not read, so they stay yellow. The font has no bold face: each letter prints twice, 1 px apart.
-static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n, uint16_t color) {
+// Bold plain yellow ALL CAPS, no outline (owner 2026-11-01). The font has no bold face, so each line prints twice,
+// 1 px apart.
+static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n) {
   g->setTextSize(2);
+  g->setTextColor(C_YELLOW);
   for (int l = 0; l < n; l++) {
-    const int y = kTitleY + l * kTitlePitch;
-    int x = (240 - gfxTextW(lines[l], 2)) / 2;
-    for (const char* c = lines[l]; *c; c++, x += 12) {
-      g->setTextColor(x + 6 < kPW ? color : C_YELLOW);
-      g->setCursor(x, y);
-      g->print(*c);
-      g->setCursor(x + 1, y);
-      g->print(*c);
-    }
+    const int x = (240 - gfxTextW(lines[l], 2)) / 2, y = kTitleY + l * kTitlePitch;
+    g->setCursor(x, y);
+    g->print(lines[l]);
+    g->setCursor(x + 1, y);
+    g->print(lines[l]);
   }
+}
+
+// The trailer's title, uppercased and wrapped. The frame's final byte is not title text.
+static int titleLines(const uint8_t* t, char lines[kTitleLines][kTitleCols + 1]) {
+  char title[kTitleCols * 4 + 1];
+  const uint8_t tl = t[7] <= 63 ? t[7] : 63;
+  memcpy(title, t + 8, tl);
+  title[tl] = 0;
+  upperAscii(title);
+  return wrapTitle(title, lines);
 }
 
 static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const int x = kPW + 4, w = 240 - kPW - 8, cx = x + w / 2, inner = w - 6;
   const int iconH = MOVIE_ICON_PX, gapIT = 8;
-  char title[kTitleCols * 4 + 1], lines[kTitleLines][kTitleCols + 1];
-  const uint8_t tl = t[7] <= titleMaxLen(t) ? t[7] : titleMaxLen(t);
-  memcpy(title, t + 8, tl);
-  title[tl] = 0;
-  upperAscii(title);
-  const int nl = wrapTitle(title, lines);
+  char lines[kTitleLines][kTitleCols + 1];
+  const int nl = titleLines(t, lines);
   // The items always sit under ONE title line (size 2 inks 14 rows), gaps all equal; a second line is
   // drawn over the tomato rather than pushing the card down (owner 2026-10-31).
   const int top = nl ? kTitleY + 14 : 4, h = 236 - top;
@@ -225,7 +238,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
     drawCentered(g, cx, y + iconH + gapIT - inkTop[i], txt[i], sz[i], inner);
     y += iconH + gapIT + inkH[i] + sp;
   }
-  drawTitle(g, lines, nl, titleColor(t));
+  drawTitle(g, lines, nl);
 }
 
 uint32_t g_moviesDrawMs = 0;   // last full paint, for /api/status (it eats into the page's dwell)
@@ -243,12 +256,21 @@ static void drawCurrent() {
     drawWaiting();
     return;
   }
+  char lines[kTitleLines][kTitleCols + 1];
+  const int nl = titleLines(t, lines);
   for (uint16_t y = 0; y < kPH; y++) {
     if (f.read((uint8_t*)s_row, kPW * 2) != (int)(kPW * 2)) {
       g->fillRect(0, (int16_t)y, kPW, (int16_t)(kPH - y), C_BLACK);   // damaged file: no stale pixels
       break;
     }
     for (uint16_t i = 0; i < kPW; i++) s_row[i] = __builtin_bswap16(s_row[i]);
+    for (int l = 0; l < nl; l++) {
+      if (titleBandRow(l, y)) {
+        int x0, x1;
+        titleBandX(lines[l], kPW, &x0, &x1);
+        dimPixels(s_row, x0, x1);
+      }
+    }
     gfxToneRow(s_row, kPW);    // draw16bitRGBBitmap skips the driver's tone hooks (see Gfx.h)
     g->draw16bitRGBBitmap(0, (int16_t)y, s_row, kPW, 1);
     yield();
