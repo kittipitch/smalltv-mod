@@ -156,15 +156,18 @@ static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
 }
 // ---- end title text
 
-// The title prints in ALL CAPS (owner 2026-11-01), plain — no outline (owner 2026-11-01). Its colour
-// comes from the frame's final byte, the mean luminance of the poster's top 40 rows that the daemon
-// measures (the device has no framebuffer to sample): blue — yellow's colour-wheel opposite — over a
-// bright band, yellow over a dark one.
+// The title prints in bold ALL CAPS with no outline (owner 2026-11-01). Its colour comes from the frame's
+// final byte, the mean luminance of the poster's top 40 rows that the daemon measures (the device has no
+// framebuffer to sample): purple, yellow's opposite on the colour wheel, over a bright band, yellow over a
+// dark one. The font has no bold face, so each line prints twice, 1 px apart.
 static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n, bool bright) {
   g->setTextSize(2);
-  g->setTextColor(bright ? C_BLUE : C_YELLOW);
+  g->setTextColor(bright ? C_PURPLE : C_YELLOW);
   for (int l = 0; l < n; l++) {
-    g->setCursor((240 - gfxTextW(lines[l], 2)) / 2, kTitleY + l * kTitlePitch);
+    const int x = (240 - gfxTextW(lines[l], 2)) / 2, y = kTitleY + l * kTitlePitch;
+    g->setCursor(x, y);
+    g->print(lines[l]);
+    g->setCursor(x + 1, y);
     g->print(lines[l]);
   }
 }

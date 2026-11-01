@@ -18,6 +18,7 @@ class Arduino_GFX;   // fwd-decl: only the drawing .cpp files pull in the full l
 #define C_DGRAY  0x4208
 #define C_YELLOW 0xFFE0
 #define C_BLUE   0x041F
+#define C_PURPLE 0x8010
 
 // ---- Device lifecycle -----------------------------------------------------
 void         gfxBegin(const Settings& s);

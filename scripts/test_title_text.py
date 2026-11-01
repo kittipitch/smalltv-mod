@@ -46,6 +46,15 @@ int main() {
   printf("ok\n");
 }
 '''
+# Colour and weight (owner 2026-11-01): purple, yellow's opposite on the colour wheel, over a bright band;
+# bold = each line printed twice, 1 px apart; never an outline.
+gfx = (root / "src/Gfx.h").read_text()
+assert "#define C_PURPLE 0x8010" in gfx, "C_PURPLE must be #800080 in RGB565"
+draw = cpp[cpp.index("static void drawTitle"):cpp.index("static void drawColumn")]
+assert "bright ? C_PURPLE : C_YELLOW" in draw, "title colour"
+assert "C_BLUE" not in draw and "C_BLACK" not in draw, "no blue, no outline colour"
+assert draw.count("g->print(lines[l])") == 2 and "x + 1" in draw, "bold: printed twice, 1 px apart"
+
 with tempfile.TemporaryDirectory() as d:
     (Path(d) / "t.cpp").write_text(src)
     r = subprocess.run(["c++", "-std=c++14", "-Wall", "-Wextra", "-Werror", "-o", f"{d}/t", f"{d}/t.cpp"], capture_output=True, text=True)
