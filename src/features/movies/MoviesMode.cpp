@@ -120,7 +120,14 @@ static const char* seasonLabel(const uint8_t* t) {
 // The title runs across the top of the screen, over the poster and the card (owner 2026-10-31), in
 // yellow at the year's size: at most two centred lines of 20 characters (size 2 = 12 px a character on
 // 240 px), word-wrapped; a longer title ends in "..." on the second line. Returns the number of lines.
+// ---- title text
 static const int kTitleCols = 20, kTitleLines = 2, kTitleY = 4, kTitlePitch = 18;
+static const uint8_t kTitleLumBright = 160;   // poster band luminance at/above which the title fills black
+static void upperAscii(char* s) {
+  for (; *s; s++)
+    if (*s >= 'a' && *s <= 'z') *s -= 32;
+}
+static bool titleBright(uint8_t luma) { return luma >= kTitleLumBright; }
 static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
   int n = 0;
   while (n < kTitleLines) {
@@ -147,17 +154,22 @@ static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
   }
   return n;
 }
+// ---- end title text
 
-// Yellow with a 1 px black outline, so it reads over any poster.
-static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n) {
+// The title prints in ALL CAPS (owner 2026-11-01). Its colour comes from the frame's final byte, the
+// mean luminance of the poster's top 40 rows that the daemon measures (the device has no framebuffer
+// to sample): a bright band fills BLACK with a yellow outline, a dark one keeps yellow on black
+// (owner 2026-11-01: yellow is hard to read on a bright background).
+static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n, bool bright) {
   g->setTextSize(2);
+  const uint16_t fill = bright ? C_BLACK : C_YELLOW, rim = bright ? C_YELLOW : C_BLACK;
   for (int l = 0; l < n; l++) {
     const int x = (240 - gfxTextW(lines[l], 2)) / 2, y = kTitleY + l * kTitlePitch;
-    g->setTextColor(C_BLACK);
+    g->setTextColor(rim);
     for (int dy = -1; dy <= 1; dy++)
       for (int dx = -1; dx <= 1; dx++)
         if (dx || dy) { g->setCursor(x + dx, y + dy); g->print(lines[l]); }
-    g->setTextColor(C_YELLOW);
+    g->setTextColor(fill);
     g->setCursor(x, y);
     g->print(lines[l]);
   }
@@ -170,6 +182,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const uint8_t tl = t[7] <= 64 ? t[7] : 64;
   memcpy(title, t + 8, tl);
   title[tl] = 0;
+  upperAscii(title);
   const int nl = wrapTitle(title, lines);
   // The items always sit under ONE title line (size 2 inks 14 rows), gaps all equal; a second line is
   // drawn over the tomato rather than pushing the card down (owner 2026-10-31).
@@ -207,7 +220,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
     drawCentered(g, cx, y + iconH + gapIT - inkTop[i], txt[i], sz[i], inner);
     y += iconH + gapIT + inkH[i] + sp;
   }
-  drawTitle(g, lines, nl);
+  drawTitle(g, lines, nl, titleBright(t[71]));
 }
 
 uint32_t g_moviesDrawMs = 0;   // last full paint, for /api/status (it eats into the page's dwell)
