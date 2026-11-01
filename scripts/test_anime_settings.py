@@ -28,6 +28,10 @@ for k, label in (("animeMovies", "Anime movies"), ("animeSeries", "Anime series"
     assert f"sc('{k}'" in ui and f"{k}:gc('{k}')" in ui, f"{k} not loaded/saved"
 assert re.search(r'<input id="animeMinScore" type="range" min="7" max="9.5" step="0.1"', ui), "slider"
 assert "animeMinScoreVal" in ui, "slider shows its value"
+# The slider sits in a flex row beside its label: without flex:1 and a min-width it shrinks to just the
+# knob (owner 2026-11-01 screenshot: "this is a slider?").
+assert re.search(r'<input id="animeMinScore" type="range"[^>]*style="[^"]*flex:1[^"]*min-width:\d+px', ui), \
+    "slider needs flex:1 and a min-width to show its track"
 assert "(c.animeMinScore||75)/10" in ui, "slider loads tenths as stars"
 assert "animeMinScore:Math.round(+gv('animeMinScore')*10)||75" in ui, "slider saves stars as tenths (null-safe)"
 assert "sv('animeMinScore'" in ui, "slider loads null-safe (a lean build may drop the Movies tab)"
