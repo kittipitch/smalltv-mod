@@ -156,21 +156,15 @@ static int wrapTitle(const char* s, char out[kTitleLines][kTitleCols + 1]) {
 }
 // ---- end title text
 
-// The title prints in ALL CAPS (owner 2026-11-01). Its colour comes from the frame's final byte, the
-// mean luminance of the poster's top 40 rows that the daemon measures (the device has no framebuffer
-// to sample): a bright band fills BLACK with a yellow outline, a dark one keeps yellow on black
-// (owner 2026-11-01: yellow is hard to read on a bright background).
+// The title prints in ALL CAPS (owner 2026-11-01), plain — no outline (owner 2026-11-01). Its colour
+// comes from the frame's final byte, the mean luminance of the poster's top 40 rows that the daemon
+// measures (the device has no framebuffer to sample): blue — yellow's colour-wheel opposite — over a
+// bright band, yellow over a dark one.
 static void drawTitle(Arduino_GFX* g, char lines[kTitleLines][kTitleCols + 1], int n, bool bright) {
   g->setTextSize(2);
-  const uint16_t fill = bright ? C_BLACK : C_YELLOW, rim = bright ? C_YELLOW : C_BLACK;
+  g->setTextColor(bright ? C_BLUE : C_YELLOW);
   for (int l = 0; l < n; l++) {
-    const int x = (240 - gfxTextW(lines[l], 2)) / 2, y = kTitleY + l * kTitlePitch;
-    g->setTextColor(rim);
-    for (int dy = -1; dy <= 1; dy++)
-      for (int dx = -1; dx <= 1; dx++)
-        if (dx || dy) { g->setCursor(x + dx, y + dy); g->print(lines[l]); }
-    g->setTextColor(fill);
-    g->setCursor(x, y);
+    g->setCursor((240 - gfxTextW(lines[l], 2)) / 2, kTitleY + l * kTitlePitch);
     g->print(lines[l]);
   }
 }
