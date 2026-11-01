@@ -179,7 +179,7 @@ static void drawColumn(Arduino_GFX* g, const uint8_t* t) {
   const int x = kPW + 4, w = 240 - kPW - 8, cx = x + w / 2, inner = w - 6;
   const int iconH = MOVIE_ICON_PX, gapIT = 8;
   char title[kTitleCols * 4 + 1], lines[kTitleLines][kTitleCols + 1];
-  const uint8_t tl = t[7] <= 64 ? t[7] : 64;
+  const uint8_t tl = t[7] <= 63 ? t[7] : 63;   // byte 63 of the field is the luminance: never a title char
   memcpy(title, t + 8, tl);
   title[tl] = 0;
   upperAscii(title);
