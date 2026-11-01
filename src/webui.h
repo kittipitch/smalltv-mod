@@ -544,7 +544,7 @@ var CAR_MODES=[
  // Movies right after the 3-day forecast, Pictures last (owner 2026-10-31). parseCarOrder() puts a page
  // that is new to a saved order before the first saved page that follows it here, so with Pictures
  // after Movies an existing order gets Movies between the forecast and Pictures.
- {id:'movies',chk:'carouselMovies',label:'Movies (Rotten Tomatoes Certified Fresh)'},
+ {id:'movies',chk:'carouselMovies',label:'Movies (RT Certified Fresh) + Anime (MAL)'},
  {id:'album',chk:'carouselAlbum',label:'Pictures'}
 ];
 var carOrder=CAR_MODES.map(function(m){return m.id});
