@@ -814,13 +814,23 @@ function saveWifi(){
 function renderWifi(arr){var t=$('wifiTable');if(!t)return;t.innerHTML='';arr.forEach(addWifiRow);if(!arr.length)addWifiRow({})}
 function addWifiRow(o){var t=$('wifiTable');var tr=document.createElement('tr');tr.className='symrow';
  tr.innerHTML='<td style="width:44%"><input class="ws" type="text" autocomplete="off" placeholder="SSID" value="'+esc(o.ssid||'')+'"></td>'+
-  '<td><input class="wp" type="password" autocomplete="off" placeholder="'+(o.passSet?'(unchanged)':'password')+'"></td>'+
+  '<td><input class="wp" type="password" autocomplete="off" placeholder="'+(o.passSet?'(unchanged)':'password')+'">'+
+  '<details'+(o.ip?' open':'')+'><summary class="muted">Fixed IP (blank = DHCP)</summary><input class="wi" type="text" autocomplete="off" inputmode="decimal" style="margin-top:6px" placeholder="IP address" value="'+esc(o.ip||'')+'"><input class="wg" type="text" autocomplete="off" inputmode="decimal" style="margin-top:6px" placeholder="Gateway" value="'+esc(o.gw||'')+'"><input class="wm" type="text" autocomplete="off" inputmode="decimal" style="margin-top:6px" placeholder="Mask" value="'+esc(o.mask||'')+'"><input class="wd" type="text" autocomplete="off" inputmode="decimal" style="margin-top:6px" placeholder="DNS (blank = gateway)" value="'+esc(o.dns||'')+'"></details></td>'+
   '<td style="width:34px"><button class="btn sec" style="padding:6px 10px" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
  t.appendChild(tr);}
 function addWifi(){if(document.querySelectorAll('#wifiTable tr').length>=4){toast('Max 4');return}addWifiRow({})}
 function collectWifi(){var w=[];document.querySelectorAll('#wifiTable tr').forEach(function(tr){
  var s=tr.querySelector('.ws').value.trim();if(!s)return;
- var e={ssid:s};var p=tr.querySelector('.wp').value;if(p)e.pass=p;w.push(e);});return w}
+ var e={ssid:s};var p=tr.querySelector('.wp').value;if(p)e.pass=p;
+ e.ip=tr.querySelector('.wi').value.trim();e.gw=tr.querySelector('.wg').value.trim();e.mask=tr.querySelector('.wm').value.trim();e.dns=tr.querySelector('.wd').value.trim();
+ if(!ipOk(e.ip,e.gw,e.mask,e.dns)){toast('Check the fixed IP for '+s);throw new Error('fixed ip')}
+ w.push(e);});return w}
+function ipOk(i,g,m,d){if(!i&&!g&&!m&&!d)return true;var a=ip4(i),b=ip4(g),c=ip4(m);if(!a||!b||!c||a===b)return false;
+ var v=(~c)>>>0;if((v&(v+1))!==0)return false;if(((a&c)>>>0)!==((b&c)>>>0))return false;
+ var h=(a&v)>>>0;if(h===0||h===v)return false;return !d||ip4(d)!==null}
+function ip4(s){var p=s.split('.'),n=0;if(p.length!==4)return null;
+ for(var i=0;i<4;i++){if(''+(+p[i])!==p[i]||+p[i]<0||+p[i]>255)return null;n=n*256+(+p[i])}return n}
+// ---- end ipOk
 function scanPick(ssid){var rows=document.querySelectorAll('#wifiTable tr');var tr=null;
  for(var i=0;i<rows.length;i++){if(!rows[i].querySelector('.ws').value.trim()){tr=rows[i];break}}
  if(!tr){if(rows.length>=4){toast('Max 4');return}addWifiRow({});tr=$('wifiTable').lastChild}
@@ -858,7 +868,7 @@ function loadStatus(){j('/api/status').then(function(s){
  $('statusBox').innerHTML=
   kv('Firmware',s.fw+' '+s.version)+kv('Mode',s.mode.toUpperCase())+
   kv('Name',esc(C.hostname||'smalltv'))+
-  kv('Network',esc(s.ssid||'-'))+kv('IP',s.ip||'-')+kv('mDNS','<a href="http://'+esc(C.hostname||'smalltv')+'.local" target="_blank">http://'+esc(C.hostname||'smalltv')+'.local</a>')+
+  kv('Network',esc(s.ssid||'-'))+kv('IP',(s.ip||'-')+(s.ipMode==='static'?' (fixed)':(s.ipMode==='fallback'?' (fixed IP failed, on DHCP)':'')))+kv('mDNS','<a href="http://'+esc(C.hostname||'smalltv')+'.local" target="_blank">http://'+esc(C.hostname||'smalltv')+'.local</a>')+
   kv('Signal',s.rssi?s.rssi+' dBm':'-')+
   kv('Free heap',s.heap+' B')+kv('Uptime',fmtUp(s.uptime))+kv('Last reset',s.reset||'-');
  })}

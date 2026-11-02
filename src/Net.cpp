@@ -1,6 +1,12 @@
 #include "Net.h"
 #include "Platform.h"
 #include <DNSServer.h>
+#if !defined(SMALLTV_ESP32C2) && !defined(SMALLTV_ESP32)
+#include <lwip/etharp.h>
+#include <lwip/netif.h>
+#include <user_interface.h>
+extern "C" struct netif* eagle_lwip_getif(int netif_index);
+#endif
 
 static NetMode     g_mode = NET_AP;
 static DNSServer   g_dns;
@@ -27,6 +33,63 @@ static bool apShouldRetry(uint8_t savedNets, uint8_t stations, uint32_t idleMs) 
   return savedNets > 0 && stations == 0 && idleMs >= kApRetryMs;
 }
 // ---- end ap retry
+
+// ---- static guard
+// A static join reports connected at once, even with a wrong address, so it never reaches the setup page. If the
+// gateway stays silent while connected, move to DHCP until the next reboot. If DHCP gets no address either, reboot, so
+// a pi or router that comes back later still finds the unit. Time spent disconnected never counts as silence.
+static const uint32_t kStaticGuardMs = 300000UL;
+static const uint32_t kStaticGuardPollMs = 20000UL;
+static const uint32_t kFallbackRestartMs = 300000UL;
+static bool guardShouldFall(uint32_t silentMs) { return silentMs >= kStaticGuardMs; }
+static bool fallbackShouldRestart(uint32_t downMs) { return downMs >= kFallbackRestartMs; }
+// ---- end static guard
+
+static bool     g_ipStatic  = false;   // a fixed address is applied right now
+static bool     g_staticOff = false;   // guard tripped: DHCP until the next reboot
+static uint32_t g_ipGw      = 0;
+static uint32_t g_gwSeen    = 0;       // millis() the gateway last answered, or the link came up
+static uint32_t g_gwPolled  = 0;
+
+// A DHCP network with no fixed address applied calls nothing here, so DHCP units behave exactly as before.
+static void applyIp(const WifiCred& n) {
+  if (n.ip && !g_staticOff) {
+    WiFi.config(IPAddress(n.ip), IPAddress(n.gw), IPAddress(n.mask), IPAddress(n.dns ? n.dns : n.gw));
+    g_ipStatic = true;
+    g_ipGw = n.gw;
+  } else if (g_ipStatic) {
+    WiFi.config(IPAddress((uint32_t)0), IPAddress((uint32_t)0), IPAddress((uint32_t)0));
+    g_ipStatic = false;
+  }
+}
+
+// Asks for the gateway's hardware address and reports whether the ARP table holds it. An entry outlives a dead gateway
+// by at most lwIP's ARP age, so a gateway that dies later takes a few minutes longer to trip the guard. Nothing to
+// check on the ESP32 targets, so the guard stays quiet there.
+static bool gatewayAnswers(uint32_t gw) {
+#if !defined(SMALLTV_ESP32C2) && !defined(SMALLTV_ESP32)
+  struct netif* nif = eagle_lwip_getif(STATION_IF);
+  if (!nif) return true;
+  ip4_addr_t a;
+  a.addr = gw;
+  struct eth_addr* eth = nullptr;
+  const ip4_addr_t* found = nullptr;
+  const bool seen = etharp_find_addr(nif, &a, &eth, &found) >= 0;
+  etharp_request(nif, &a);
+  return seen;
+#else
+  (void)gw;
+  return true;
+#endif
+}
+
+static void staticFallBack() {
+  g_staticOff = true;
+  const WifiCred& n = g_cfg->wifi[g_curNet];
+  WiFi.disconnect();
+  applyIp(n);
+  WiFi.begin(n.ssid.c_str(), n.pass.c_str());
+}
 
 static void startAP(const Settings& s) {
   g_apIdleSince = millis();
@@ -100,6 +163,7 @@ void netBegin(const Settings& s, void (*onProgress)(const char*)) {
       snprintf(msg, sizeof(msg), "WiFi: %s", n.ssid.c_str());
       onProgress(msg);
     }
+    applyIp(n);
     WiFi.begin(n.ssid.c_str(), n.pass.c_str());
 
     uint32_t budget = seen[order[k]] ? 15000 : 8000;
@@ -160,9 +224,14 @@ void netLoop() {
   platformMdnsUpdate();
   uint32_t now = millis();
   if (WiFi.status() == WL_CONNECTED) {
-    if (!g_upSince) g_upSince = now ? now : 1;
+    if (!g_upSince) { g_upSince = now ? now : 1; g_gwSeen = now; }
     g_downSince  = 0;
     g_rotDwellMs = ROT_DWELL_MIN_MS;
+    if (g_ipStatic && g_cfg && g_curNet >= 0 && now - g_gwPolled >= kStaticGuardPollMs) {
+      g_gwPolled = now;
+      if (gatewayAnswers(g_ipGw)) g_gwSeen = now;
+      else if (guardShouldFall(now - g_gwSeen)) staticFallBack();
+    }
     return;
   }
   // Counted by polling, deliberately not with WiFi.onStationModeDisconnected():
@@ -173,6 +242,7 @@ void netLoop() {
     g_downSince = now ? now : 1;
     g_nextRotMs = now + g_rotDwellMs;
   }
+  if (g_staticOff && fallbackShouldRestart(now - g_downSince)) ESP.restart();
 
   // Single network: nothing to do. The SDK keeps retrying on its own.
   if (!g_cfg || g_cfg->wifiCount <= 1) return;
@@ -184,12 +254,14 @@ void netLoop() {
   // whenever the saved network list changes (netFingerprint), and g_curNet = -1
   // (never joined) simply rotates to entry 0.
   g_curNet = (int8_t)((g_curNet + 1) % g_cfg->wifiCount);
+  applyIp(g_cfg->wifi[g_curNet]);
   WiFi.begin(g_cfg->wifi[g_curNet].ssid.c_str(), g_cfg->wifi[g_curNet].pass.c_str());
   if (g_rotDwellMs < ROT_DWELL_MAX_MS) g_rotDwellMs *= 2;
   if (g_rotDwellMs > ROT_DWELL_MAX_MS) g_rotDwellMs = ROT_DWELL_MAX_MS;
   g_nextRotMs = now + g_rotDwellMs;
 }
 
+const char* netIpMode() { return g_staticOff ? "fallback" : (g_ipStatic ? "static" : "dhcp"); }
 uint32_t netDisconnectCount() { return g_discCount; }
 uint32_t netDownMs() { return g_downSince ? millis() - g_downSince : 0; }
 uint32_t netUpMs()   { return g_upSince   ? millis() - g_upSince   : 0; }

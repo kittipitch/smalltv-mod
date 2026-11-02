@@ -235,6 +235,7 @@ static void handleStatus() {
   // an Ultra flapped for two hours and the SDK's 212-byte allocation failed, and the
   // only evidence left was a crash record. A failure that does NOT crash (lwIP
   // giving up gracefully) now shows here too.
+  o["ipMode"]    = netIpMode();
   o["wifiDisc"]  = netDisconnectCount();
   o["wifiDownS"] = netDownMs() / 1000;
   { uint32_t n = oomCount();
@@ -271,6 +272,8 @@ static String netFingerprint(const Settings& s) {
     f += s.wifi[i].ssid;
     f += '\x01';
     f += s.wifi[i].pass;
+    f += '\x01';
+    f += String(s.wifi[i].ip) + ',' + s.wifi[i].gw + ',' + s.wifi[i].mask + ',' + s.wifi[i].dns;
   }
   f += '\n';
   f += s.hostname;
@@ -340,6 +343,7 @@ static void handleWifiSave() {
     }
     S->wifi[i].ssid = ssid;
     S->wifi[i].pass = "";
+    S->wifi[i].ip = 0;
     S->wifiCount++;
   }
   if (pass.length()) S->wifi[i].pass = pass;   // blank keeps the stored password

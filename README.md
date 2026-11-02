@@ -158,7 +158,7 @@ The four above are the models this firmware is known to run on. The same cube is
   notices show how long it has been that way. An HTTP error from a server —
   a 429, a 500, an unparseable body — counts as proof the link is UP, so a
   flaky API never fakes an outage.
-- **Web UI for everything.** Join WiFi (up to 4 saved networks), pick the mode or a carousel that rotates through them, manage the symbol list, set brightness, orientation, and colours, set an NTP timezone and a nightly dimming schedule (night brightness, 0 = screen off), and back up or restore the whole configuration as a file. First boot creates a `SmallTV-Setup` hotspot with a captive portal.
+- **Web UI for everything.** Join WiFi (up to 4 saved networks, each with an optional fixed IP), pick the mode or a carousel that rotates through them, manage the symbol list, set brightness, orientation, and colours, set an NTP timezone and a nightly dimming schedule (night brightness, 0 = screen off), and back up or restore the whole configuration as a file. First boot creates a `SmallTV-Setup` hotspot with a captive portal.
 - **Updates over WiFi.** Every board pulls the newest release from GitHub itself from the web UI's Update tab, or takes a manual firmware upload from the browser. On the ESP8266 the download runs at boot (the device reboots twice). **Warning: ESP8266 devices on firmware 2.6.1 or older cannot self-update** (the updater itself was broken; it fails with "connection failed"). Update those once manually: upload `smalltv-mod-firmware.bin` from the [Releases page](https://github.com/kittipitch/smalltv-mod/releases) in the Update tab. From 2.7.0 on, self-update works everywhere.
 
 ## Get the firmware

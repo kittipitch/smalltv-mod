@@ -22,6 +22,8 @@ struct Airport {
 struct WifiCred {
   String ssid;
   String pass;
+  // Optional fixed address for this network, as IPAddress raw values. ip 0 = DHCP.
+  uint32_t ip = 0, gw = 0, mask = 0, dns = 0;
 };
 
 // ---- Claude usage feature slice -------------------------------------------

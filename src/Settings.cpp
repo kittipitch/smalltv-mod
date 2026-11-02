@@ -7,6 +7,18 @@ static const char* CONFIG_PATH = "/config.json";
 // ===========================================================================
 // Usage slice
 // ===========================================================================
+// ---- static ip
+// A fixed address must make sense before it is ever applied. Values are IPAddress raw (first octet in the low byte).
+static bool staticIpValid(uint32_t ip, uint32_t gw, uint32_t mask) {
+  if (!ip || !gw || !mask || ip == gw) return false;
+  const uint32_t m = __builtin_bswap32(mask), a = __builtin_bswap32(ip), g = __builtin_bswap32(gw);
+  const uint32_t host = ~m;
+  if (host & (host + 1)) return false;                  // holes in the mask
+  if ((a & m) != (g & m)) return false;                 // gateway on another subnet
+  return (a & host) != 0 && (a & host) != host;         // not the network or broadcast address
+}
+// ---- end static ip
+
 void UsageSettings::setDefaults() {
   usageUrl = "";
   pollSec = DEFAULT_POLL_SEC;
@@ -207,6 +219,7 @@ void Settings::setDefaults() {
   for (uint8_t i = 0; i < MAX_WIFI_NETS; i++) {
     wifi[i].ssid = "";
     wifi[i].pass = "";
+    wifi[i].ip = wifi[i].gw = wifi[i].mask = wifi[i].dns = 0;
   }
   apSsid  = DEFAULT_AP_SSID;
   apPass  = DEFAULT_AP_PASS;
@@ -301,6 +314,12 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
     e["ssid"]    = s.wifi[i].ssid;
     e["passSet"] = s.wifi[i].pass.length() > 0;
     if (includeSecrets) e["pass"] = s.wifi[i].pass;
+    if (s.wifi[i].ip) {
+      e["ip"]   = IPAddress(s.wifi[i].ip).toString();
+      e["gw"]   = IPAddress(s.wifi[i].gw).toString();
+      e["mask"] = IPAddress(s.wifi[i].mask).toString();
+      if (s.wifi[i].dns) e["dns"] = IPAddress(s.wifi[i].dns).toString();
+    }
   }
   // Legacy mirror of the primary network, kept for one release so a firmware
   // downgrade still finds its WiFi in config.json.
@@ -396,6 +415,22 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
       if (!pass[0])
         for (uint8_t i = 0; i < oldCount; i++)
           if (old[i].ssid == dst.ssid) { dst.pass = old[i].pass; break; }
+      // Empty or invalid ip: DHCP. No "ip" key at all (an old cached page): keep what was stored.
+      dst.ip = dst.gw = dst.mask = dst.dns = 0;
+      if (e["ip"].is<const char*>()) {
+        IPAddress a, g, m, d;
+        if (a.fromString(e["ip"] | "") && g.fromString(e["gw"] | "") && m.fromString(e["mask"] | "") &&
+            staticIpValid(a, g, m)) {
+          dst.ip = a; dst.gw = g; dst.mask = m;
+          if (d.fromString(e["dns"] | "")) dst.dns = d;
+        }
+      } else {
+        for (uint8_t i = 0; i < oldCount; i++)
+          if (old[i].ssid == dst.ssid) {
+            dst.ip = old[i].ip; dst.gw = old[i].gw; dst.mask = old[i].mask; dst.dns = old[i].dns;
+            break;
+          }
+      }
       s.wifiCount++;
     }
   } else if (root["staSsid"].is<const char*>()) {
@@ -403,6 +438,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
     // page): it becomes/updates the primary network, extras stay untouched.
     String ssid = root["staSsid"].as<String>();
     if (ssid.length()) {
+      if (s.wifi[0].ssid != ssid) s.wifi[0].ip = 0;   // a fixed address belongs to its network
       s.wifi[0].ssid = ssid;
       if (root["staPass"].is<const char*>()) {
         String p = root["staPass"].as<String>();

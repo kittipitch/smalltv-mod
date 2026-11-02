@@ -16,6 +16,7 @@ bool     netConnected();  // STA associated with an IP
 String   netIP();         // current IP (STA or AP)
 String   netSSID();       // joined SSID (STA) or AP SSID
 int      netRSSI();       // STA signal, 0 in AP mode
+const char* netIpMode();  // "dhcp", "static", or "fallback" (static gateway silent, on DHCP until reboot)
 String   netMAC();        // station MAC, same in STA or AP mode
 
 // Link health, for /api/status and the outbound-fetch admission checks.
