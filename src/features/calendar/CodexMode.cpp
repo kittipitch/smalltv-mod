@@ -233,6 +233,17 @@ static void drawCodexResetSuffix(Arduino_GFX* gfx, int top, bool hasCredits,
 // inconsistency: an advisor caught this exact card clipping its label to
 // "Free rese" before a flash, because the label was gated on `full` while the
 // value redrew on every data push and overwrote it (04-pending.md:1411).
+// ---- codex expire row
+// "Exp in", not "Resets in": this countdown is the credit lapsing unused, the opposite meaning from a quota window
+// rolling over. Right-aligned in the same 17-character field as the "Resets in" row; the left padding overwrites a
+// longer previous text. The full word "Expires in" with a two-digit day count would not fit the field.
+static void fmtExpireRow(const char* rs, char* line, size_t n) {
+  char tmp[7 + 16];
+  snprintf(tmp, sizeof(tmp), "Exp in %s", rs);
+  snprintf(line, n, "%17s", tmp);
+}
+// ---- end codex expire row
+
 static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits,
                                int credits, bool hasExpire, int expireMins,
                                bool full, bool growRight) {
@@ -277,16 +288,13 @@ static void drawCodexResetCard(Arduino_GFX* gfx, int top, bool hasCredits,
     gfx->fillRoundRect(fx, by, fw, bh, bh / 2, creditColor(days));
   }
 
-  char rs[16], line[12 + sizeof(rs) + 1];
+  char rs[16], line[18];
   if (have && hasExpire) fmtReset(expireMins, rs, sizeof(rs));
   else                   strlcpy(rs, "--", sizeof(rs));
-  // "Expires in", not "Resets in": this countdown is the credit lapsing
-  // unused, the opposite meaning from a quota window rolling over. Padded to
-  // fmtReset's longest output (7 chars) so a shorter string self-clears.
-  snprintf(line, sizeof(line), "Expires in %-7s", rs);
+  fmtExpireRow(rs, line, sizeof(line));
   gfx->setTextSize(2);
   gfx->setTextColor(C_DIM, C_PANEL);
-  gfx->setCursor(x + 14, top + 66);
+  gfx->setCursor(x + w - 14 - gfxTextW(line, 2), top + 66);
   gfx->print(line);
 }
 
@@ -351,7 +359,7 @@ static void drawCodexPage(Arduino_GFX* gfx, const CodexData& c, bool full, bool 
   // account the next push swaps in the 5h meter. Both cards only paint their
   // panel background under `full`, which that first render may already have
   // spent -- so without this the swap would leave the old card's "Reset" label
-  // and "Expires in" line ghosting under the new meter. Force a card-local full
+  // and "Exp in" line ghosting under the new meter. Force a card-local full
   // repaint whenever the kind of card in slot 1 changes.
   static int8_t s_lastCard1 = -1;            // -1 none yet, 0 reset card, 1 5h meter
   int8_t card1 = c.hasPct5h ? 1 : 0;
