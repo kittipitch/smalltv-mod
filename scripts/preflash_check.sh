@@ -6,7 +6,8 @@
 # Refuses the image unless ALL of these hold:
 #   1. working tree is clean          -- otherwise GIT_SHA is stamped with '+'
 #   2. HEAD is published on origin    -- otherwise nobody can reproduce the build
-#   3. bin's stamped sha == HEAD      -- catches "built before committing"
+#   3. bin's stamped sha is HEAD, or an ancestor of HEAD with only NOT_IN_IMAGE
+#      files changed since              -- catches "built before committing"
 #   4. no '+' anywhere in the stamp
 #   5. bin fits the OTA slot
 #
@@ -22,6 +23,10 @@ ENV="${1:-}"
 [ -z "$ENV" ] && { echo "usage: $0 <pio-env>   (e.g. smalltv_sdpro)"; exit 2; }
 BIN=".pio/build/$ENV/firmware.bin"
 OTA_SLOT=716800
+# Paths that cannot change the built image. Keep this a short list of names: the
+# build also reads platformio.ini, lib/, boards and scripts/git_sha.py.
+NOT_IN_IMAGE='\.md$|^docs/|^scripts/test_[^/]*\.py$|^scripts/preflash_check\.sh$'
+STAMP=
 fail=0
 say() { printf '  %-5s %s\n' "$1" "$2"; }
 
@@ -58,12 +63,32 @@ else
   else
     say ok "no dirty '+' stamp in image"
   fi
-  if strings "$BIN" | grep -qF "$HEAD_SHA"; then
-    say ok "image stamped $HEAD_SHA (matches HEAD)"
-  else
-    say FAIL "image does NOT contain HEAD's sha $HEAD_SHA -- built from a different commit; rebuild"
-    fail=1
-  fi
+  # The stamp is the one hex string in the image that names a real commit. Other
+  # strings can look like hex, so a token that is no commit is not a stamp.
+  STAMPS=$(strings "$BIN" | grep -E '^[0-9a-f]{7,40}$' | sort -u | while read -r t; do
+    git cat-file -e "$t^{commit}" 2>/dev/null && echo "$t"
+  done)
+  case "$(printf '%s' "$STAMPS" | grep -c .)" in
+    0) say FAIL "image stamp names no commit in this repo -- rebuild"; fail=1 ;;
+    1) STAMP=$STAMPS
+       if [ "$(git rev-parse "$STAMP")" = "$(git rev-parse HEAD)" ]; then
+         say ok "image stamped $STAMP (matches HEAD)"
+       elif ! git merge-base --is-ancestor "$STAMP" HEAD; then
+         say FAIL "image stamp $STAMP is not an ancestor of HEAD $HEAD_SHA -- rebuild"; fail=1
+       else
+         # A commit that cannot reach the image must not force a rebuild, which would
+         # move a unit off its release sha. Allow only named paths: anything else fails.
+         CHANGED=$(git diff --no-renames --name-only "$STAMP" HEAD | grep -vE "$NOT_IN_IMAGE")
+         if [ -n "$CHANGED" ]; then
+           say FAIL "files that can change the image moved since stamp $STAMP -- rebuild:"
+           printf '%s\n' "$CHANGED" | sed 's/^/        /' | head -10
+           fail=1
+         else
+           say ok "image stamped $STAMP; only docs and gate files changed up to HEAD $HEAD_SHA"
+         fi
+       fi ;;
+    *) say FAIL "image holds several commit-like stamps: $(printf '%s' "$STAMPS" | tr '\n' ' ')-- rebuild"; fail=1 ;;
+  esac
 
   # 5. size
   SZ=$(wc -c < "$BIN" | tr -d ' ')
@@ -81,5 +106,5 @@ if [ "$fail" -ne 0 ]; then
   echo "REFUSED. Do not flash this image."
   exit 1
 fi
-echo "CLEARED for flash: $ENV @ $HEAD_SHA"
-echo "After flashing, confirm the device reports it:  /api/status -> \"sha\":\"$HEAD_SHA\""
+echo "CLEARED for flash: $ENV @ $STAMP"
+echo "After flashing, confirm the device reports it:  /api/status -> \"sha\":\"$STAMP\""
