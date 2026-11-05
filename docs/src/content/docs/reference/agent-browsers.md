@@ -20,7 +20,7 @@ for CI, not for this.
 | Route | macOS | Windows | Linux | Claude Code | Codex | Needs Docker |
 |---|---|---|---|---|---|---|
 | **BrowserOS neo** (MCP tools) | yes | yes | — | yes | yes | no |
-| **ego lite** (`ego-browser` CLI) | yes | — | — | yes | yes | no |
+| **ego lite** (`ego-browser` CLI) | yes | yes | — | yes | yes | no |
 | **MCP server driving Chrome** (`@playwright/mcp`, `chrome-devtools-mcp`) | yes | yes | yes | yes | yes | no |
 | **Claude in Chrome** (browser extension) | yes | yes | yes | yes | **no** — Claude only | no |
 
@@ -40,19 +40,18 @@ Nothing here requires it.
 |---|---|---|
 | What it is | Chromium fork built for agents; own profile, own cockpit, sessions recorded for replay | Chromium browser for humans *and* agents; you browse in it, agents script it |
 | How an agent drives it | **MCP tools** (`browseros-neo`), loaded by Claude Code / Codex | **CLI**: `ego-browser nodejs <<'EOF' … EOF` — a JS script with `taskSpace()` / `page()` |
-| Platform | **macOS and Windows** (plain BrowserOS, the human-facing browser, also has a Linux build; neo does not yet) | **macOS only** (installer is a DMG) |
+| Platform | **macOS and Windows** (plain BrowserOS, the human-facing browser, also has a Linux build; neo does not yet) | **macOS and Windows** |
 | Needs Docker | No | No |
 | Best at | Long agent sessions, several tabs, an audit trail you can replay | Scripted one-off jobs, tricky pages where you want exact selectors and your own waits |
-| Gotcha | MCP server exists only while the app runs; its port varies (`~/.browserclaw/runtime.json`) | Heredoc input fails in some sandboxes — use `ego-browser nodejs -e '<script>'` |
+| Gotcha | MCP server exists only while the app runs; its port varies (`~/.browserclaw/runtime.json`) | Heredoc input fails in some sandboxes and does not exist in PowerShell or cmd — use `ego-browser nodejs -e '<script>'` |
 
 Either is fine for the Calendar walkthrough.
 
-- **On a Mac** you can have both, and the choice is a style one: neo when you want the
+- **On macOS or Windows** you can have both, and the choice is a style one: neo when you want the
   agent working in its own browser with a cockpit and replayable sessions, ego lite when
   you would rather read a short script before it runs and keep everything in the browser
   you already use. For a one-page job like the Calendar console, ego lite's script is
   the smaller thing to review; for a long multi-tab session, neo's audit trail wins.
-- **On Windows**, neo is the one that exists.
 - **On Linux**, neither agent browser is available: use an MCP server driving your own
   Chrome instead — see below.
 
@@ -77,13 +76,15 @@ codex  mcp add browseros-neo --url http://127.0.0.1:<port>/mcp
 
 MCP tools only load in a session **started after** the app is running.
 
-**ego lite**: install from <https://lite.ego.app/> (or the `ego-browser` skill's
-`scripts/install.sh`), finish the first-run onboarding in the app — that is what puts
+**ego lite**: install from <https://lite.ego.app/> (on macOS, also the `ego-browser`
+skill's `scripts/install.sh`), finish the first-run onboarding in the app — that is what puts
 `ego-browser` on your `PATH` — then check:
 
 ```sh
-command -v ego-browser
+command -v ego-browser            # PowerShell: Get-Command ego-browser
 ```
+
+The PATH entry only reaches terminals opened after onboarding, so open a new one.
 
 A one-liner to prove it drives:
 

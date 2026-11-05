@@ -278,7 +278,7 @@ Full docs live at **[kittipitch.github.io/smalltv-mod](https://kittipitch.github
   2.4 GHz hotspot and how to make one on macOS, Ubuntu or Windows
 - [Keep the daemon running](https://kittipitch.github.io/smalltv-mod/getting-started/keep-it-running/) — autostart on Windows/macOS/Linux, and a systemd user service for a headless Pi
 - [Letting an agent drive a browser](https://kittipitch.github.io/smalltv-mod/reference/agent-browsers/) — hand the clicking
-  to Claude Code or Codex (BrowserOS neo, ego lite, or an MCP server driving Chrome on any desktop OS). No Docker
+  to Claude Code or Codex (BrowserOS neo, ego lite on macOS or Windows, or an MCP server driving Chrome on any desktop OS). No Docker
 - [Building from source](https://kittipitch.github.io/smalltv-mod/reference/building/), and [recovery](https://kittipitch.github.io/smalltv-mod/reference/recovery/)
 
 ## Building from source
