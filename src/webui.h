@@ -242,6 +242,12 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <div><small id="calLocLabel" class="hint"></small></div>
    <div class="row">
     <div><label>Place label</label><input id="calPlace" type="text" maxlength="24" placeholder="Chiang Mai"></div>
+    <div style="display:flex;align-items:center;gap:10px"><label style="margin:0">Temperature</label>
+     <label style="position:relative;width:58px;height:26px;margin:0;cursor:pointer"><input id="tempF" type="checkbox" style="opacity:0;width:0;height:0" onchange="tempFSlide.style.background=this.checked?'#2f7d4f':'var(--line)';tempFKnob.style.left=this.checked?'35px':'3px';tempFLabel.textContent=this.checked?'°F':'°C'">
+      <span id="tempFSlide" style="position:absolute;inset:0;background:var(--line);border-radius:13px;transition:.15s"></span>
+      <span id="tempFKnob" style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.15s"></span></label>
+     <span id="tempFLabel" class="muted">°C</span>
+     <small class="hint" style="margin:0">slider: Celsius | Fahrenheit — weather, forecast and hourly all convert</small></div>
     <div><label>Refresh every (s)</label><input id="calPoll" type="number" min="60" max="65535" step="60" placeholder="600"></div>
    </div>
    <small class="hint">Decimal degrees, e.g. <code>52.3676</code>, <code>4.9041</code>. Leave at 0/0 and the screen shows <b>SET LOCATION</b> instead of data. <b>Place label</b> is the heading shown on the weather page &mdash; it is filled in for you when you set a location, and it is the only name a device with no daemon can display. <b>Refresh</b> applies to the device's own fetching. Weather/AQI is fetched by the daemon while one is pushing; when pushes stop for 3 minutes this device fetches <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> itself, so the screen keeps updating while your computer is off.</small>
@@ -720,7 +726,9 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  renderAps(r.airports||[]);
  // calendar slice
  var cal=c.calendar||{};
- sc('calendarShowWeekday',cal.showWeekday!==false); sc('calendarSoonFrame',cal.soonFrame!==false);
+ var tf=$('tempF'); if(tf){tf.checked=cal.tempF===true;
+   tempFSlide.style.background=tf.checked?'#2f7d4f':'var(--line)';tempFKnob.style.left=tf.checked?'35px':'3px';tempFLabel.textContent=tf.checked?'°F':'°C';}
+  sc('calendarShowWeekday',cal.showWeekday!==false); sc('calendarSoonFrame',cal.soonFrame!==false);
  sv('calLat',cal.lat); sv('calLon',cal.lon);
  sv('calPlace',cal.place||''); sv('calPoll',cal.weatherPollSec||600);
  // A stored label was a deliberate choice once, so treat it as user-owned
@@ -793,7 +801,7 @@ function collect(){
  }
  // calendar slice
  if($('calendar')){
-  o.calendar={showWeekday:gc('calendarShowWeekday'), soonFrame:gc('calendarSoonFrame'), lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
+  o.calendar={tempF:gc('tempF'), showWeekday:gc('calendarShowWeekday'), soonFrame:gc('calendarSoonFrame'), lat:parseFloat(gv('calLat'))||0, lon:parseFloat(gv('calLon'))||0, place:gv('calPlace')||'', weatherPollSec:parseInt(gv('calPoll'))||600, ids:getCalIds(), colorIds:getCalColorIds()};
  }
  return o;
 }

@@ -682,6 +682,20 @@ static void wxAsciiOnly(const char* in, char* out, size_t outCap) {
   out[o] = 0;
 }
 
+// ---- temp unit
+// Temperature unit conversion for the whole weather set (current, 3-day and hourly). The daemon
+// always pushes Celsius (Open-Meteo is asked for celsius; the wire format is unchanged), so the
+// unit's own setting converts at draw time. Same rounding band as Open-Meteo's own fahrenheit
+// output (27.4 C -> 81.3 -> 81), so the two agree after the daemon's rounding.
+static int wxTempOut(int degC, bool fahrenheit) {
+  if (!fahrenheit) return degC;
+  return (int)lroundf(degC * 1.8f + 32.0f);
+}
+
+static char wxTempUnitChar(bool fahrenheit) { return fahrenheit ? 'F' : 'C'; }
+// ---- end temp unit
+
+
 static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w, const Settings& s) {
   gfx->fillScreen(C_BLACK);
   // City name doubles as the page header -- the weather/AQI content below
@@ -807,7 +821,10 @@ static void drawWeatherPage(Arduino_GFX* gfx, const WeatherData& w, const Settin
   // malicious POST /api/weather {"tempC":1e10}, unauthenticated by default
   // with no secret key set) is undefined behavior on this platform, not
   // just a display glitch -- clamp first so the cast is always well-defined.
-  if (w.hasTemp) snprintf(tempPart, sizeof(tempPart), "%d\xF8" "C", (int)lroundf(constrain(w.tempC, -99.0f, 199.0f)));
+  if (w.hasTemp) {
+    float tC = constrain(w.tempC, -99.0f, 199.0f);
+    snprintf(tempPart, sizeof(tempPart), "%d\xF8%c", wxTempOut((int)lroundf(tC), s.calendar.tempF), wxTempUnitChar(s.calendar.tempF));
+  }
   drawRow(gfx, 116, 3, wxOk ? C_WHITE : C_DIM, tempPart);
 
   char p[16] = "Rain --";
@@ -1089,7 +1106,7 @@ static void drawDegreeTemp(Arduino_GFX* gfx, int colX, int y, uint16_t color, in
   gfx->print("\xF8");
 }
 
-static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
+static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w, bool tempF) {
   if (w.fcCount == 0) { drawForecastEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
   // Only draw the divider between two populated columns -- fcCount < 3
@@ -1119,8 +1136,8 @@ static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
     WxCat cat = wxCategory(d.code, true);
     drawWeatherIcon(gfx, cx, 69, cat);
 
-    int hiC = d.hi; if (hiC < -99) hiC = -99; if (hiC > 199) hiC = 199;
-    int loC = d.lo; if (loC < -99) loC = -99; if (loC > 199) loC = 199;
+    int hiC = d.hi; if (hiC < -99) hiC = -99; if (hiC > 199) hiC = 199; hiC = wxTempOut(hiC, tempF);
+    int loC = d.lo; if (loC < -99) loC = -99; if (loC > 199) loC = 199; loC = wxTempOut(loC, tempF);
     // Degree sign (0xF8, same glyph as the current-weather page), no "C"
     // (the white-over-dim pair reads as hi/lo from context). Optically
     // centred -- see drawDegreeTemp().
@@ -1164,7 +1181,7 @@ static void drawForecastPage(Arduino_GFX* gfx, const WeatherData& w) {
 }
 
 // ---- DisplayMode: Hourly (next 3 hours) ----------------------------------
-static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w);
+static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w, bool tempF);
 
 // Three thin-line-separated rows, one per hour (see drawHourlyPage). Same dirty
 // tracking as the forecast mode (renderGen), and the same independent-optional
@@ -1191,7 +1208,7 @@ void CalendarHourlyMode::service(const Settings& s) {
   if (sig != wxSig_) { wxSig_ = sig; wxRenderedOk_ = w.renderGen; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawHourlyPage(gfx, w);
+    if (gfx) drawHourlyPage(gfx, w, s.calendar.tempF);
     needRender_ = false;
   }
 }
@@ -1225,7 +1242,7 @@ static void drawHourlyEmpty(Arduino_GFX* gfx) {
 //   rain "100%" size 3 x=154..226  temp "-99\xF8" size 3 x=154..226 (on the line above
 //   the bottom one). The word's right-hand neighbour is the RAIN %; in that worst case
 //   the span centre is ~111 and the word keeps 13px of ink gap (preview_hourly.py checks).
-static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
+static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w, bool tempF) {
   if (w.hcCount == 0) { drawHourlyEmpty(gfx); return; }
   gfx->fillScreen(C_BLACK);
   const int top0 = 11, rowH = 74;
@@ -1248,7 +1265,7 @@ static void drawHourlyPage(Arduino_GFX* gfx, const WeatherData& w) {
     int la = 14 + gfxTextW(b, 3) - 3;
     if (la > l) l = la;
     if (l > leftInk) leftInk = l;
-    int t = h.temp; if (t < -99) t = -99; if (t > 199) t = 199;
+    int t = h.temp; if (t < -99) t = -99; if (t > 199) t = 199; t = wxTempOut(t, tempF);
     snprintf(b, sizeof(b), "%d\xF8", t);
     int r = 226 - gfxTextW(b, 3);
     if (h.precip >= 0) {
@@ -1376,7 +1393,7 @@ void CalendarForecastMode::service(const Settings& s) {
   if (sig != wxSig_) { wxSig_ = sig; wxRenderedOk_ = w.renderGen; needRender_ = true; }
   if (needRender_) {
     Arduino_GFX* gfx = gfxDev();
-    if (gfx) drawForecastPage(gfx, w);
+    if (gfx) drawForecastPage(gfx, w, s.calendar.tempF);
     needRender_ = false;
   }
 }
